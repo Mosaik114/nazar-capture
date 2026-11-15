@@ -81,6 +81,12 @@ internal sealed class SelectionOverlay : Window
     public Action<Int32Rect, RECT, RECT>? Recorded { get; set; }
     public Action? Aborted { get; set; }
 
+    /// <summary>Diagnostics (<c>--measure</c>): raised when an overlay has become visible (uncloaked).</summary>
+    internal static event Action<SelectionOverlay>? Revealed;
+
+    /// <summary>Diagnostics (<c>--measure</c>): handles a key as if it had been pressed.</summary>
+    internal void Press(Key key) => OnKey(key);
+
     // ---------- Building ----------
 
     // Magnified pixels with a grid; the pixel under the pointer is outlined.
@@ -254,6 +260,7 @@ internal sealed class SelectionOverlay : Window
             reveal.Stop();
             if (!IsVisible) return;
             NativeMethods.Cloak(hwnd, false);
+            Revealed?.Invoke(this);
             decorations.BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, Motion.FadeIn)
             {
                 EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }

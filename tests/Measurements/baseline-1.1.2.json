@@ -1,0 +1,22 @@
+{
+  "note": "Baseline of version 1.1.2 (commit 2d286c8 plus the measuring run), 3 engine starts, medians. Taken on an invisible desktop, where GDI cannot copy the screen: screenCopy=substitute (a generated image of the full virtual screen). Compare only runs of the same screenCopy mode and screen size.",
+  "version": "1.1.2",
+  "runs": 3,
+  "screen": "5120x1440",
+  "screenCopy": "substitute",
+  "captures": 25,
+  "coldMs": 716.4,
+  "warmMs": 111,
+  "warmMaxMs": 123.6,
+  "privateIdleMb": 28.8,
+  "privateAfterMb": 643,
+  "privateAfterGcMb": 558.6,
+  "spreadPercent": {
+    "coldMs": 2,
+    "warmMs": 1.8,
+    "warmMaxMs": 8.2,
+    "privateIdleMb": 0.3,
+    "privateAfterMb": 0.4,
+    "privateAfterGcMb": 0.5
+  }
+}

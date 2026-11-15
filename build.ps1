@@ -10,6 +10,10 @@
 .PARAMETER Test
     Also run the Rust and C# test suites (pixel tests included, they use this machine's fonts).
 
+.PARAMETER Measure
+    Also run the measuring run (tools\measure.ps1): hotkey to overlay cold and warm, private memory after
+    25 screenshots, compared with tests\Measurementsaseline-1.1.2.json. It opens the real overlay.
+
 .PARAMETER Package
     Also zip bin\ into dist\mosaik-capture-<version>-win-x64.zip.
 
@@ -23,6 +27,7 @@
 [CmdletBinding()]
 param(
     [switch]$Test,
+    [switch]$Measure,
     [switch]$Package,
     [string]$RustToolchain
 )
@@ -79,6 +84,11 @@ if ($Test) {
     finally {
         $env:MOSAIK_CAPTURE_TEST_INSTANCE = $isolated
     }
+}
+
+if ($Measure) {
+    Write-Host "==> Measuring run" -ForegroundColor Cyan
+    & (Join-Path $root 'tools/measure.ps1') -Engine (Join-Path $bin 'MosaikCapture.Engine.exe') -Baseline (Join-Path $root 'tests/Measurements/baseline-1.1.2.json')
 }
 
 if ($Package) {

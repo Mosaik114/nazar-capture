@@ -13,11 +13,18 @@ internal static class ScreenGrabber
         NativeMethods.GetSystemMetrics(NativeMethods.SM_CXVIRTUALSCREEN), NativeMethods.GetSystemMetrics(NativeMethods.SM_CYVIRTUALSCREEN));
 
     /// <summary>
+    /// Diagnostics only (<c>--measure</c> on a desktop that cannot be copied, e.g. an invisible one): produces the
+    /// screen image instead of GDI. Null in normal operation.
+    /// </summary>
+    internal static Func<int, int, int, int, double, BitmapSource>? Substitute { get; set; }
+
+    /// <summary>
     /// Copies screen content via GDI into a frozen WPF bitmap (without the mouse pointer).
     /// </summary>
     /// <exception cref="Win32Exception">Windows refused (e.g. on a locked or secure desktop, or the size is invalid).</exception>
     public static BitmapSource Capture(int x, int y, int width, int height, double dpi)
     {
+        if (Substitute != null) return Substitute(x, y, width, height, dpi);
         if (width <= 0 || height <= 0) throw new Win32Exception(NativeMethods.ERROR_INVALID_PARAMETER, "Invalid screen area " + width + " x " + height);
         IntPtr screen = IntPtr.Zero, memory = IntPtr.Zero, bitmap = IntPtr.Zero;
         try
