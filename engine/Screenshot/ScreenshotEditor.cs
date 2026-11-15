@@ -39,7 +39,7 @@ internal sealed partial class ScreenshotEditor : Window
         public Tool Current { get; set; }
         public Border Button { get; set; } = null!;   // created right after the group
         public Grid IconHost { get; } = new();
-        public SolidColorBrush IconBrush { get; } = new(Colors.White);
+        public SolidColorBrush IconBrush { get; } = new(UiTokens.Fixed.OnAccentLegacy);
     }
 
     static readonly Cursor[] HandleCursors =
@@ -79,7 +79,7 @@ internal sealed partial class ScreenshotEditor : Window
 
     static System.Windows.Media.Effects.DropShadowEffect DarkOutline()
     {
-        var outline = new System.Windows.Media.Effects.DropShadowEffect { Color = Colors.Black, ShadowDepth = 1.5, Direction = 315, BlurRadius = 0, Opacity = 0.85 };
+        var outline = new System.Windows.Media.Effects.DropShadowEffect { Color = UiTokens.Fixed.Shadow, ShadowDepth = 1.5, Direction = 315, BlurRadius = 0, Opacity = 0.85 };
         outline.Freeze();
         return outline;
     }
@@ -196,7 +196,7 @@ internal sealed partial class ScreenshotEditor : Window
         ResizeMode = ResizeMode.NoResize;
         ShowInTaskbar = false;
         Topmost = true;
-        Background = Brushes.Black;
+        Background = UiTokens.Fixed.ScreenBackdropBrush;
         UseLayoutRounding = true;
         TextOptions.SetTextFormattingMode(this, TextFormattingMode.Display);
         Palette.Apply(Resources);
@@ -424,7 +424,7 @@ internal sealed partial class ScreenshotEditor : Window
 
     Border IconButton(string glyph, string label, Action click, bool primary)
     {
-        var icon = Glyph(glyph, primary ? Brushes.White : null);
+        var icon = Glyph(glyph, primary ? UiTokens.Fixed.OnAccentLegacyBrush : null);
         if (!primary) icon.SetResourceReference(TextBlock.ForegroundProperty, Palette.Text);
         return ToolbarButton(icon, label, click, primary);
     }

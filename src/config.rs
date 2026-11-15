@@ -27,6 +27,8 @@ pub mod keys {
     pub const FPS: &str = "fps";
     /// Countdown before a recording starts, in seconds.
     pub const COUNTDOWN: &str = "countdown";
+    /// Light, dark or like Windows (read by the engine; the settings window follows in the redesign).
+    pub const APPEARANCE: &str = "appearance";
 }
 
 pub const DEFAULT_SCREENSHOT_HOTKEY: &str = "Shift+Alt+4";
@@ -127,6 +129,36 @@ impl Countdown {
     }
 }
 
+/// Which palette the windows show. Unknown values mean "like Windows".
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Appearance {
+    /// Follow the Windows app theme.
+    #[default]
+    System,
+    Light,
+    Dark,
+}
+
+impl Appearance {
+    /// Interprets a stored value: 1 = light, 2 = dark, anything else = like Windows.
+    pub const fn from_value(value: i32) -> Self {
+        match value {
+            1 => Self::Light,
+            2 => Self::Dark,
+            _ => Self::System,
+        }
+    }
+
+    /// The value as stored.
+    pub const fn value(self) -> i32 {
+        match self {
+            Self::System => 0,
+            Self::Light => 1,
+            Self::Dark => 2,
+        }
+    }
+}
+
 /// Default output folders, which depend on the user's known folders.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DefaultFolders {
@@ -188,6 +220,7 @@ pub struct Config {
     pub autostart: bool,
     pub frame_rate: FrameRate,
     pub countdown: Countdown,
+    pub appearance: Appearance,
 }
 
 impl Config {
@@ -204,6 +237,7 @@ impl Config {
             autostart: true,
             frame_rate: FrameRate::default(),
             countdown: Countdown::default(),
+            appearance: Appearance::default(),
         }
     }
 
@@ -230,6 +264,9 @@ impl Config {
             countdown: Countdown::from_value(
                 source.int(keys::COUNTDOWN, defaults.countdown.value()),
             ),
+            appearance: Appearance::from_value(
+                source.int(keys::APPEARANCE, defaults.appearance.value()),
+            ),
         }
     }
 
@@ -249,6 +286,7 @@ impl Config {
             (keys::AUTOSTART, flag(self.autostart)),
             (keys::FPS, self.frame_rate.value().to_string().into()),
             (keys::COUNTDOWN, self.countdown.value().to_string().into()),
+            (keys::APPEARANCE, self.appearance.value().to_string().into()),
         ];
         let mut ini = OsString::from(format!("\r\n[{SECTION}]\r\n"));
         for (key, value) in entries {
@@ -358,6 +396,7 @@ mod tests {
         assert!(config.system_audio && config.show_clicks && config.autostart);
         assert_eq!(config.frame_rate, FrameRate::Fps60);
         assert_eq!(config.countdown, Countdown::Seconds3);
+        assert_eq!(config.appearance, Appearance::System);
         assert!(config.validate().is_ok());
     }
 
@@ -371,6 +410,7 @@ mod tests {
         source.ints.insert(keys::AUTOSTART, 7);
         source.ints.insert(keys::FPS, 30);
         source.ints.insert(keys::COUNTDOWN, 5);
+        source.ints.insert(keys::APPEARANCE, 2);
         let config = Config::load(&source, &folders());
         assert_eq!(config.screenshot_hotkey, "Strg+F1");
         assert_eq!(config.recording_folder, Path::new(r"D:\Videos"));
@@ -379,6 +419,19 @@ mod tests {
         assert!(config.autostart, "any non-zero value is true");
         assert_eq!(config.frame_rate, FrameRate::Fps30);
         assert_eq!(config.countdown, Countdown::Seconds5);
+        assert_eq!(config.appearance, Appearance::Dark);
+    }
+
+    #[test]
+    fn appearance_normalisation() {
+        assert_eq!(Appearance::from_value(1), Appearance::Light);
+        assert_eq!(Appearance::from_value(2), Appearance::Dark);
+        for value in [0, 3, -1, 10, i32::MAX] {
+            assert_eq!(Appearance::from_value(value), Appearance::System, "{value}");
+        }
+        for appearance in [Appearance::System, Appearance::Light, Appearance::Dark] {
+            assert_eq!(Appearance::from_value(appearance.value()), appearance);
+        }
     }
 
     #[test]
@@ -425,7 +478,8 @@ mod tests {
             show_clicks=1\r\n\
             autostart=1\r\n\
             fps=30\r\n\
-            countdown=0\r\n";
+            countdown=0\r\n\
+            appearance=0\r\n";
         assert_eq!(config.to_ini(), expected);
     }
 

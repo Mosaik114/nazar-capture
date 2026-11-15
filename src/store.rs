@@ -260,7 +260,7 @@ fn is_sharing_violation(error: &io::Error) -> bool {
 #[cfg(test)]
 pub mod tests {
     use super::*;
-    use crate::config::{Countdown, FrameRate};
+    use crate::config::{Appearance, Countdown, FrameRate};
     use std::os::windows::ffi::OsStringExt;
     use std::sync::atomic::{AtomicU32, Ordering};
 
@@ -450,6 +450,7 @@ pub mod tests {
             autostart: false,
             frame_rate: FrameRate::Fps30,
             countdown: Countdown::Seconds5,
+            appearance: Appearance::Light,
         };
         SettingsStore::at(path.clone()).save(&config).unwrap();
         let loaded = Config::load(&IniFile::new(&path), &sample_folders());

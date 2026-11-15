@@ -13,7 +13,7 @@ internal sealed class PinnedScreenshot : Window
     const double MinZoom = 0.1, MaxZoom = 5, ZoomStep = 1.1;
     const uint MoveFlags = NativeMethods.SWP_NOSIZE | NativeMethods.SWP_NOZORDER | NativeMethods.SWP_NOACTIVATE;
     static readonly List<PinnedScreenshot> open = new();
-    static readonly SolidColorBrush CloseButtonBackground = Palette.Frozen(0xCC, 0x26, 0x26, 0x24);
+    static readonly SolidColorBrush CloseButtonBackground = UiTokens.Fixed.PinCloseBrush;
 
     readonly BitmapSource image;
     readonly string fileName;
@@ -79,7 +79,7 @@ internal sealed class PinnedScreenshot : Window
 
     Border BuildCloseButton()
     {
-        var cross = new TextBlock { Text = IconGlyphs.Cancel, FontSize = 10, FontFamily = Palette.IconFont, Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+        var cross = new TextBlock { Text = IconGlyphs.Cancel, FontSize = 10, FontFamily = Palette.IconFont, Foreground = UiTokens.Fixed.OnImageBrush, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
         var button = new Border
         {
             Width = 24,

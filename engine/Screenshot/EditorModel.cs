@@ -50,8 +50,8 @@ internal sealed class InkStyle
     /// <summary>The six ink colors in toolbar order (keys 1-6).</summary>
     public static readonly Color[] Colors =
     {
-        Color.FromRgb(0x0E, 0x8C, 0x80), Color.FromRgb(0xF0, 0x80, 0x6A), Color.FromRgb(0xF2, 0xC9, 0x4C),
-        Color.FromRgb(0x6F, 0xBF, 0x8E), Color.FromRgb(0x6F, 0xA8, 0xDC), Color.FromRgb(0xFA, 0xF9, 0xF5)
+        UiTokens.Fixed.Markup1, UiTokens.Fixed.Markup2, UiTokens.Fixed.Markup3,
+        UiTokens.Fixed.Markup4, UiTokens.Fixed.Markup5, UiTokens.Fixed.Markup6
     };
 
     // per size step (very fine .. very thick)

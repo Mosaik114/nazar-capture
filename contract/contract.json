@@ -27,7 +27,8 @@
       "show_clicks": { "kind": "flag", "default": 1, "engine_reads": true },
       "autostart": { "kind": "flag", "default": 1, "engine_reads": false },
       "fps": { "kind": "choice", "default": 60, "allowed": [30, 60], "otherwise": 60, "engine_reads": true },
-      "countdown": { "kind": "choice", "default": 3, "allowed": [0, 3, 5], "otherwise": 3, "engine_reads": true }
+      "countdown": { "kind": "choice", "default": 3, "allowed": [0, 3, 5], "otherwise": 3, "engine_reads": true },
+      "appearance": { "kind": "choice", "default": 0, "allowed": [0, 1, 2], "otherwise": 0, "engine_reads": true }
     },
     "numbers": {
       "$comment": "How a stored number is read: a decimal 32-bit integer; anything else means the key's default (null). A flag is on for any non-zero number.",

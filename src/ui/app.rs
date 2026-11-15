@@ -487,6 +487,8 @@ impl App {
             autostart: checked(id::AUTOSTART),
             frame_rate: FrameRate::from_index(self.child(id::FRAME_RATE).selection()),
             countdown: Countdown::from_index(self.child(id::COUNTDOWN).selection()),
+            // not shown in this window: kept as saved
+            appearance: self.config.borrow().appearance,
         }
     }
 

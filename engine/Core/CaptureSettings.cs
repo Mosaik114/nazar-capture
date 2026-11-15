@@ -11,6 +11,8 @@ internal sealed class CaptureSettingsSnapshot
     public bool Clicks { get; init; } = true;
     public int Fps { get; init; } = 60;
     public int Countdown { get; init; } = 3;
+    /// <summary>Light, dark or like Windows (the windows follow it from the next time they open).</summary>
+    public Appearance Appearance { get; init; } = Appearance.System;
 
     public AudioSettings Audio => new(Microphone, SystemAudio, Clicks);
 }
@@ -55,8 +57,21 @@ internal static class CaptureSettings
     /// <summary>Points the engine at another settings file (self-test, live test, unit tests).</summary>
     internal static void UseFile(string path) => fileName = path;
 
+    static int appearance;
+
+    /// <summary>
+    /// The appearance as of the latest <see cref="Load()"/> (every capture and recording reads the settings once),
+    /// so opening a window costs no file access; like Windows until the settings were read.
+    /// </summary>
+    public static Appearance Appearance => (Appearance)Volatile.Read(ref appearance);
+
     /// <summary>Reads all settings at once from <see cref="FileName"/>.</summary>
-    public static CaptureSettingsSnapshot Load() => Load(FileName);
+    public static CaptureSettingsSnapshot Load()
+    {
+        var snapshot = Load(FileName);
+        Volatile.Write(ref appearance, (int)snapshot.Appearance);
+        return snapshot;
+    }
 
     internal static CaptureSettingsSnapshot Load(string file) => new()
     {
@@ -67,7 +82,11 @@ internal static class CaptureSettings
         Clicks = Number(file, "show_clicks", 1) != 0,
         Fps = NormalizeFps(Number(file, "fps", 60)),
         Countdown = NormalizeCountdown(Number(file, "countdown", 3)),
+        Appearance = NormalizeAppearance(Number(file, "appearance", 0)),
     };
+
+    /// <summary>0 = like Windows, 1 = light, 2 = dark; anything else means like Windows.</summary>
+    internal static Appearance NormalizeAppearance(int value) => value is 1 or 2 ? (Appearance)value : Appearance.System;
 
     /// <summary>Only 30 and 60 fps are supported; anything else means 60.</summary>
     internal static int NormalizeFps(int fps) => fps == 30 ? 30 : 60;

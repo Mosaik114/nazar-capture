@@ -8,7 +8,9 @@ use std::path::Path;
 use serde_json::Value;
 use windows_sys::Win32::UI::WindowsAndMessaging::WM_APP;
 
-use crate::config::{self, Config, Countdown, DefaultFolders, FrameRate, MAX_FOLDER_LEN, SECTION};
+use crate::config::{
+    self, Appearance, Config, Countdown, DefaultFolders, FrameRate, MAX_FOLDER_LEN, SECTION,
+};
 use crate::engine::{self, CaptureMode};
 use crate::ipc::{self, AudioSettings, ProbeResponse};
 use crate::isolation::{self, Isolation};
@@ -129,6 +131,7 @@ fn loaded_numbers(config: &Config) -> BTreeMap<&'static str, i64> {
         ("autostart", i64::from(config.autostart)),
         ("fps", i64::from(config.frame_rate.value())),
         ("countdown", i64::from(config.countdown.value())),
+        ("appearance", i64::from(config.appearance.value())),
     ])
 }
 
@@ -162,6 +165,10 @@ fn choices_cover_the_whole_range() {
         assert_eq!(
             i64::from(Countdown::from_value(value).value()),
             expected(keys["countdown"], stored)
+        );
+        assert_eq!(
+            i64::from(Appearance::from_value(value).value()),
+            expected(keys["appearance"], stored)
         );
     }
 }

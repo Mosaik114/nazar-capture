@@ -41,6 +41,7 @@ public sealed class ContractTests
         ["show_clicks"] = s => s.Clicks ? 1 : 0,
         ["fps"] = s => s.Fps,
         ["countdown"] = s => s.Countdown,
+        ["appearance"] = s => (int)s.Appearance,
     };
 
     static IEnumerable<string> NumberKeys => EngineKeys.Keys.Where(key => (string)Key(key)["kind"] != "folder");
@@ -69,7 +70,7 @@ public sealed class ContractTests
         foreach (var (key, read) in EngineKeys.Select(entry => (entry.Key, entry.Value)))
         {
             string changed = (string)Key(key)["kind"] == "folder" ? "C:\\Contract\\" + key : Expected(key, null) == 0 ? "1" : "0";
-            if (key is "fps" or "countdown") changed = ((object[])Key(key)["allowed"]).Cast<int>().First(value => value != Expected(key, null)).ToString(CultureInfo.InvariantCulture);
+            if (key is "fps" or "countdown" or "appearance") changed = ((object[])Key(key)["allowed"]).Cast<int>().First(value => value != Expected(key, null)).ToString(CultureInfo.InvariantCulture);
             var loaded = LoadIni(key + "=" + changed + "\r\n");
             Assert.NotEqual(read(defaults), read(loaded));
             Assert.Equal(changed, Convert.ToString(read(loaded), CultureInfo.InvariantCulture));
@@ -123,6 +124,7 @@ public sealed class ContractTests
         {
             Assert.Equal(Expected("fps", value), CaptureSettings.NormalizeFps(value));
             Assert.Equal(Expected("countdown", value), CaptureSettings.NormalizeCountdown(value));
+            Assert.Equal(Expected("appearance", value), (int)CaptureSettings.NormalizeAppearance(value));
         }
     }
 

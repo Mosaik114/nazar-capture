@@ -77,7 +77,7 @@ internal sealed class RecordingCard : Window
             CornerRadius = new CornerRadius(22),
             Child = play,
             IsHitTestVisible = false,
-            Background = new SolidColorBrush(Color.FromArgb(0xB3, 0x14, 0x14, 0x13)),
+            Background = UiTokens.Fixed.PlayBackdropBrush,
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center
         };

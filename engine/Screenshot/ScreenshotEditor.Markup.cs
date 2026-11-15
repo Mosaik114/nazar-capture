@@ -132,7 +132,7 @@ internal sealed partial class ScreenshotEditor
         }
         g = new RectangleGeometry(new Rect(0, 0, root.Width, root.Height));
         foreach (var h in holes) g = Geometry.Combine(g, h, GeometryCombineMode.Exclude, null);
-        if (spotlightShade == null) spotlightShade = new Shapes.Path { Fill = Palette.Frozen(0x99, 0x14, 0x14, 0x13), IsHitTestVisible = false };
+        if (spotlightShade == null) spotlightShade = new Shapes.Path { Fill = UiTokens.Fixed.SpotlightShadeBrush, IsHitTestVisible = false };
         spotlightShade.Data = g;
         markup.Children.Remove(spotlightShade);
         markup.Children.Insert(document.CoverCount, spotlightShade);   // right above the covers
@@ -180,7 +180,7 @@ internal sealed partial class ScreenshotEditor
     static Geometry Digits(string text, double em, Point c)
     {
         var ft = new FormattedText(text, CultureInfo.InvariantCulture, FlowDirection.LeftToRight,
-            new Typeface(Palette.DigitFont, FontStyles.Normal, FontWeights.SemiBold, FontStretches.Normal), em, Brushes.White, 1.0);
+            new Typeface(Palette.DigitFont, FontStyles.Normal, FontWeights.SemiBold, FontStretches.Normal), em, UiTokens.Fixed.OnImageBrush, 1.0);
         var g = ft.BuildGeometry(new Point(0, 0));
         Rect b = g.Bounds;
         g.Transform = new TranslateTransform(c.X - b.X - b.Width / 2, c.Y - b.Y - b.Height / 2);
@@ -207,13 +207,13 @@ internal sealed partial class ScreenshotEditor
         {
             Background = new SolidColorBrush(col),
             CornerRadius = new CornerRadius(h / 2),
-            BorderBrush = new SolidColorBrush(Color.FromArgb(0x1C, 0, 0, 0)),
+            BorderBrush = UiTokens.Fixed.LabelRimBrush,
             BorderThickness = new Thickness(bright ? 1 : 0)   // light colors need an outline on white
         });
         g.Children.Add(new Shapes.Path
         {
             Data = Digits(text, em, new Point(w / 2, h / 2)),
-            Fill = bright ? new SolidColorBrush(Color.FromRgb(0x26, 0x26, 0x24)) : Brushes.White,
+            Fill = bright ? UiTokens.Fixed.MarkupTextDarkBrush : UiTokens.Fixed.OnImageBrush,
             HorizontalAlignment = HorizontalAlignment.Left,
             VerticalAlignment = VerticalAlignment.Top
         });
@@ -257,7 +257,7 @@ internal sealed partial class ScreenshotEditor
 
     static System.Windows.Media.Effects.Effect TextShadow()
     {
-        return new System.Windows.Media.Effects.DropShadowEffect { BlurRadius = 6, ShadowDepth = 0, Opacity = 0.6, Color = Colors.Black };
+        return new System.Windows.Media.Effects.DropShadowEffect { BlurRadius = 6, ShadowDepth = 0, Opacity = 0.6, Color = UiTokens.Fixed.Shadow };
     }
 
     static bool Bright(Color c) { return (0.299 * c.R + 0.587 * c.G + 0.114 * c.B) / 255 > 0.7; }
@@ -321,7 +321,7 @@ internal sealed partial class ScreenshotEditor
             host.Background = new SolidColorBrush(c);
             host.CornerRadius = new CornerRadius(Math.Round(fs * 0.3));
             host.Padding = PlatePad(fs);
-            tb.Foreground = tb.CaretBrush = Bright(c) ? new SolidColorBrush(Color.FromRgb(0x26, 0x26, 0x24)) : Brushes.White;
+            tb.Foreground = tb.CaretBrush = Bright(c) ? UiTokens.Fixed.MarkupTextDarkBrush : UiTokens.Fixed.OnImageBrush;
         }
         else tb.Foreground = tb.CaretBrush = new SolidColorBrush(style.Ink);
     }

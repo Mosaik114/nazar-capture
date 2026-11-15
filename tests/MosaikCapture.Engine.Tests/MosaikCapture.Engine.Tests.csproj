@@ -25,6 +25,9 @@
     <!-- JavaScriptSerializer reads contract/contract.json, the IPC and settings contract shared with the Rust host. -->
     <Reference Include="System.Web.Extensions" />
     <None Include="..\..\contract\contract.json" Link="contract.json" CopyToOutputDirectory="PreserveNewest" />
+    <!-- The design tokens and Hams' generated values (TokenTests). -->
+    <None Include="..\..\design\design-tokens.json" Link="design-tokens.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\design\generated\hams-theme-values.json" Link="hams-theme-values.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>
@@ -32,6 +35,8 @@
     <None Include="References\*.png" CopyToOutputDirectory="PreserveNewest" />
     <!-- Lets MOSAIK_UPDATE_REFERENCES=1 write new reference images back into the source tree. -->
     <AssemblyMetadata Include="ReferenceSourceDirectory" Value="$(MSBuildProjectDirectory)\References" />
+    <!-- The repository, for the structure tests that read the engine's source (StructureTests). -->
+    <AssemblyMetadata Include="RepositoryDirectory" Value="$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\..\..'))" />
   </ItemGroup>
 
 </Project>

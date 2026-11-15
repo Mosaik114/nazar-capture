@@ -26,7 +26,7 @@ internal sealed partial class TrimWindow : Window
     /// <summary>How often the playhead follows the playing video.</summary>
     static readonly TimeSpan PlaybackTick = TimeSpan.FromMilliseconds(30);
     /// <summary>Darkens the film strip outside the selection.</summary>
-    static readonly SolidColorBrush StripShade = Palette.Frozen(0xB8, 0x14, 0x14, 0x13);
+    static readonly SolidColorBrush StripShade = UiTokens.Fixed.FilmStripShadeBrush;
 
     readonly DispatcherTimer playbackTimer = new(DispatcherPriority.Render) { Interval = PlaybackTick };
     readonly EngineWork shown = new();   // the engine must not quit while the user trims

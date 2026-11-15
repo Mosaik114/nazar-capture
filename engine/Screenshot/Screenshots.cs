@@ -25,7 +25,16 @@ internal static class Screenshots
     /// <summary>Reads the folder from the settings again (a new capture is about to be saved).</summary>
     internal static string ReadFolder() => folder = CaptureSettings.Load().ScreenshotFolder;
 
-    public static void Start() => (controller ?? throw EngineComposition.NotComposed()).Start();
+    /// <summary>
+    /// Starts a screenshot. The settings are read first, so the overlay already shows the current appearance
+    /// (light, dark or like Windows) and the capture is saved to the current folder.
+    /// </summary>
+    public static void Start()
+    {
+        var flow = controller ?? throw EngineComposition.NotComposed();
+        ReadFolder();
+        flow.Start();
+    }
 
     /// <summary>Starts after a short delay so that whatever triggered it has left the screen.</summary>
     public static void StartSoon()

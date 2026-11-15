@@ -94,7 +94,7 @@ internal static class ToolWindows
     }
 
     public static System.Windows.Media.Effects.DropShadowEffect Shadow(double blur, double depth, double opacity) =>
-        new() { BlurRadius = blur, ShadowDepth = depth, Direction = 270, Opacity = opacity, Color = Colors.Black };
+        new() { BlurRadius = blur, ShadowDepth = depth, Direction = 270, Opacity = opacity, Color = UiTokens.Fixed.Shadow };
 }
 
 /// <summary>How times and sizes are shown to the user (German number format).</summary>

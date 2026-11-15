@@ -24,6 +24,13 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Nunito (SIL Open Font License 1.1, see MosaikUi/Fonts/OFL.txt): the rounded face of the kit, embedded
+         together with its license. The token dictionaries MosaikUi/*.xaml are compiled as pages (UseWPF default). -->
+    <Resource Include="MosaikUi\Fonts\Nunito-wght.ttf" />
+    <Resource Include="MosaikUi\Fonts\OFL.txt" />
+  </ItemGroup>
+
+  <ItemGroup>
     <InternalsVisibleTo Include="MosaikCapture.Engine.Tests" />
   </ItemGroup>
 

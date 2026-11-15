@@ -35,16 +35,16 @@ internal sealed class RecordingToolbar : Window
         TimeText = ToolWindows.Text(14, Palette.Text);
         grip = BuildGrip();
 
-        microphoneGlyph = ToolWindows.Glyph("", 16);
+        microphoneGlyph = ToolWindows.Glyph(IconGlyphs.Microphone, 16);   // Refresh shows the current state
         microphoneButton = AddButton(BuildMicrophoneIcon(), () => ScreenRecorder.Mic ? UiText.Toolbar.MicrophoneOn : UiText.Toolbar.MicrophoneOff,
             delegate { ScreenRecorder.SetMic(!ScreenRecorder.Mic); Refresh(); });
-        soundGlyph = ToolWindows.Glyph("", 16);
+        soundGlyph = ToolWindows.Glyph(IconGlyphs.Volume, 16);
         SoundButton = AddButton(soundGlyph, () => ScreenRecorder.Sound ? UiText.Toolbar.SoundOn : UiText.Toolbar.SoundOff,
             delegate { ScreenRecorder.SetSound(!ScreenRecorder.Sound); Refresh(); });
         clickGlyph = ToolWindows.Glyph(IconGlyphs.Touch, 16);
         clickButton = AddButton(clickGlyph, () => ScreenRecorder.Clicks ? UiText.Toolbar.ClicksOn : UiText.Toolbar.ClicksOff,
             delegate { ScreenRecorder.SetClicks(!ScreenRecorder.Clicks); Refresh(); });
-        pauseGlyph = ToolWindows.Glyph("", 16);
+        pauseGlyph = ToolWindows.Glyph(IconGlyphs.Pause, 16);
         pauseButton = AddButton(pauseGlyph, () => ScreenRecorder.Paused ? UiText.Toolbar.Resume : UiText.Toolbar.Pause, ScreenRecorder.TogglePause);
         stopButton = AddButton(BuildStopSquare(), () => UiText.Toolbar.Stop, ScreenRecorder.Stop);
         discardGlyph = ToolWindows.Glyph(IconGlyphs.Delete, 16);

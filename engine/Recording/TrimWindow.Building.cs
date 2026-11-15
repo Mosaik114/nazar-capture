@@ -44,7 +44,7 @@ internal sealed partial class TrimWindow
             CornerRadius = new CornerRadius(30),
             Child = glyph,
             IsHitTestVisible = false,
-            Background = new SolidColorBrush(Color.FromArgb(0xB3, 0x14, 0x14, 0x13))
+            Background = UiTokens.Fixed.PlayBackdropBrush
         };
     }
 
@@ -58,7 +58,7 @@ internal sealed partial class TrimWindow
         layers.Children.Add(media);
         layers.Children.Add(bigPlayButton);
         layers.MouseLeftButtonUp += delegate { TogglePlay(); };
-        return new Border { Margin = new Thickness(0, 14, 0, 0), CornerRadius = new CornerRadius(10), Child = layers, Background = Palette.Frozen(0xFF, 0x14, 0x14, 0x13) };
+        return new Border { Margin = new Thickness(0, 14, 0, 0), CornerRadius = new CornerRadius(10), Child = layers, Background = UiTokens.Fixed.VideoBackdropBrush };
     }
 
     // Play button, time and length of the selection.
@@ -211,7 +211,7 @@ internal sealed partial class TrimWindow
             Width = 2,
             Height = 20,
             CornerRadius = new CornerRadius(1),
-            Background = Palette.Frozen(0xCC, 0xFA, 0xF9, 0xF5),
+            Background = UiTokens.Fixed.TrimGripBrush,
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center
         };

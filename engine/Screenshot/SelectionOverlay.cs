@@ -36,7 +36,7 @@ internal sealed class SelectionOverlay : Window
     string color = "";
     bool forRecording;                       // picking an area for a screen recording instead of a screenshot
 
-    static readonly SolidColorBrush GuideBrush = Palette.Frozen(0x66, 0x2A, 0xC8, 0xA6);   // bright turquoise: drawn over the dimmed screen
+    static readonly SolidColorBrush GuideBrush = UiTokens.Fixed.GuideBrush;   // bright turquoise: drawn over the dimmed screen
     static readonly DoubleCollection GuideDashes = Freeze(new DoubleCollection(new double[] { 4, 4 }));
 
     static DoubleCollection Freeze(DoubleCollection dashes)
@@ -105,7 +105,7 @@ internal sealed class SelectionOverlay : Window
         var cells = new Canvas { Width = LoupeSize, Height = LoupeSize, Clip = new EllipseGeometry(new Point(LoupeSize / 2, LoupeSize / 2), LoupeSize / 2, LoupeSize / 2) };
         RenderOptions.SetBitmapScalingMode(loupeImage, BitmapScalingMode.NearestNeighbor);
         cells.Children.Add(loupeImage);
-        var grid = Palette.Frozen(0x22, 0xFA, 0xF9, 0xF5);
+        var grid = UiTokens.Fixed.LoupeGridBrush;
         for (int i = 1; i < LoupePixels; i++)
         {
             cells.Children.Add(new Shapes.Line { X1 = i * LoupeCell, X2 = i * LoupeCell, Y1 = 0, Y2 = LoupeSize, Stroke = grid, StrokeThickness = 1 });
@@ -186,7 +186,7 @@ internal sealed class SelectionOverlay : Window
         ResizeMode = ResizeMode.NoResize;
         ShowInTaskbar = false;
         Topmost = true;
-        Background = Brushes.Black;
+        Background = UiTokens.Fixed.ScreenBackdropBrush;
         Cursor = Cursors.Cross;
         UseLayoutRounding = true;
         TextOptions.SetTextFormattingMode(this, TextFormattingMode.Display);

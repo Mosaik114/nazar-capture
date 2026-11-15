@@ -44,48 +44,28 @@ static class Palette
     public static readonly FontFamily DigitFont = new("Segoe UI Variable Display, Segoe UI");
     public static readonly FontFamily TitleFont = new("Georgia");
 
-    // ---------- Fixed brushes (same in light and dark) ----------
+    // ---------- Fixed brushes (same in light and dark, from the design tokens) ----------
 
     /// <summary>Light foreground on dark or accent surfaces.</summary>
-    public static readonly SolidColorBrush Light = Frozen(0xFF, 0xFA, 0xF9, 0xF5);
+    public static SolidColorBrush Light => UiTokens.Fixed.LightOnDarkBrush;
     /// <summary>Dimming outside the selected area.</summary>
-    public static readonly SolidColorBrush Dimming = Frozen(0xA6, 0x14, 0x14, 0x13);
+    public static SolidColorBrush Dimming => UiTokens.Fixed.DimmingBrush;
     /// <summary>Darkened chip on top of an image (size, duration, play button).</summary>
-    public static readonly SolidColorBrush ImageChip = Frozen(0xD9, 0x26, 0x26, 0x24);
+    public static SolidColorBrush ImageChip => UiTokens.Fixed.ImageChipBrush;
     /// <summary>Translucent accent filling the circle of a left click in recordings.</summary>
-    public static readonly SolidColorBrush ClickFill = Frozen(0x40, 0x0E, 0x8C, 0x80);
+    public static SolidColorBrush ClickFill => UiTokens.Fixed.ClickFillBrush;
 
-    internal static bool? Force;   // tests only: light/dark regardless of the Windows setting
+    internal static bool? Force;   // tests only: light/dark regardless of the settings and Windows
 
-    static readonly string[] Keys = { Background, Selected, Hover, Line, Text, Muted, Accent, Chip, AccentFill, AccentFillHover, RecordingRed, RecordingRedFill };
-    static readonly string[] LightColors = { "#FAF9F5", "#EEECE3", "#F4F2EA", "#E3E1D7", "#141413", "#7A786F", "#0E8C80", "#E6E3D8", "#0B7F74", "#096A61", "#D42A37", "#D42A37" };
-    static readonly string[] DarkColors = { "#262624", "#35342F", "#2E2D2A", "#3A3935", "#FAF9F5", "#A3A197", "#2AC8A6", "#42413C", "#0B7F74", "#096A61", "#FF5A60", "#D42A37" };
+    /// <summary>
+    /// Puts the theme colors into <paramref name="resources"/>: the "appearance" setting (light, dark or like
+    /// Windows) as read with the latest settings, see <see cref="CaptureSettings.Appearance"/>.
+    /// </summary>
+    public static void Apply(ResourceDictionary resources) =>
+        Apply(resources, Force ?? MuiTheme.IsLight(CaptureSettings.Appearance, WindowsUsesLightTheme));
 
-    public static SolidColorBrush Frozen(byte alpha, byte red, byte green, byte blue)
-    {
-        var brush = new SolidColorBrush(Color.FromArgb(alpha, red, green, blue));
-        brush.Freeze();
-        return brush;
-    }
-
-    /// <summary>Puts the theme colors matching the Windows app theme into <paramref name="resources"/>.</summary>
-    public static void Apply(ResourceDictionary resources) => Apply(resources, Force ?? WindowsUsesLightTheme());
-
-    public static void Apply(ResourceDictionary resources, bool light)
-    {
-        string[] colors = light ? LightColors : DarkColors;
-        for (int i = 0; i < Keys.Length; i++)
-        {
-            var brush = new SolidColorBrush((Color)ColorConverter.ConvertFromString(colors[i]));
-            brush.Freeze();
-            resources[Keys[i]] = brush;
-        }
-        // accent as a subtle fill (background of the muted microphone icon)
-        var accent = ((SolidColorBrush)resources[Accent]).Color;
-        resources[AccentSoft] = Frozen(light ? (byte)0x26 : (byte)0x2E, accent.R, accent.G, accent.B);
-        var red = ((SolidColorBrush)resources[RecordingRed]).Color;
-        resources[WarningSoft] = Frozen(light ? (byte)0x26 : (byte)0x2E, red.R, red.G, red.B);
-    }
+    /// <summary>The token dictionary of the theme (Mui.* tokens, fixed tones and the legacy keys above).</summary>
+    public static void Apply(ResourceDictionary resources, bool light) => MuiTheme.Apply(resources, light);
 
     static bool WindowsUsesLightTheme()
     {
