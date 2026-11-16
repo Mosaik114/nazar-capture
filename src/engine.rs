@@ -472,19 +472,25 @@ mod tests {
         let simulate = WM_APP
             + u32::try_from(contract.int(&["test_isolation", "simulate_busy_message"])).unwrap();
 
-        assert_eq!(send(window, MSG_QUERY_STATE, 0), Some(0), "idle after --idle");
-        assert!(!engine.is_busy());
+        // About a second after --idle the engine warms up on its UI thread (WarmUp); on a slow runner that
+        // can outlast one query timeout. So every exchange waits for an answer instead of asking once.
+        let answer =
+            |message, wparam| wait_for(Duration::from_secs(15), || send(window, message, wparam));
+        let idle = || wait_for(Duration::from_secs(15), || (!engine.is_busy()).then_some(()));
 
-        assert_eq!(send(window, simulate, 1), Some(1));
-        assert_eq!(send(window, MSG_QUERY_STATE, 0).map(|state| state & busy_bit), Some(busy_bit));
+        assert_eq!(answer(MSG_QUERY_STATE, 0), Some(0), "idle after --idle");
+        assert!(idle().is_some());
+
+        assert_eq!(answer(simulate, 1), Some(1));
+        assert_eq!(answer(MSG_QUERY_STATE, 0).map(|state| state & busy_bit), Some(busy_bit));
         assert!(engine.is_busy());
         engine.request_quit();
         thread::sleep(Duration::from_millis(1500));
         assert!(running.0.try_wait().unwrap().is_none(), "a busy engine refuses to quit");
         assert!(engine.is_busy(), "and still answers");
 
-        assert_eq!(send(window, simulate, 0), Some(1));
-        assert!(!engine.is_busy());
+        assert_eq!(answer(simulate, 0), Some(1));
+        assert!(idle().is_some());
         engine.request_quit();
         let status = wait_for(Duration::from_secs(15), || running.0.try_wait().unwrap())
             .expect("an idle engine quits");

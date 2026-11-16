@@ -482,7 +482,8 @@ mod tests {
         assert_eq!(send(window, ipc::AUDIO_SETTINGS, 2 | 4), 1);
         let audio = app.config();
         assert!(!audio.microphone && audio.system_audio && audio.show_clicks);
-        assert_eq!(send(window, ipc::PROBE, 0), 1, "alive, no hotkey registered here");
+        // Alive; the hotkey bits depend on whether Shift+Alt+4/5 are free on this machine.
+        assert_eq!(send(window, ipc::PROBE, 0) & 1, 1, "alive");
 
         // One write, shortly after the last change.
         assert!(pump_until(Duration::from_secs(5), || ini.exists()), "saved after the delay");
