@@ -33,6 +33,8 @@ All notable changes to this project are documented here. The format follows
 - Faster and leaner: the overlay opens in about half the time, the first screenshot after logon
   is prepared in the background, memory no longer grows with every capture.
 - Failed cards stay until they are closed; actions that wait for the file say so.
+- The start at logon (`--background`) is silent, as in Hams: only the tray icon, no window, no card, no
+  balloon, no focus taken; a new version shows as a row in the settings instead of a card.
 
 ### Added
 - Update check once a day with a calm notice; updating checks the SHA-256 of the download and

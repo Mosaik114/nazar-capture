@@ -77,22 +77,16 @@ internal static class UpdateNotice
 {
     static UpdateCard? card;
 
-    /// <summary>Checks (at most once a day, only if "Nach Updates suchen" is on) and shows a new version once.</summary>
+    /// <summary>
+    /// Checks (at most once a day, only if "Nach Updates suchen" is on) and only remembers the result: a new version shows
+    /// as a calm row in the settings ("Update verfügbar"), as in Hams. Nothing pops up after logon; the card opens only
+    /// from that row.
+    /// </summary>
     public static void CheckSoon()
     {
         if (!CaptureSettings.Load().CheckUpdates) return;
         var check = new UpdateCheck();
-        var dispatcher = Dispatcher.CurrentDispatcher;
-        Task.Run(check.Run).ContinueWith(task =>
-        {
-            if (task.Status != TaskStatus.RanToCompletion || task.Result is not { } release) return;
-            if (!check.FirstNotice(release.Version)) return;
-            dispatcher.BeginInvoke(new Action(() =>
-            {
-                card ??= new UpdateCard(check);
-                card.Present(release, NativeMethods.WorkAreaAtCursor());
-            }));
-        }, TaskScheduler.Default);
+        Task.Run(check.Run).LogFailures("Checking for updates");
     }
 
     /// <summary>Shows the card for <paramref name="release"/> (from the settings window).</summary>

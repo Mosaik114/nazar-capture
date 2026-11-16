@@ -178,6 +178,21 @@ pub struct App {
     pending_request: Cell<Option<EngineRequest>>,
 }
 
+/// What the engine shows when the host starts with `action`; `healthy` is false when
+/// the settings are unusable or a hotkey is taken. A silent start (`--background`, logon)
+/// never shows anything: only the tray icon, no window, no focus taken (as Hams).
+const fn startup_request(action: Action, healthy: bool) -> Option<EngineRequest> {
+    match action {
+        Action::Background | Action::Quit | Action::Probe => None,
+        Action::ShowRecordingSettings => Some(EngineRequest::RecordingSettings),
+        Action::ShowSettings => Some(EngineRequest::Settings),
+        _ if !healthy => Some(EngineRequest::Settings),
+        Action::ShowMain => Some(EngineRequest::Main),
+        Action::TakeScreenshot => Some(EngineRequest::Screenshot),
+        Action::ToggleRecording => Some(EngineRequest::Recording),
+    }
+}
+
 impl App {
     /// Creates the state; the window is attached later by [`App::attach`].
     pub fn new(
@@ -245,7 +260,9 @@ impl App {
 
     /// Registers the hotkeys, writes the (normalised) settings back, adds the tray
     /// icon and performs the start-up `action`. If the stored settings are unusable or
-    /// a hotkey is taken, the user is told and the settings window opens.
+    /// a hotkey is taken, the user is told and the settings window opens, except at a
+    /// silent start (`--background`, logon): then only the tray icon appears, as in Hams;
+    /// the settings show the problem in its row when they are opened.
     ///
     /// Requests from other processes that arrive meanwhile are answered with 0 (see
     /// [`ipc::needs_startup`]); they are accepted once this returns.
@@ -272,7 +289,8 @@ impl App {
         } else {
             None
         };
-        if let Some(text) = problem {
+        let silent = matches!(action, Action::Background);
+        if let Some(text) = problem.filter(|_| !silent) {
             self.notify(text);
         }
 
@@ -280,14 +298,8 @@ impl App {
             // SAFETY: no pointer arguments; the timer belongs to our window.
             unsafe { SetTimer(self.window(), PRESTART_TIMER, PRESTART_MS, None) };
         }
-        match action {
-            Action::ShowRecordingSettings => self.deliver(EngineRequest::RecordingSettings),
-            Action::ShowSettings => self.deliver(EngineRequest::Settings),
-            _ if !all_registered || valid.is_err() => self.deliver(EngineRequest::Settings),
-            Action::ShowMain => self.deliver(EngineRequest::Main),
-            Action::TakeScreenshot => self.deliver(EngineRequest::Screenshot),
-            Action::ToggleRecording => self.deliver(EngineRequest::Recording),
-            Action::Background | Action::Quit | Action::Probe => {}
+        if let Some(request) = startup_request(action, all_registered && valid.is_ok()) {
+            self.deliver(request);
         }
     }
 
@@ -782,6 +794,22 @@ mod tests {
 
     fn config() -> Config {
         Config::defaults(&DefaultFolders::new(Path::new(r"C:\Bilder"), Path::new(r"C:\Videos")))
+    }
+
+    #[test]
+    fn a_silent_start_shows_nothing() {
+        for healthy in [true, false] {
+            assert_eq!(
+                startup_request(Action::Background, healthy),
+                None,
+                "--background, also with a taken hotkey"
+            );
+        }
+        assert_eq!(startup_request(Action::ShowMain, true), Some(EngineRequest::Main));
+        assert_eq!(startup_request(Action::ShowMain, false), Some(EngineRequest::Settings));
+        assert_eq!(startup_request(Action::ShowSettings, true), Some(EngineRequest::Settings));
+        assert_eq!(startup_request(Action::TakeScreenshot, true), Some(EngineRequest::Screenshot));
+        assert_eq!(startup_request(Action::Quit, false), None);
     }
 
     fn hotkey(text: &str) -> Hotkey {
