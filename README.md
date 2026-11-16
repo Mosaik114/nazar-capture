@@ -125,6 +125,12 @@ manifest and version info without external resource tools. Tests and CI: [CONTRI
 **Next steps:** code-sign the programs, publish to winget (a manifest is in `packaging/winget/`), and one overlay
 window per monitor.
 
+## Documentation
+
+- [Architecture](docs/architecture.md): the two processes, the contract, the recording pipeline, testing strategy
+- [Contributing](CONTRIBUTING.md): build, tests and what CI expects
+- [Security](SECURITY.md) · [Changelog](CHANGELOG.md) · [Code of conduct](.github/CODE_OF_CONDUCT.md)
+
 ## How it was built
 
 This started as a personal tool I use every day. The repository begins with that tool imported unchanged (tag
