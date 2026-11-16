@@ -17,37 +17,37 @@
     <SolidColorBrush x:Key="Mui.AiPressed" Color="#533262" po:Freeze="True" />
     <SolidColorBrush x:Key="Mui.AiSide" Color="#4A2C57" po:Freeze="True" />
     <SolidColorBrush x:Key="Mui.AiSurface" Color="#6E4380" po:Freeze="True" />
-    <SolidColorBrush x:Key="Mui.ControlHover" Color="#E9DCC1" po:Freeze="True" />
-    <SolidColorBrush x:Key="Mui.ControlOutline" Color="#8A8170" po:Freeze="True" />
-    <SolidColorBrush x:Key="Mui.ControlPressed" Color="#DCCBA9" po:Freeze="True" />
-    <SolidColorBrush x:Key="Mui.ControlSide" Color="#D6C7A9" po:Freeze="True" />
-    <SolidColorBrush x:Key="Mui.ControlSurface" Color="#F3E9D3" po:Freeze="True" />
+    <SolidColorBrush x:Key="Mui.ControlHover" Color="#E4E1DD" po:Freeze="True" />
+    <SolidColorBrush x:Key="Mui.ControlOutline" Color="#888279" po:Freeze="True" />
+    <SolidColorBrush x:Key="Mui.ControlPressed" Color="#D4D0CA" po:Freeze="True" />
+    <SolidColorBrush x:Key="Mui.ControlSide" Color="#CFCCC7" po:Freeze="True" />
+    <SolidColorBrush x:Key="Mui.ControlSurface" Color="#F0EEEA" po:Freeze="True" />
     <SolidColorBrush x:Key="Mui.Error" Color="#B3261E" po:Freeze="True" />
     <SolidColorBrush x:Key="Mui.ErrorSide" Color="#7A1A14" po:Freeze="True" />
     <SolidColorBrush x:Key="Mui.ErrorSurface" Color="#A8231C" po:Freeze="True" />
     <SolidColorBrush x:Key="Mui.Focus" Color="#315C99" po:Freeze="True" />
-    <SolidColorBrush x:Key="Mui.GroupSide" Color="#D2C2A3" po:Freeze="True" />
-    <SolidColorBrush x:Key="Mui.GroupSurface" Color="#FFFCF5" po:Freeze="True" />
-    <SolidColorBrush x:Key="Mui.Hairline" Color="#E3D8C2" po:Freeze="True" />
-    <SolidColorBrush x:Key="Mui.Ink" Color="#8E877F" po:Freeze="True" />
+    <SolidColorBrush x:Key="Mui.GroupSide" Color="#DEDBD5" po:Freeze="True" />
+    <SolidColorBrush x:Key="Mui.GroupSurface" Color="#FEFEFD" po:Freeze="True" />
+    <SolidColorBrush x:Key="Mui.Hairline" Color="#EEECE8" po:Freeze="True" />
+    <SolidColorBrush x:Key="Mui.Ink" Color="#A09D98" po:Freeze="True" />
     <SolidColorBrush x:Key="Mui.Knob" Color="#FFFFFF" po:Freeze="True" />
     <SolidColorBrush x:Key="Mui.OnAccent" Color="#FFFFFF" po:Freeze="True" />
     <SolidColorBrush x:Key="Mui.OnFill" Color="#FFFFFF" po:Freeze="True" />
     <SolidColorBrush x:Key="Mui.OnSuccess" Color="#FFFFFF" po:Freeze="True" />
-    <SolidColorBrush x:Key="Mui.PopoverSurface" Color="#FFFEFB" po:Freeze="True" />
+    <SolidColorBrush x:Key="Mui.PopoverSurface" Color="#FFFFFE" po:Freeze="True" />
     <SolidColorBrush x:Key="Mui.Recording" Color="#B3261E" po:Freeze="True" />
     <SolidColorBrush x:Key="Mui.RecordingHover" Color="#961F19" po:Freeze="True" />
     <SolidColorBrush x:Key="Mui.RecordingPressed" Color="#801A15" po:Freeze="True" />
     <SolidColorBrush x:Key="Mui.RecordingSide" Color="#6E1712" po:Freeze="True" />
     <SolidColorBrush x:Key="Mui.RecordingSurface" Color="#A8231C" po:Freeze="True" />
-    <SolidColorBrush x:Key="Mui.ScrollThumb" Color="#857D70" po:Freeze="True" />
+    <SolidColorBrush x:Key="Mui.ScrollThumb" Color="#87827B" po:Freeze="True" />
     <SolidColorBrush x:Key="Mui.Success" Color="#3B7A3E" po:Freeze="True" />
-    <SolidColorBrush x:Key="Mui.TextDisabled" Color="#6B7180" po:Freeze="True" />
+    <SolidColorBrush x:Key="Mui.TextDisabled" Color="#6C7282" po:Freeze="True" />
     <SolidColorBrush x:Key="Mui.TextPrimary" Color="#1C2B45" po:Freeze="True" />
     <SolidColorBrush x:Key="Mui.TextSecondary" Color="#4C5568" po:Freeze="True" />
     <SolidColorBrush x:Key="Mui.TextTertiary" Color="#5A6274" po:Freeze="True" />
     <SolidColorBrush x:Key="Mui.Warning" Color="#8F5B12" po:Freeze="True" />
-    <SolidColorBrush x:Key="Mui.WindowBg" Color="#F4ECD9" po:Freeze="True" />
+    <SolidColorBrush x:Key="Mui.WindowBg" Color="#F5F4F1" po:Freeze="True" />
 
     <!-- Fixed tones: the same in both themes. -->
     <SolidColorBrush x:Key="Mui.LightOnDark" Color="#FFFAF9F5" po:Freeze="True" />

@@ -6,6 +6,11 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+- **Light mode "Kalkweiß":** the light palette is no longer cream paper but an almost neutral chalk white
+  with a hint of warmth (window `#F5F4F1`, plates white, stones `#F0EEEA`, lighter ink edge and sides),
+  the same values as Hams Dictate; the cobalt accent and the dark mode stay.
+
 ## [1.1.3] - 2026-11-16
 
 A redesign in the look of its sister app Hams Dictate, a new name, and updates from inside the app.

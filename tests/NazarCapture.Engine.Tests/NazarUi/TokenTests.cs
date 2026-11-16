@@ -109,6 +109,12 @@ public sealed class TokenTests
         }
     }
 
+    // Lower limits per mode, as in Hams (SIDE_MIN, HAIRLINE_MIN, STEP_MIN): light (Kalkweiß) steps, sides and hairline
+    // are deliberately quieter than on the former cream paper; there the ink edge carries the depth (2:1 at least).
+    static double SideMin(bool light) => light ? 1.25 : 1.3;
+    static double HairlineMin(bool light) => light ? 1.15 : 1.2;
+    static double StepMin(bool light) => light ? 1.08 : 1.10;
+
     [Theory]
     [MemberData(nameof(Modes))]
     public void InkAndSidesStandOut(bool light)
@@ -116,7 +122,10 @@ public sealed class TokenTests
         var p = Palette(light);
         foreach (string name in new[] { "INK", "GROUP_SIDE", "CONTROL_SIDE" })
             foreach (string ground in new[] { "WINDOW_BG", "GROUP_SURFACE" })
-                Assert.True(Contrast(p[name], p[ground]) >= 1.3, name + " on " + ground);
+                Assert.True(Contrast(p[name], p[ground]) >= SideMin(light), name + " on " + ground);
+        if (light)
+            foreach (string ground in new[] { "WINDOW_BG", "GROUP_SURFACE" })
+                Assert.True(Contrast(p["INK"], p[ground]) >= 2.0, "INK carries the quiet light steps on " + ground);
         Assert.True(Luminance(p["CONTROL_PRESSED"]) < Luminance(p["CONTROL_SURFACE"]));
         Assert.True(Contrast(p["TEXT_DISABLED"], p["GROUP_SURFACE"]) < Contrast(p["TEXT_TERTIARY"], p["GROUP_SURFACE"]));
         // the accent side is a darker tone of the accent fill
@@ -132,11 +141,11 @@ public sealed class TokenTests
         if (light) Assert.True(group > window && group > control && control > hover);
         else Assert.True(window < group && group < control && control < hover);
         Assert.True(Luminance(p["POPOVER_SURFACE"]) > group);
-        Assert.True(Contrast(p["HAIRLINE"], p["GROUP_SURFACE"]) >= 1.2);
+        Assert.True(Contrast(p["HAIRLINE"], p["GROUP_SURFACE"]) >= HairlineMin(light));
         Assert.True(Contrast(p["GROUP_SURFACE"], p["WINDOW_BG"]) < 1.5);
         Assert.True(Contrast(p["CONTROL_SURFACE"], p["GROUP_SURFACE"]) < 1.5);
         foreach (var (a, b) in new[] { ("GROUP_SURFACE", "WINDOW_BG"), ("CONTROL_SURFACE", "GROUP_SURFACE"), ("CONTROL_HOVER", "CONTROL_SURFACE") })
-            Assert.True(Contrast(p[a], p[b]) >= 1.10, a + " to " + b);
+            Assert.True(Contrast(p[a], p[b]) >= StepMin(light), a + " to " + b);
     }
 
     [Fact]
