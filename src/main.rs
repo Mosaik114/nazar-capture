@@ -1,13 +1,14 @@
 //! Mosaik Capture host: a small tray app that owns the global screenshot and recording
-//! hotkeys, shows the settings window and starts the capture engine.
+//! hotkeys and `settings.ini`, and starts the capture engine, which also shows the
+//! settings window.
 //!
 //! Only one instance runs per session. Starting the executable again forwards the
 //! command-line action (see [`cli`]) to the running instance.
 //!
 //! Tests: `cargo test` runs the unit tests. Two tests are `#[ignore]`d by default and
 //! run in CI with `cargo test -- --include-ignored`: the end-to-end test of the real
-//! settings window (`ui::tests::settings_window_end_to_end`), which creates a window
-//! and registers global hotkeys, and the cross-process test against the built engine
+//! host window (`ui::tests::host_window_end_to_end`), which registers global hotkeys
+//! and adds a tray icon, and the cross-process test against the built engine
 //! (`engine::tests::quit_protocol_across_processes`), which needs `bin\` built first.
 
 #![cfg_attr(not(test), windows_subsystem = "windows")]
@@ -17,6 +18,7 @@ mod cli;
 mod config;
 #[cfg(test)]
 mod contract;
+mod copydata;
 mod engine;
 mod hotkey;
 mod ipc;

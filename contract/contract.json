@@ -28,7 +28,8 @@
       "autostart": { "kind": "flag", "default": 1, "engine_reads": false },
       "fps": { "kind": "choice", "default": 60, "allowed": [30, 60], "otherwise": 60, "engine_reads": true },
       "countdown": { "kind": "choice", "default": 3, "allowed": [0, 3, 5], "otherwise": 3, "engine_reads": true },
-      "appearance": { "kind": "choice", "default": 0, "allowed": [0, 1, 2], "otherwise": 0, "engine_reads": true }
+      "appearance": { "kind": "choice", "default": 0, "allowed": [0, 1, 2], "otherwise": 0, "engine_reads": true },
+      "check_updates": { "kind": "flag", "default": 1, "engine_reads": true }
     },
     "numbers": {
       "$comment": "How a stored number is read: a decimal 32-bit integer; anything else means the key's default (null). A flag is on for any non-zero number.",
@@ -55,6 +56,19 @@
     "quit_replies": { "refused": 0, "accepted": 1 },
     "probe_bits": { "alive": 1, "screenshot_hotkey": 2, "recording_hotkey": 4 },
     "audio_bits": { "microphone": 1, "system_audio": 2, "show_clicks": 4 },
+    "copydata": {
+      "$comment": [
+        "The engine's settings window talks to the host with WM_COPYDATA (SendMessageTimeout); the host stays the only writer",
+        "of settings.ini. dwData is the request, the payload UTF-16LE text without terminator: set = key TAB value,",
+        "check_hotkey = key TAB combination, suspend_hotkeys = 1 (release both while a hotkey is being recorded) or 0.",
+        "The reply is the message result; 0 means not understood or not ready."
+      ],
+      "requests": { "set": 1, "check_hotkey": 2, "suspend_hotkeys": 3 },
+      "separator": "\t",
+      "replies": { "ok": 1, "invalid": 2, "taken": 3, "duplicate": 4, "save_failed": 5, "folder_unusable": 6, "autostart_failed": 7 }
+    },
+    "hotkey_retry_seconds": 30,
+    "save_delay_ms": 300,
     "exit_codes": {
       "$comment": "Only what scripts and CI distinguish; every other failure is 1.",
       "success": 0,
@@ -69,8 +83,8 @@
     "executable": "MosaikCapture.Engine.exe",
     "mutex": "Local\\MosaikCapture.Engine",
     "window_title": "MosaikCapture.Engine",
-    "arguments": { "screenshot": "--screenshot", "recording": "--recording", "idle": "--idle" },
-    "messages": { "screenshot": 1, "recording": 2, "quit": 3, "query_state": 10 },
+    "arguments": { "screenshot": "--screenshot", "recording": "--recording", "idle": "--idle", "settings": "--settings", "recording_settings": "--recording-settings" },
+    "messages": { "screenshot": 1, "recording": 2, "quit": 3, "settings": 4, "recording_settings": 5, "query_state": 10 },
     "state_bits": { "busy": 1, "live": 2 }
   },
 

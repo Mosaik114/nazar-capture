@@ -27,8 +27,10 @@ pub mod keys {
     pub const FPS: &str = "fps";
     /// Countdown before a recording starts, in seconds.
     pub const COUNTDOWN: &str = "countdown";
-    /// Light, dark or like Windows (read by the engine; the settings window follows in the redesign).
+    /// Light, dark or like Windows (read by the engine).
     pub const APPEARANCE: &str = "appearance";
+    /// Look for a newer version (read by the engine).
+    pub const CHECK_UPDATES: &str = "check_updates";
 }
 
 pub const DEFAULT_SCREENSHOT_HOTKEY: &str = "Shift+Alt+4";
@@ -63,22 +65,6 @@ impl FrameRate {
             Self::Fps60 => 60,
         }
     }
-
-    /// Position in the frame-rate combo box.
-    pub const fn index(self) -> usize {
-        match self {
-            Self::Fps30 => 0,
-            Self::Fps60 => 1,
-        }
-    }
-
-    /// Interprets a combo-box selection; no selection means 60.
-    pub const fn from_index(index: Option<usize>) -> Self {
-        match index {
-            Some(0) => Self::Fps30,
-            _ => Self::Fps60,
-        }
-    }
 }
 
 /// Countdown before a recording starts. Unknown values fall back to three seconds.
@@ -106,25 +92,6 @@ impl Countdown {
             Self::Off => 0,
             Self::Seconds3 => 3,
             Self::Seconds5 => 5,
-        }
-    }
-
-    /// Position in the countdown combo box ("Ohne Vorlauf" = no countdown, then 3 and
-    /// 5 "Sekunden" = seconds).
-    pub const fn index(self) -> usize {
-        match self {
-            Self::Off => 0,
-            Self::Seconds3 => 1,
-            Self::Seconds5 => 2,
-        }
-    }
-
-    /// Interprets a combo-box selection; no selection means three seconds.
-    pub const fn from_index(index: Option<usize>) -> Self {
-        match index {
-            Some(0) => Self::Off,
-            Some(2) => Self::Seconds5,
-            _ => Self::Seconds3,
         }
     }
 }
@@ -221,6 +188,7 @@ pub struct Config {
     pub frame_rate: FrameRate,
     pub countdown: Countdown,
     pub appearance: Appearance,
+    pub check_updates: bool,
 }
 
 impl Config {
@@ -238,6 +206,7 @@ impl Config {
             frame_rate: FrameRate::default(),
             countdown: Countdown::default(),
             appearance: Appearance::default(),
+            check_updates: true,
         }
     }
 
@@ -267,6 +236,7 @@ impl Config {
             appearance: Appearance::from_value(
                 source.int(keys::APPEARANCE, defaults.appearance.value()),
             ),
+            check_updates: flag(keys::CHECK_UPDATES, defaults.check_updates),
         }
     }
 
@@ -287,6 +257,7 @@ impl Config {
             (keys::FPS, self.frame_rate.value().to_string().into()),
             (keys::COUNTDOWN, self.countdown.value().to_string().into()),
             (keys::APPEARANCE, self.appearance.value().to_string().into()),
+            (keys::CHECK_UPDATES, flag(self.check_updates)),
         ];
         let mut ini = OsString::from(format!("\r\n[{SECTION}]\r\n"));
         for (key, value) in entries {
@@ -309,7 +280,7 @@ impl Config {
         Ok(Hotkeys { screenshot, recording })
     }
 
-    /// Full validation before saving: hotkeys first, then folders.
+    /// Full validation: hotkeys first, then folders.
     pub fn validate(&self) -> Result<Hotkeys, ConfigError> {
         let hotkeys = self.hotkeys()?;
         if !is_valid_folder(&self.screenshot_folder) || !is_valid_folder(&self.recording_folder) {
@@ -397,6 +368,7 @@ mod tests {
         assert_eq!(config.frame_rate, FrameRate::Fps60);
         assert_eq!(config.countdown, Countdown::Seconds3);
         assert_eq!(config.appearance, Appearance::System);
+        assert!(config.check_updates);
         assert!(config.validate().is_ok());
     }
 
@@ -411,6 +383,7 @@ mod tests {
         source.ints.insert(keys::FPS, 30);
         source.ints.insert(keys::COUNTDOWN, 5);
         source.ints.insert(keys::APPEARANCE, 2);
+        source.ints.insert(keys::CHECK_UPDATES, 0);
         let config = Config::load(&source, &folders());
         assert_eq!(config.screenshot_hotkey, "Strg+F1");
         assert_eq!(config.recording_folder, Path::new(r"D:\Videos"));
@@ -420,6 +393,7 @@ mod tests {
         assert_eq!(config.frame_rate, FrameRate::Fps30);
         assert_eq!(config.countdown, Countdown::Seconds5);
         assert_eq!(config.appearance, Appearance::Dark);
+        assert!(!config.check_updates);
     }
 
     #[test]
@@ -442,10 +416,7 @@ mod tests {
         }
         for rate in [FrameRate::Fps30, FrameRate::Fps60] {
             assert_eq!(FrameRate::from_value(rate.value()), rate);
-            assert_eq!(FrameRate::from_index(Some(rate.index())), rate);
         }
-        assert_eq!(FrameRate::from_index(None), FrameRate::Fps60);
-        assert_eq!(FrameRate::from_index(Some(5)), FrameRate::Fps60);
     }
 
     #[test]
@@ -457,10 +428,7 @@ mod tests {
         }
         for countdown in [Countdown::Off, Countdown::Seconds3, Countdown::Seconds5] {
             assert_eq!(Countdown::from_value(countdown.value()), countdown);
-            assert_eq!(Countdown::from_index(Some(countdown.index())), countdown);
         }
-        assert_eq!(Countdown::from_index(None), Countdown::Seconds3);
-        assert_eq!(Countdown::from_index(Some(9)), Countdown::Seconds3);
     }
 
     #[test]
@@ -479,7 +447,8 @@ mod tests {
             autostart=1\r\n\
             fps=30\r\n\
             countdown=0\r\n\
-            appearance=0\r\n";
+            appearance=0\r\n\
+            check_updates=1\r\n";
         assert_eq!(config.to_ini(), expected);
     }
 

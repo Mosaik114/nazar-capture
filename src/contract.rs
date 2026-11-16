@@ -11,7 +11,8 @@ use windows_sys::Win32::UI::WindowsAndMessaging::WM_APP;
 use crate::config::{
     self, Appearance, Config, Countdown, DefaultFolders, FrameRate, MAX_FOLDER_LEN, SECTION,
 };
-use crate::engine::{self, CaptureMode};
+use crate::copydata::{self, Reply};
+use crate::engine::{self, EngineRequest};
 use crate::ipc::{self, AudioSettings, ProbeResponse};
 use crate::isolation::{self, Isolation};
 use crate::store::tests::{TempDir, write_utf16};
@@ -132,6 +133,7 @@ fn loaded_numbers(config: &Config) -> BTreeMap<&'static str, i64> {
         ("fps", i64::from(config.frame_rate.value())),
         ("countdown", i64::from(config.countdown.value())),
         ("appearance", i64::from(config.appearance.value())),
+        ("check_updates", i64::from(config.check_updates)),
     ])
 }
 
@@ -253,13 +255,121 @@ fn engine_names_messages_and_state_bits() {
     assert_eq!(engine::MSG_SCREENSHOT, c.message(&["engine", "messages", "screenshot"]));
     assert_eq!(engine::MSG_RECORDING, c.message(&["engine", "messages", "recording"]));
     assert_eq!(engine::MSG_QUIT, c.message(&["engine", "messages", "quit"]));
+    assert_eq!(engine::MSG_SETTINGS, c.message(&["engine", "messages", "settings"]));
+    assert_eq!(
+        engine::MSG_RECORDING_SETTINGS,
+        c.message(&["engine", "messages", "recording_settings"])
+    );
     assert_eq!(engine::MSG_QUERY_STATE, c.message(&["engine", "messages", "query_state"]));
     assert_eq!(
         engine::STATE_BUSY,
         usize::try_from(c.int(&["engine", "state_bits", "busy"])).unwrap()
     );
-    assert_eq!(CaptureMode::Screenshot.flag(), c.str(&["engine", "arguments", "screenshot"]));
-    assert_eq!(CaptureMode::Recording.flag(), c.str(&["engine", "arguments", "recording"]));
+    let requests = [
+        ("screenshot", EngineRequest::Screenshot),
+        ("recording", EngineRequest::Recording),
+        ("settings", EngineRequest::Settings),
+        ("recording_settings", EngineRequest::RecordingSettings),
+    ];
+    for (name, request) in requests {
+        assert_eq!(request.flag(), c.str(&["engine", "arguments", name]), "{name}");
+    }
+    assert_eq!(c.entries(&["engine", "arguments"]).len(), requests.len() + 1, "plus idle");
+}
+
+#[test]
+fn settings_protocol() {
+    let c = load();
+    let request =
+        |key: &str| usize::try_from(c.int(&["host", "copydata", "requests", key])).unwrap();
+    assert_eq!(copydata::SET, request("set"));
+    assert_eq!(copydata::CHECK_HOTKEY, request("check_hotkey"));
+    assert_eq!(copydata::SUSPEND_HOTKEYS, request("suspend_hotkeys"));
+    assert_eq!(c.entries(&["host", "copydata", "requests"]).len(), 3);
+    assert_eq!(copydata::SEPARATOR.to_string(), c.str(&["host", "copydata", "separator"]));
+
+    let replies = [
+        ("ok", Reply::Ok),
+        ("invalid", Reply::Invalid),
+        ("taken", Reply::Taken),
+        ("duplicate", Reply::Duplicate),
+        ("save_failed", Reply::SaveFailed),
+        ("folder_unusable", Reply::FolderUnusable),
+        ("autostart_failed", Reply::AutostartFailed),
+    ];
+    assert_eq!(c.entries(&["host", "copydata", "replies"]).len(), replies.len());
+    for (name, reply) in replies {
+        let expected = c.int(&["host", "copydata", "replies", name]);
+        assert_eq!(i64::try_from(reply.to_lresult()).unwrap(), expected, "{name}");
+    }
+    assert_eq!(Reply::NotUnderstood.to_lresult(), 0, "0 means not understood");
+
+    // Every settings key of the contract can be set, and only those.
+    let separator = c.str(&["host", "copydata", "separator"]);
+    for (key, spec) in c.entries(&["settings", "keys"]) {
+        let value = match spec["kind"].as_str() {
+            Some("text") => "Strg+Alt+K",
+            Some("folder") => r"C:\Ordner",
+            _ => "1",
+        };
+        let payload: Vec<u16> = format!("{key}{separator}{value}").encode_utf16().collect();
+        assert!(copydata::parse(copydata::SET, &payload).is_ok(), "{key}");
+    }
+    let unknown: Vec<u16> = format!("unknown{separator}1").encode_utf16().collect();
+    assert_eq!(copydata::parse(copydata::SET, &unknown), Err(Reply::NotUnderstood));
+}
+
+#[test]
+fn hotkey_retry_and_save_delay() {
+    let c = load();
+    assert_eq!(
+        i64::from(crate::ui::HOTKEY_RETRY_SECONDS),
+        c.int(&["host", "hotkey_retry_seconds"])
+    );
+    assert_eq!(i64::from(crate::ui::SAVE_DELAY_MS), c.int(&["host", "save_delay_ms"]));
+}
+
+#[test]
+fn settings_file_of_version_1_1_2_loads_without_loss() {
+    // Written by 1.1.2 (UTF-16LE with BOM, as the store writes it): no appearance and
+    // no check_updates yet, which take their defaults.
+    let dir = TempDir::new();
+    let path = dir.file("settings.ini");
+    write_utf16(
+        &path,
+        "\r\n[capture]\r\n\
+         screenshot_hotkey=Shift+Alt+4\r\n\
+         recording_hotkey=Shift+Alt+5\r\n\
+         screenshot_folder=C:\\Users\\Ada\\Pictures\\Mosaiks-Screenshots\r\n\
+         recording_folder=D:\\Aufnahmen\r\n\
+         microphone=0\r\n\
+         system_audio=1\r\n\
+         show_clicks=1\r\n\
+         autostart=1\r\n\
+         fps=60\r\n\
+         countdown=3\r\n",
+    );
+    let loaded = Config::load(&IniFile::new(&path), &folders());
+    let expected = Config {
+        screenshot_hotkey: "Shift+Alt+4".to_owned(),
+        recording_hotkey: "Shift+Alt+5".to_owned(),
+        screenshot_folder: r"C:\Users\Ada\Pictures\Mosaiks-Screenshots".into(),
+        recording_folder: r"D:\Aufnahmen".into(),
+        microphone: false,
+        system_audio: true,
+        show_clicks: true,
+        autostart: true,
+        frame_rate: FrameRate::Fps60,
+        countdown: Countdown::Seconds3,
+        appearance: Appearance::System,
+        check_updates: true,
+    };
+    assert_eq!(loaded, expected);
+    assert!(loaded.validate().is_ok(), "both hotkeys still parse");
+
+    // Saving it again keeps every old value and adds the new keys.
+    store::SettingsStore::at(path.clone()).save(&loaded).unwrap();
+    assert_eq!(Config::load(&IniFile::new(&path), &folders()), expected);
 }
 
 #[test]

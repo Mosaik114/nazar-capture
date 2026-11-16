@@ -21,6 +21,13 @@ pub const HOTKEY_CASES: &[(&str, Option<(u32, u16)>)] = &[
     ("Shift+Alt", None),
     ("Alt++4", None),
     ("Alt+F0", None),
+    ("Druck", Some((0, 44))),
+    ("Umschalt+Pause", Some((4, 19))),
+    ("Win+Shift+S", Some((12, 83))),
+    ("Strg+Num5", Some((2, 101))),
+    ("Alt+Einfg", Some((1, 45))),
+    ("Shift+Einfg", None),
+    ("Num5", None),
 ];
 
 /// Folder paths with the expected validation result.

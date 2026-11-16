@@ -2,21 +2,23 @@
 //!
 //! Other processes find the window by its class name and send these `WM_APP`-based
 //! messages: a second instance forwards its command-line action, and the capture
-//! engine reports audio changes. The numbers are a public contract and must not change.
+//! engine reports audio changes. The engine's settings window also sends
+//! `WM_COPYDATA` (see [`crate::copydata`]). The numbers are a public contract and must
+//! not change.
 
-use windows_sys::Win32::UI::WindowsAndMessaging::WM_APP;
+use windows_sys::Win32::UI::WindowsAndMessaging::{WM_APP, WM_COPYDATA};
 
 /// Window class of the app window, looked up with `FindWindowExW`.
 pub const WINDOW_CLASS: &str = "MosaikCapture.Host";
 
-/// Show the settings window, focusing the screenshot hotkey.
+/// Show the settings window (the engine's).
 pub const SHOW_SETTINGS: u32 = WM_APP + 1;
-/// Show the settings window, focusing the recording hotkey.
+/// Show the settings window at the recording settings.
 pub const SHOW_RECORDING_SETTINGS: u32 = WM_APP + 2;
 pub const TAKE_SCREENSHOT: u32 = WM_APP + 3;
 pub const TOGGLE_RECORDING: u32 = WM_APP + 4;
 /// Quit the app. Answered with [`QUIT_ACCEPTED`], or [`QUIT_REFUSED`] while the
-/// engine is busy, a dialog is open or start-up is not finished.
+/// engine is busy, the tray menu is open or start-up is not finished.
 pub const QUIT: u32 = WM_APP + 9;
 /// Reply to [`QUIT`]: the app is shutting down.
 pub const QUIT_ACCEPTED: isize = 1;
@@ -45,6 +47,7 @@ pub const fn needs_startup(message: u32) -> bool {
             | PROBE
             | AUDIO_SETTINGS
             | TRAY_CALLBACK
+            | WM_COPYDATA
     )
 }
 
@@ -112,6 +115,7 @@ mod tests {
             PROBE,
             AUDIO_SETTINGS,
             TRAY_CALLBACK,
+            WM_COPYDATA,
         ] {
             assert!(needs_startup(message), "{message:#x}");
         }

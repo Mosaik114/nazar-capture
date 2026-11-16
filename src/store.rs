@@ -451,6 +451,7 @@ pub mod tests {
             frame_rate: FrameRate::Fps30,
             countdown: Countdown::Seconds5,
             appearance: Appearance::Light,
+            check_updates: false,
         };
         SettingsStore::at(path.clone()).save(&config).unwrap();
         let loaded = Config::load(&IniFile::new(&path), &sample_folders());

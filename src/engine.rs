@@ -4,7 +4,9 @@
 //! A running engine owns a hidden window titled [`WINDOW_TITLE`] and accepts
 //! `WM_APP`-based commands. Window titles are not unique, so a window only counts as
 //! the engine if its process runs `MosaikCapture.Engine.exe` from this app's folder.
-//! If no engine is running, it is started with the capture mode on its command line.
+//! If no engine is running, it is started with the request on its command line.
+//! Besides captures, the engine also shows the settings window (the host keeps
+//! owning `settings.ini` and the hotkeys, see [`crate::copydata`]).
 //!
 //! All calls run on the UI thread; the only wait is the state query in
 //! [`Engine::is_busy`], capped at [`QUERY_TIMEOUT_MS`].
@@ -20,7 +22,8 @@ use std::time::{Duration, Instant};
 use windows_sys::Win32::Foundation::HWND;
 use windows_sys::Win32::System::Threading::CREATE_NO_WINDOW;
 use windows_sys::Win32::UI::WindowsAndMessaging::{
-    AllowSetForegroundWindow, FindWindowExW, GetWindowThreadProcessId, PostMessageW, SMTO_ABORTIFHUNG, SendMessageTimeoutW, WM_APP,
+    AllowSetForegroundWindow, FindWindowExW, GetWindowThreadProcessId, PostMessageW,
+    SMTO_ABORTIFHUNG, SendMessageTimeoutW, WM_APP,
 };
 
 use crate::isolation::{Isolation, isolated};
@@ -37,6 +40,10 @@ pub const MSG_SCREENSHOT: u32 = WM_APP + 1;
 pub const MSG_RECORDING: u32 = WM_APP + 2;
 /// Shut down; ignored while the engine is busy.
 pub const MSG_QUIT: u32 = WM_APP + 3;
+/// Show the settings window.
+pub const MSG_SETTINGS: u32 = WM_APP + 4;
+/// Show the settings window at the recording settings.
+pub const MSG_RECORDING_SETTINGS: u32 = WM_APP + 5;
 /// Answered with state bits, see [`STATE_BUSY`].
 pub const MSG_QUERY_STATE: u32 = WM_APP + 10;
 /// State bit: something is in progress that quitting would lose (a selection,
@@ -48,19 +55,26 @@ const QUERY_TIMEOUT_MS: u32 = 400;
 /// stuck, killed and started again.
 const LAUNCH_TIMEOUT: Duration = Duration::from_secs(10);
 
+/// What the engine is asked to do.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum CaptureMode {
+pub enum EngineRequest {
     Screenshot,
     /// Start or stop a screen recording.
     Recording,
+    /// Show the settings window.
+    Settings,
+    /// Show the settings window at the recording settings.
+    RecordingSettings,
 }
 
-impl CaptureMode {
-    /// The engine's command-line flag for this mode.
+impl EngineRequest {
+    /// The engine's command-line flag for this request.
     pub const fn flag(self) -> &'static str {
         match self {
             Self::Screenshot => "--screenshot",
             Self::Recording => "--recording",
+            Self::Settings => "--settings",
+            Self::RecordingSettings => "--recording-settings",
         }
     }
 
@@ -68,11 +82,13 @@ impl CaptureMode {
         match self {
             Self::Screenshot => MSG_SCREENSHOT,
             Self::Recording => MSG_RECORDING,
+            Self::Settings => MSG_SETTINGS,
+            Self::RecordingSettings => MSG_RECORDING_SETTINGS,
         }
     }
 }
 
-/// What happened to a capture request.
+/// What happened to a request.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Delivery {
     /// Posted to the running engine.
@@ -87,13 +103,13 @@ pub enum Delivery {
 }
 
 impl Delivery {
-    /// Whether the user needs to be told that the capture did not happen.
+    /// Whether the user needs to be told that the request was not carried out.
     pub const fn failed(self) -> bool {
         matches!(self, Self::Failed)
     }
 }
 
-/// The next step for a capture request.
+/// The next step for a request.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Step {
     Post(HWND),
@@ -103,7 +119,7 @@ enum Step {
     Spawn,
 }
 
-/// Decides what to do with a capture request, given the engine's window (if found)
+/// Decides what to do with a request, given the engine's window (if found)
 /// and how long an engine we started has been running without one (if any).
 fn next_step(engine_window: Option<HWND>, starting_for: Option<Duration>) -> Step {
     match (engine_window, starting_for) {
@@ -121,20 +137,23 @@ const fn busy_from_reply(reply: Option<usize>) -> bool {
     }
 }
 
-/// Sends `message` and waits at most [`QUERY_TIMEOUT_MS`] for the reply.
-/// Lets the engine that owns `window` take the foreground for the overlay it is about to open: the host has just
-/// received the hotkey and may pass that right on. Without it the engine would have to force the foreground
-/// (attaching to the input of whatever program is active, which can block on a hung one).
+/// Lets the engine that owns `window` take the foreground for the overlay or window it
+/// is about to open: the host has just received the hotkey (or tray click) and may
+/// pass that right on. Without it the engine would have to force the foreground
+/// (attaching to the input of whatever program is active, which can block on a hung
+/// one).
 fn allow_foreground(window: HWND) {
     let mut pid = 0u32;
     // SAFETY: `pid` outlives the call; a stale window handle only yields 0.
-    unsafe { GetWindowThreadProcessId(window, &mut pid) };
+    unsafe { GetWindowThreadProcessId(window, &raw mut pid) };
     if pid != 0 {
-        // SAFETY: no pointers; failure (we are not in the foreground) only means the engine falls back to its own way.
+        // SAFETY: no pointers; failure (we are not in the foreground) only means the
+        // engine falls back to its own way.
         unsafe { AllowSetForegroundWindow(pid) };
     }
 }
 
+/// Sends `message` and waits at most [`QUERY_TIMEOUT_MS`] for the reply.
 fn send(window: HWND, message: u32, wparam: usize) -> Option<usize> {
     let mut reply = 0usize;
     // SAFETY: `reply` outlives the call; a stale handle just makes the call fail.
@@ -215,9 +234,9 @@ impl Engine {
         }
     }
 
-    /// Starts a capture: posts it to the running engine or launches a new one, unless
-    /// an engine we launched is still starting.
-    pub fn start_capture(&self, mode: CaptureMode) -> Delivery {
+    /// Hands a request to the engine: posts it to the running engine or launches a new
+    /// one, unless an engine we launched is still starting.
+    pub fn deliver(&self, request: EngineRequest) -> Delivery {
         // A relative (or empty) folder would make CreateProcess search the working
         // directory and PATH; only ever start the engine next to this executable.
         if !self.exe_dir.is_absolute() {
@@ -237,7 +256,7 @@ impl Engine {
             Step::Post(window) => {
                 allow_foreground(window);
                 // SAFETY: posting to a window handle has no memory-safety preconditions.
-                let posted = unsafe { PostMessageW(window, mode.message(), 0, 0) } != 0;
+                let posted = unsafe { PostMessageW(window, request.message(), 0, 0) } != 0;
                 if posted { Delivery::Posted } else { Delivery::Failed }
             }
             Step::Wait => Delivery::AlreadyStarting,
@@ -248,7 +267,7 @@ impl Engine {
                     let _ = stuck.wait();
                 }
                 launched =
-                    self.command(mode.flag()).spawn().ok().map(|child| (child, Instant::now()));
+                    self.command(request.flag()).spawn().ok().map(|child| (child, Instant::now()));
                 if launched.is_some() { Delivery::Started } else { Delivery::Failed }
             }
         };
@@ -273,11 +292,17 @@ mod tests {
     use std::{env, fs, thread};
 
     #[test]
-    fn capture_modes_map_to_flags_and_messages() {
-        assert_eq!(CaptureMode::Screenshot.flag(), "--screenshot");
-        assert_eq!(CaptureMode::Recording.flag(), "--recording");
-        assert_eq!(CaptureMode::Screenshot.message(), MSG_SCREENSHOT);
-        assert_eq!(CaptureMode::Recording.message(), MSG_RECORDING);
+    fn requests_map_to_flags_and_messages() {
+        let cases = [
+            (EngineRequest::Screenshot, "--screenshot", MSG_SCREENSHOT),
+            (EngineRequest::Recording, "--recording", MSG_RECORDING),
+            (EngineRequest::Settings, "--settings", MSG_SETTINGS),
+            (EngineRequest::RecordingSettings, "--recording-settings", MSG_RECORDING_SETTINGS),
+        ];
+        for (request, flag, message) in cases {
+            assert_eq!(request.flag(), flag, "{request:?}");
+            assert_eq!(request.message(), message, "{request:?}");
+        }
     }
 
     #[test]
@@ -308,7 +333,7 @@ mod tests {
     #[test]
     fn engine_command_line() {
         let engine = Engine::new(Path::new(r"C:\Apps\Mosaik"), None);
-        let command = engine.command(CaptureMode::Recording.flag());
+        let command = engine.command(EngineRequest::Recording.flag());
         assert_eq!(command.get_program(), Path::new(r"C:\Apps\Mosaik\MosaikCapture.Engine.exe"));
         assert_eq!(command.get_args().collect::<Vec<_>>(), ["--recording"]);
         assert_eq!(command.get_current_dir(), Some(Path::new(r"C:\Apps\Mosaik")));
@@ -329,11 +354,7 @@ mod tests {
     fn engines_are_only_started_from_an_absolute_folder() {
         for folder in ["", "relative", r".\bin"] {
             let engine = Engine::new(Path::new(folder), None);
-            assert_eq!(
-                engine.start_capture(CaptureMode::Screenshot),
-                Delivery::Failed,
-                "{folder:?}"
-            );
+            assert_eq!(engine.deliver(EngineRequest::Screenshot), Delivery::Failed, "{folder:?}");
         }
     }
 
@@ -341,7 +362,7 @@ mod tests {
     fn missing_engine_is_a_failed_delivery() {
         let missing = env::temp_dir().join("mosaik-capture-no-engine-here");
         let engine = Engine::new(&missing, None);
-        assert_eq!(engine.start_capture(CaptureMode::Screenshot), Delivery::Failed);
+        assert_eq!(engine.deliver(EngineRequest::Settings), Delivery::Failed);
         assert!(!engine.is_busy(), "no engine in that folder");
     }
 

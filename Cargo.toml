@@ -3,7 +3,7 @@ name = "mosaik-capture"
 version = "1.1.2"
 edition = "2024"
 rust-version = "1.87"
-description = "Windows tray host for screenshots and screen recordings: global hotkeys, settings window and capture-engine launcher."
+description = "Windows tray host for screenshots and screen recordings: global hotkeys, settings storage and capture-engine launcher."
 license = "MIT"
 repository = "https://github.com/Mosaik114/mosaik-capture"
 publish = false
@@ -17,12 +17,12 @@ path = "src/main.rs"
 # Stay on 0.59: 0.60+ links through raw-dylib and needs `dlltool` on the GNU toolchain.
 windows-sys = { version = "0.59", features = [
     "Win32_Foundation",
-    "Win32_Graphics_Dwm",
     "Win32_Globalization",
     "Win32_Graphics_Gdi",
     "Win32_Security",
     "Win32_Storage_FileSystem",
     "Win32_System_Com",
+    "Win32_System_DataExchange",
     "Win32_System_LibraryLoader",
     "Win32_System_Registry",
     "Win32_System_Threading",

@@ -42,6 +42,7 @@ public sealed class ContractTests
         ["fps"] = s => s.Fps,
         ["countdown"] = s => s.Countdown,
         ["appearance"] = s => (int)s.Appearance,
+        ["check_updates"] = s => s.CheckUpdates ? 1 : 0,
     };
 
     static IEnumerable<string> NumberKeys => EngineKeys.Keys.Where(key => (string)Key(key)["kind"] != "folder");
@@ -149,6 +150,10 @@ public sealed class ContractTests
         Assert.Equal(CaptureBridge.ScreenshotMessage, CaptureBridge.CommandBase + CaptureBridge.ParseCommand(new[] { Text("engine", "arguments", "screenshot") }));
         Assert.Equal(CaptureBridge.RecordingMessage, CaptureBridge.CommandBase + CaptureBridge.ParseCommand(new[] { Text("engine", "arguments", "recording") }));
         Assert.Equal(0, CaptureBridge.ParseCommand(new[] { Text("engine", "arguments", "idle") }));
+        Assert.Equal(CaptureBridge.SettingsMessage, Message("engine", "messages", "settings"));
+        Assert.Equal(CaptureBridge.RecordingSettingsMessage, Message("engine", "messages", "recording_settings"));
+        Assert.Equal(CaptureBridge.SettingsMessage, CaptureBridge.CommandBase + CaptureBridge.ParseCommand(new[] { Text("engine", "arguments", "settings") }));
+        Assert.Equal(CaptureBridge.RecordingSettingsMessage, CaptureBridge.CommandBase + CaptureBridge.ParseCommand(new[] { Text("engine", "arguments", "recording_settings") }));
         Assert.Equal(Number("engine", "state_bits", "busy"), CaptureBridge.StateFlags(busy: true, live: false));
         Assert.Equal(Number("engine", "state_bits", "live"), CaptureBridge.StateFlags(busy: false, live: true));
     }
@@ -216,5 +221,23 @@ public sealed class ContractTests
         {
             Send(TestIsolation.SimulateBusyMessage, 0);
         }
+    }
+
+    [Fact]
+    public void SettingsRequestsMatchTheHost()
+    {
+        Assert.Equal(Settings.HostChannel.SetRequest, Number("host", "copydata", "requests", "set"));
+        Assert.Equal(Settings.HostChannel.CheckHotkeyRequest, Number("host", "copydata", "requests", "check_hotkey"));
+        Assert.Equal(Settings.HostChannel.SuspendHotkeysRequest, Number("host", "copydata", "requests", "suspend_hotkeys"));
+        Assert.Equal(Settings.HostChannel.Separator.ToString(), Text("host", "copydata", "separator"));
+        Assert.Equal(Settings.HostChannel.ProbeMessage, Message("host", "messages", "probe"));
+        Assert.Equal(Settings.HostChannel.ProbeScreenshotBit, Number("host", "probe_bits", "screenshot_hotkey"));
+        Assert.Equal(Settings.HostChannel.ProbeRecordingBit, Number("host", "probe_bits", "recording_hotkey"));
+        foreach (var reply in Entries("host", "copydata", "replies"))
+        {
+            string name = string.Concat(reply.Key.Split('_').Select(part => char.ToUpperInvariant(part[0]) + part.Substring(1)));
+            Assert.Equal(Convert.ToInt32(reply.Value, CultureInfo.InvariantCulture), (int)Enum.Parse(typeof(Settings.HostReply), name));
+        }
+        Assert.Equal(new byte[] { (byte)'a', 0, 9, 0, (byte)'1', 0 }, Settings.HostChannel.Payload("a\t1"));
     }
 }

@@ -1,38 +1,28 @@
-//! The primary instance: settings window, tray icon and message loop.
+//! The primary instance: a hidden window for the tray icon, the hotkeys and the
+//! requests of other processes, and the message loop.
+//!
+//! The window is never shown. The settings window belongs to the engine, which sends
+//! changes back with `WM_COPYDATA` (see [`crate::copydata`]); problems are shown as
+//! balloons at the tray icon.
 
 mod app;
-mod controls;
-mod folder_picker;
 mod icons;
-mod layout;
 mod strings;
-mod theme;
 mod tray;
 
 use std::{env, mem, ptr};
 
-use windows_sys::Win32::Foundation::{
-    FALSE, GetLastError, HINSTANCE, HWND, LPARAM, LRESULT, POINT, RECT, TRUE, WPARAM,
-};
-use windows_sys::Win32::Graphics::Dwm::{DWMWA_USE_IMMERSIVE_DARK_MODE, DwmSetWindowAttribute};
-use windows_sys::Win32::Graphics::Gdi::{
-    GetMonitorInfoW, MONITOR_DEFAULTTONEAREST, MONITORINFO, MonitorFromPoint,
-};
-use windows_sys::Win32::System::Com::{COINIT_APARTMENTTHREADED, CoInitializeEx, CoUninitialize};
+use windows_sys::Win32::Foundation::{GetLastError, HINSTANCE, HWND, LPARAM, LRESULT, WPARAM};
 use windows_sys::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows_sys::Win32::UI::HiDpi::{
-    AdjustWindowRectExForDpi, DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2, GetDpiForMonitor,
-    GetDpiForSystem, GetDpiForWindow, MDT_EFFECTIVE_DPI, SetProcessDpiAwarenessContext,
+    DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2, SetProcessDpiAwarenessContext,
 };
 use windows_sys::Win32::UI::WindowsAndMessaging::{
-    CREATESTRUCTW, CS_HREDRAW, CS_VREDRAW, CreateWindowExW, DefWindowProcW, DestroyWindow,
-    DispatchMessageW, GWLP_USERDATA, GetCursorPos, GetMessageW, GetWindowLongPtrW, IDC_ARROW,
-    IsDialogMessageW, IsWindow, LoadCursorW, MB_ICONERROR, MB_OK, MSG, MessageBoxW, RegisterClassW,
-    SPI_GETWORKAREA, SetWindowLongPtrW, SystemParametersInfoW, TranslateMessage, UnregisterClassW,
-    WINDOW_EX_STYLE, WINDOW_STYLE, WM_NCCREATE, WM_NCDESTROY, WNDCLASSW, WS_CAPTION,
-    WS_EX_APPWINDOW, WS_MINIMIZEBOX, WS_SYSMENU,
+    CREATESTRUCTW, CreateWindowExW, DefWindowProcW, DestroyWindow, DispatchMessageW, GWLP_USERDATA,
+    GetMessageW, GetWindowLongPtrW, IsWindow, MB_ICONERROR, MB_OK, MSG, MessageBoxW,
+    RegisterClassW, SetWindowLongPtrW, TranslateMessage, UnregisterClassW, WM_NCCREATE,
+    WM_NCDESTROY, WNDCLASSW, WS_EX_TOOLWINDOW, WS_POPUP,
 };
-
 use windows_sys::core::PCWSTR;
 
 use crate::cli::Action;
@@ -41,19 +31,14 @@ use crate::isolation::{Isolation, isolated};
 use crate::store::SettingsStore;
 use crate::wide::to_wide;
 use app::App;
-use layout::Dpi;
-
-/// Style of the settings window: caption with close and minimise buttons.
-const WINDOW_STYLE: WINDOW_STYLE = WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX;
-/// Extended style of the settings window: always shown on the taskbar.
-const WINDOW_EX_STYLE: WINDOW_EX_STYLE = WS_EX_APPWINDOW;
+#[cfg(test)]
+pub use app::{HOTKEY_RETRY_SECONDS, SAVE_DELAY_MS};
 
 /// Which step of running the user interface failed.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum UiErrorKind {
     RegisterClass,
     CreateWindow,
-    CreateControls,
     MessageLoop,
 }
 
@@ -77,8 +62,7 @@ impl UiError {
     pub fn message(self) -> String {
         let step = match self.kind {
             UiErrorKind::RegisterClass => "Die Fensterklasse konnte nicht registriert werden",
-            UiErrorKind::CreateWindow => "Das Einstellungsfenster konnte nicht erstellt werden",
-            UiErrorKind::CreateControls => "Die Bedienelemente konnten nicht erstellt werden",
+            UiErrorKind::CreateWindow => "Das Programmfenster konnte nicht erstellt werden",
             UiErrorKind::MessageLoop => "Die Nachrichtenverarbeitung ist fehlgeschlagen",
         };
         format!("{step} (Windows-Fehler {}).", self.code)
@@ -97,9 +81,9 @@ pub fn report(error: UiError) {
 /// Runs the primary instance until the user quits.
 pub fn run(action: Action, isolation: Option<&Isolation>) -> Result<(), UiError> {
     // SAFETY: a process-wide setting without pointer arguments, set before any window.
-    // The manifest requests the same; this covers hosts that ignore it.
+    // The manifest requests the same; this covers hosts that ignore it. It gives the
+    // tray icon the taskbar's real size.
     unsafe { SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2) };
-    let _com = ComApartment::enter();
 
     let store = isolation.map_or_else(SettingsStore::user_default, |isolation| {
         SettingsStore::at(isolation.settings.clone())
@@ -111,17 +95,16 @@ pub fn run(action: Action, isolation: Option<&Isolation>) -> Result<(), UiError>
 
     // SAFETY: a null name returns the handle of the executable itself.
     let instance = unsafe { GetModuleHandleW(ptr::null()) };
-    // The window opens on the monitor the user is working on.
-    let monitor = Monitor::under_cursor();
     let exe = env::current_exe().ok();
     // Boxed: the window procedure keeps the address, so it must never move.
-    let app = Box::new(App::new(instance, monitor.dpi, store, config, exe, isolation));
+    let app = Box::new(App::new(instance, store, config, exe, isolation));
 
     // Unregistered when this guard drops, after the window is gone.
     let class = register_class(&app, &isolated(ipc::WINDOW_CLASS, isolation))?;
-    let window = create_window(&app, &class, &monitor)?;
+    let window = create_window(&app, &class)?;
 
-    let result = app.start(action).and_then(|()| run_message_loop(window));
+    app.start(action);
+    let result = run_message_loop();
     // Normally the window is gone already. If not (an error), destroy it while `app`
     // is alive; WM_NCDESTROY then detaches `app` from the window.
     // SAFETY: no pointer arguments; `window` is our window or already invalid.
@@ -130,32 +113,6 @@ pub fn run(action: Action, isolation: Option<&Isolation>) -> Result<(), UiError>
         unsafe { DestroyWindow(window) };
     }
     result
-}
-
-/// COM single-threaded apartment for the current thread (needed by the folder
-/// picker), left again on drop if entering it succeeded.
-struct ComApartment {
-    entered: bool,
-}
-
-impl ComApartment {
-    fn enter() -> Self {
-        // SAFETY: the reserved pointer must be null.
-        let result =
-            unsafe { CoInitializeEx(ptr::null(), COINIT_APARTMENTTHREADED.cast_unsigned()) };
-        // S_OK and S_FALSE (already initialised) both need a matching CoUninitialize;
-        // failures such as RPC_E_CHANGED_MODE must not be balanced.
-        Self { entered: result >= 0 }
-    }
-}
-
-impl Drop for ComApartment {
-    fn drop(&mut self) {
-        if self.entered {
-            // SAFETY: balances the successful CoInitializeEx on the same thread.
-            unsafe { CoUninitialize() };
-        }
-    }
 }
 
 /// A registered window class, unregistered on drop.
@@ -179,22 +136,18 @@ impl Drop for WindowClass {
     }
 }
 
-/// Registers the window class. The returned guard must be dropped before `app`,
-/// whose background brush the class refers to.
+/// Registers the window class of the hidden window: no icon, cursor or background,
+/// since it is never shown.
 fn register_class(app: &App, name: &str) -> Result<WindowClass, UiError> {
     let class_name = to_wide(name);
     let class = WNDCLASSW {
-        style: CS_HREDRAW | CS_VREDRAW,
+        style: 0,
         lpfnWndProc: Some(window_proc),
         cbClsExtra: 0,
         cbWndExtra: 0,
         hInstance: app.instance(),
-        hIcon: icons::class_icon(app.instance()),
-        // SAFETY: loads a predefined system cursor.
-        hCursor: unsafe { LoadCursorW(ptr::null_mut(), IDC_ARROW) },
-        // No class brush: WM_PAINT fills the background and WM_ERASEBKGND is skipped.
-        // (Windows would also delete a class brush on UnregisterClass, which belongs
-        // to the App.)
+        hIcon: ptr::null_mut(),
+        hCursor: ptr::null_mut(),
         hbrBackground: ptr::null_mut(),
         lpszMenuName: ptr::null(),
         lpszClassName: class_name.as_ptr(),
@@ -206,87 +159,23 @@ fn register_class(app: &App, name: &str) -> Result<WindowClass, UiError> {
     Ok(WindowClass { name: class_name, instance: app.instance() })
 }
 
-/// Outer window size for the settings window's client area at `dpi`.
-fn frame_size(dpi: Dpi) -> (i32, i32) {
-    let (width, height) = dpi.client_size();
-    let mut frame = RECT { left: 0, top: 0, right: width, bottom: height };
-    // SAFETY: `frame` outlives the call.
-    unsafe {
-        AdjustWindowRectExForDpi(&raw mut frame, WINDOW_STYLE, FALSE, WINDOW_EX_STYLE, dpi.value());
-    }
-    (frame.right - frame.left, frame.bottom - frame.top)
-}
-
-/// The monitor the window should open on: work area and DPI.
-#[derive(Clone, Copy, Debug)]
-struct Monitor {
-    /// `[left, top, right, bottom]` of the work area (without the taskbar).
-    work_area: [i32; 4],
-    dpi: Dpi,
-}
-
-impl Monitor {
-    /// The monitor under the mouse cursor (or the nearest one).
-    fn under_cursor() -> Self {
-        let mut cursor = POINT { x: 0, y: 0 };
-        // SAFETY: `cursor` outlives the call; on failure it stays (0, 0), i.e. the
-        // primary monitor.
-        unsafe { GetCursorPos(&raw mut cursor) };
-        // SAFETY: no pointer arguments.
-        let monitor = unsafe { MonitorFromPoint(cursor, MONITOR_DEFAULTTONEAREST) };
-        // SAFETY: MONITORINFO is plain data; `cbSize` is set as the API requires.
-        let mut info: MONITORINFO = unsafe { mem::zeroed() };
-        info.cbSize = u32::try_from(mem::size_of::<MONITORINFO>()).unwrap_or(u32::MAX);
-        // SAFETY: `info` outlives the call.
-        let has_info = unsafe { GetMonitorInfoW(monitor, &raw mut info) } != 0;
-        let (mut dpi_x, mut dpi_y) = (0u32, 0u32);
-        // SAFETY: both outputs outlive the call.
-        let has_dpi =
-            unsafe { GetDpiForMonitor(monitor, MDT_EFFECTIVE_DPI, &raw mut dpi_x, &raw mut dpi_y) }
-                >= 0;
-        Self {
-            work_area: rect_edges(if has_info { info.rcWork } else { primary_work_area() }),
-            // SAFETY: no arguments.
-            dpi: Dpi::new(if has_dpi { dpi_x } else { unsafe { GetDpiForSystem() } }),
-        }
-    }
-
-    /// The window rectangle that centres a window of `dpi`'s size in the work area.
-    fn centered_frame(&self, dpi: Dpi) -> RECT {
-        let (width, height) = frame_size(dpi);
-        let (x, y) = layout::centered(self.work_area, width, height);
-        RECT { left: x, top: y, right: x + width, bottom: y + height }
-    }
-}
-
-const fn rect_edges(rect: RECT) -> [i32; 4] {
-    [rect.left, rect.top, rect.right, rect.bottom]
-}
-
-/// The primary monitor's work area, the fallback if monitor information is missing.
-fn primary_work_area() -> RECT {
-    let mut area = RECT { left: 0, top: 0, right: 0, bottom: 0 };
-    // SAFETY: SPI_GETWORKAREA writes one RECT into `area`, which outlives the call.
-    unsafe { SystemParametersInfoW(SPI_GETWORKAREA, 0, (&raw mut area).cast(), 0) };
-    area
-}
-
-/// Creates the (hidden) settings window, sized for the DPI of the monitor it lands on.
-fn create_window(app: &App, class: &WindowClass, monitor: &Monitor) -> Result<HWND, UiError> {
-    let frame = monitor.centered_frame(app.dpi());
-    let title = to_wide(strings::WINDOW_TITLE);
+/// Creates the hidden window. It is a top-level window (not message-only), so it
+/// receives Explorer's `TaskbarCreated` broadcast, and a tool window, so it would stay
+/// off the taskbar and Alt+Tab even if something showed it.
+fn create_window(app: &App, class: &WindowClass) -> Result<HWND, UiError> {
+    let title = to_wide(strings::APP_NAME);
     // SAFETY: class name and title are NUL-terminated and outlive the call. `app`
     // outlives the window (see `run`), so handing its address to WM_NCCREATE is sound.
     let window = unsafe {
         CreateWindowExW(
-            WINDOW_EX_STYLE,
+            WS_EX_TOOLWINDOW,
             class.name(),
             title.as_ptr(),
-            WINDOW_STYLE,
-            frame.left,
-            frame.top,
-            frame.right - frame.left,
-            frame.bottom - frame.top,
+            WS_POPUP,
+            0,
+            0,
+            0,
+            0,
             ptr::null_mut(),
             ptr::null_mut(),
             app.instance(),
@@ -296,41 +185,11 @@ fn create_window(app: &App, class: &WindowClass, monitor: &Monitor) -> Result<HW
     if window.is_null() {
         return Err(UiError::last(UiErrorKind::CreateWindow));
     }
-
-    use_dark_title_bar(window);
-
-    // The system DPI was only a guess: the work area's monitor may use another one.
-    // SAFETY: no pointer arguments.
-    let actual = Dpi::new(unsafe { GetDpiForWindow(window) });
-    if actual == app.dpi() {
-        app.refresh_icons();
-    } else {
-        app.apply_dpi(actual, Some(monitor.centered_frame(actual)));
-    }
     Ok(window)
 }
 
-/// Dark caption to match the dark client area. Windows 10 before 20H1 knows the
-/// attribute only under its preview number 19; elsewhere it simply stays light.
-fn use_dark_title_bar(window: HWND) {
-    const DWMWA_USE_IMMERSIVE_DARK_MODE_BEFORE_20H1: u32 = 19;
-    let dark = TRUE;
-    let size = u32::try_from(mem::size_of_val(&dark)).unwrap_or(4);
-    for attribute in
-        [DWMWA_USE_IMMERSIVE_DARK_MODE.cast_unsigned(), DWMWA_USE_IMMERSIVE_DARK_MODE_BEFORE_20H1]
-    {
-        // SAFETY: `dark` is a BOOL that outlives the call; the size matches.
-        let result =
-            unsafe { DwmSetWindowAttribute(window, attribute, (&raw const dark).cast(), size) };
-        if result >= 0 {
-            return;
-        }
-    }
-}
-
-/// Pumps messages until `WM_QUIT`. `IsDialogMessageW` gives the window dialog-style
-/// keyboard handling: Tab/arrow navigation, Enter (`IDOK`) and Escape (`IDCANCEL`).
-fn run_message_loop(window: HWND) -> Result<(), UiError> {
+/// Pumps messages until `WM_QUIT`.
+fn run_message_loop() -> Result<(), UiError> {
     // SAFETY: MSG is a plain C struct for which all-zero is valid.
     let mut message: MSG = unsafe { mem::zeroed() };
     loop {
@@ -340,10 +199,8 @@ fn run_message_loop(window: HWND) -> Result<(), UiError> {
                 0 => return Ok(()),
                 -1 => return Err(UiError::last(UiErrorKind::MessageLoop)),
                 _ => {
-                    if IsDialogMessageW(window, &raw const message) == 0 {
-                        TranslateMessage(&raw const message);
-                        DispatchMessageW(&raw const message);
-                    }
+                    TranslateMessage(&raw const message);
+                    DispatchMessageW(&raw const message);
                 }
             }
         }
@@ -393,15 +250,18 @@ unsafe extern "system" fn window_proc(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::{Config, DefaultFolders, ProfileSource};
+    use crate::config::{Appearance, Config, Countdown, DefaultFolders, FrameRate, ProfileSource};
+    use crate::copydata::{self, Reply};
     use crate::store::IniFile;
-    use controls::Control;
-    use layout::id;
     use std::ffi::OsStr;
     use std::path::{Path, PathBuf};
+    use std::time::{Duration, Instant};
+    use windows_sys::Win32::System::DataExchange::COPYDATASTRUCT;
+    use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
+        MOD_ALT, MOD_CONTROL, MOD_SHIFT, RegisterHotKey, UnregisterHotKey, VK_F20, VK_F21,
+    };
     use windows_sys::Win32::UI::WindowsAndMessaging::{
-        BN_DOUBLECLICKED, GetClientRect, HWND_MESSAGE, ICON_SMALL, IDCANCEL, IDOK, IsWindow,
-        IsWindowVisible, SendMessageW, WM_CLOSE, WM_COMMAND, WM_DPICHANGED, WM_GETICON,
+        HWND_MESSAGE, IsWindowVisible, PM_REMOVE, PeekMessageW, SendMessageW, WM_COPYDATA, WM_TIMER,
     };
 
     /// A message-only window (never visible, no hotkeys) of `class`, created with
@@ -432,12 +292,82 @@ mod tests {
         unsafe { GetWindowLongPtrW(window, GWLP_USERDATA) }
     }
 
+    fn send(window: HWND, message: u32, wparam: WPARAM) -> LRESULT {
+        // SAFETY: the messages used with this helper carry no pointers.
+        unsafe { SendMessageW(window, message, wparam, 0) }
+    }
+
+    /// Sends a settings request as the engine does: UTF-16LE without terminator.
+    fn copy_data(window: HWND, request: usize, text: &str) -> LRESULT {
+        let bytes: Vec<u8> = text.encode_utf16().flat_map(u16::to_le_bytes).collect();
+        let data = COPYDATASTRUCT {
+            dwData: request,
+            cbData: u32::try_from(bytes.len()).unwrap(),
+            lpData: bytes.as_ptr().cast_mut().cast(),
+        };
+        // SAFETY: `data` and the bytes it points to outlive the synchronous call.
+        unsafe { SendMessageW(window, WM_COPYDATA, 0, (&raw const data) as LPARAM) }
+    }
+
+    fn set(window: HWND, key: &str, value: &str) -> LRESULT {
+        copy_data(window, copydata::SET, &format!("{key}\t{value}"))
+    }
+
+    fn check(window: HWND, key: &str, value: &str) -> LRESULT {
+        copy_data(window, copydata::CHECK_HOTKEY, &format!("{key}\t{value}"))
+    }
+
+    fn reply(reply: Reply) -> LRESULT {
+        reply.to_lresult()
+    }
+
+    /// Dispatches this thread's messages (timers) until `done` holds or `timeout`
+    /// passes; returns whether `done` held.
+    fn pump_until(timeout: Duration, mut done: impl FnMut() -> bool) -> bool {
+        let started = Instant::now();
+        // SAFETY: MSG is a plain C struct for which all-zero is valid.
+        let mut message: MSG = unsafe { mem::zeroed() };
+        loop {
+            // SAFETY: `message` outlives the calls.
+            while unsafe { PeekMessageW(&raw mut message, ptr::null_mut(), 0, 0, PM_REMOVE) } != 0 {
+                // SAFETY: see above.
+                unsafe { DispatchMessageW(&raw const message) };
+            }
+            if done() {
+                return true;
+            }
+            if started.elapsed() > timeout {
+                return false;
+            }
+            std::thread::sleep(Duration::from_millis(10));
+        }
+    }
+
+    fn folders() -> DefaultFolders {
+        DefaultFolders::new(Path::new(r"C:\Bilder"), Path::new(r"C:\Videos"))
+    }
+
+    /// Destroys the window (unregistering any hotkeys) and removes the temp folder,
+    /// even if an assertion fails.
+    struct Cleanup {
+        window: HWND,
+        dir: PathBuf,
+    }
+
+    impl Drop for Cleanup {
+        fn drop(&mut self) {
+            // SAFETY: destroys the test window while its `App` is still alive.
+            unsafe { DestroyWindow(self.window) };
+            let _ = std::fs::remove_dir_all(&self.dir);
+        }
+    }
+
     #[test]
     fn ui_errors_have_messages() {
         let error = UiError { kind: UiErrorKind::CreateWindow, code: 1400 };
         assert_eq!(
             error.message(),
-            "Das Einstellungsfenster konnte nicht erstellt werden (Windows-Fehler 1400)."
+            "Das Programmfenster konnte nicht erstellt werden (Windows-Fehler 1400)."
         );
     }
 
@@ -449,14 +379,12 @@ mod tests {
         let dir = env::temp_dir();
         let ini = dir.join(format!("mosaik-capture-msgonly-{}.ini", std::process::id()));
         let isolation = Isolation::for_test("msgonly", &dir);
-        let folders = DefaultFolders::new(Path::new(r"C:\Bilder"), Path::new(r"C:\Videos"));
         // SAFETY: a null name returns the handle of the executable itself.
         let instance = unsafe { GetModuleHandleW(ptr::null()) };
         let app = Box::new(App::new(
             instance,
-            Dpi::new(96),
             SettingsStore::at(ini.clone()),
-            Config::defaults(&folders),
+            Config::defaults(&folders()),
             None,
             Some(&isolation),
         ));
@@ -472,6 +400,7 @@ mod tests {
         assert_eq!(send(window, ipc::QUIT, 0), ipc::QUIT_REFUSED);
         assert_eq!(send(window, ipc::SHOW_SETTINGS, 0), 0);
         assert_eq!(send(window, ipc::TAKE_SCREENSHOT, 0), 0);
+        assert_eq!(set(window, "fps", "30"), 0, "settings wait for start-up, too");
 
         let stranger = message_only_window(&app, &class, ptr::null());
         assert!(!stranger.is_null());
@@ -488,65 +417,97 @@ mod tests {
         // SAFETY: no pointer arguments.
         assert_eq!(unsafe { IsWindow(window) }, 0);
         assert!(!ini.exists(), "nothing was saved before start-up");
+        assert_eq!(app.config().frame_rate, FrameRate::Fps60, "nothing was applied");
     }
 
-    fn send(window: HWND, message: u32, wparam: WPARAM) -> LRESULT {
-        // SAFETY: the messages used with this helper carry no pointers.
-        unsafe { SendMessageW(window, message, wparam, 0) }
+    /// The settings protocol without global side effects (a message-only window, no
+    /// hotkeys, no tray icon, test isolation with a temp settings file): replies,
+    /// validation, every kind of setting, the engine's audio message, and saving once
+    /// shortly after a burst of changes.
+    #[test]
+    fn settings_requests_are_applied_and_saved_once() {
+        let dir = env::temp_dir().join(format!("mosaik-capture-copydata-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let ini = dir.join("settings.ini");
+        let isolation = Isolation::for_test(&format!("copydata-{}", std::process::id()), &dir);
+        // SAFETY: a null name returns the handle of the executable itself.
+        let instance = unsafe { GetModuleHandleW(ptr::null()) };
+        let app = Box::new(App::new(
+            instance,
+            SettingsStore::at(ini.clone()),
+            Config::defaults(&folders()),
+            env::current_exe().ok(),
+            Some(&isolation),
+        ));
+        let class_name = format!("MosaikCapture.Host.CopyData.{}", std::process::id());
+        let class = register_class(&app, &class_name).unwrap();
+        let window = message_only_window(&app, &class, ptr::from_ref(&*app));
+        let _cleanup = Cleanup { window, dir };
+        app.accept_requests();
+
+        assert_eq!(set(window, "fps", "30"), reply(Reply::Ok));
+        assert_eq!(set(window, "countdown", "5"), reply(Reply::Ok));
+        assert_eq!(set(window, "appearance", "1"), reply(Reply::Ok));
+        assert_eq!(set(window, "check_updates", "0"), reply(Reply::Ok));
+        assert_eq!(set(window, "microphone", "1"), reply(Reply::Ok));
+        assert_eq!(set(window, "recording_folder", r"D:\Filme"), reply(Reply::Ok));
+        assert_eq!(set(window, "autostart", "0"), reply(Reply::Ok), "isolated: no registry");
+        let applied = app.config();
+        assert_eq!(applied.frame_rate, FrameRate::Fps30, "in effect at once");
+        assert_eq!(applied.countdown, Countdown::Seconds5);
+        assert_eq!(applied.appearance, Appearance::Light);
+        assert!(!applied.check_updates && applied.microphone && !applied.autostart);
+        assert_eq!(applied.recording_folder, Path::new(r"D:\Filme"));
+        assert!(!ini.exists(), "written only after the delay");
+
+        // Refused changes leave everything as it was.
+        assert_eq!(set(window, "screenshot_folder", "relativ"), reply(Reply::FolderUnusable));
+        assert_eq!(set(window, "screenshot_hotkey", "Alt+"), reply(Reply::Invalid));
+        assert_eq!(set(window, "screenshot_hotkey", "Shift+R"), reply(Reply::Invalid));
+        assert_eq!(set(window, "recording_hotkey", "Alt+Shift+4"), reply(Reply::Duplicate));
+        assert_eq!(set(window, "fps", "schnell"), reply(Reply::Invalid));
+        assert_eq!(set(window, "unknown", "1"), reply(Reply::NotUnderstood));
+        assert_eq!(copy_data(window, 99, "fps\t30"), reply(Reply::NotUnderstood));
+        assert_eq!(check(window, "recording_hotkey", "Alt+"), reply(Reply::Invalid));
+        assert_eq!(check(window, "recording_hotkey", "Umschalt+Alt+4"), reply(Reply::Duplicate));
+        assert_eq!(app.config(), applied);
+
+        assert_eq!(send(window, ipc::AUDIO_SETTINGS, 2 | 4), 1);
+        let audio = app.config();
+        assert!(!audio.microphone && audio.system_audio && audio.show_clicks);
+        assert_eq!(send(window, ipc::PROBE, 0), 1, "alive, no hotkey registered here");
+
+        // One write, shortly after the last change.
+        assert!(pump_until(Duration::from_secs(5), || ini.exists()), "saved after the delay");
+        let source = IniFile::new(&ini);
+        assert_eq!(Config::load(&source, &folders()), audio);
+        std::fs::remove_file(&ini).unwrap();
+        let delay = Duration::from_millis(u64::from(SAVE_DELAY_MS) * 2);
+        assert!(!pump_until(delay, || ini.exists()), "the burst was written once");
+
+        // A pending change is written when its timer fires.
+        assert_eq!(set(window, "show_clicks", "0"), reply(Reply::Ok));
+        assert_eq!(send(window, WM_TIMER, app::SAVE_TIMER), 0);
+        assert_eq!(source.int("show_clicks", 1), 0);
+        assert_eq!(source.string("recording_folder", OsStr::new("")), r"D:\Filme");
     }
 
-    fn command(window: HWND, id: i32) {
-        send(window, WM_COMMAND, usize::try_from(id).unwrap());
-    }
-
-    fn is_visible(window: HWND) -> bool {
-        // SAFETY: no pointer arguments.
-        unsafe { IsWindowVisible(window) != 0 }
-    }
-
-    fn client_width(window: HWND) -> i32 {
-        let mut rect = RECT { left: 0, top: 0, right: 0, bottom: 0 };
-        // SAFETY: `rect` outlives the call.
-        unsafe { GetClientRect(window, &raw mut rect) };
-        rect.right - rect.left
-    }
-
-    fn status(window: HWND) -> String {
-        Control::child(window, id::STATUS).text()
-    }
-
-    /// Destroys the window (unregistering the hotkeys) and removes the temp folder,
-    /// even if an assertion fails.
-    struct Cleanup {
-        window: HWND,
-        dir: PathBuf,
-    }
-
-    impl Drop for Cleanup {
-        fn drop(&mut self) {
-            // SAFETY: destroys the test window while its `App` is still alive.
-            unsafe { DestroyWindow(self.window) };
-            let _ = std::fs::remove_dir_all(&self.dir);
-        }
-    }
-
-    /// Drives the real settings window: requests during start-up, probe, validation,
-    /// saving, keyboard commands, unsaved edits, a DPI change, icons and the engine's
-    /// audio message.
+    /// Drives the real hidden window: start-up, probe, hotkey changes (also one that
+    /// another registration holds), hotkey checks, suspending while the engine records
+    /// a hotkey, the retry of a taken hotkey, and quitting (which writes the settings).
     ///
     /// It only touches this process (a private window class, test isolation with a
-    /// temp settings file, no engine, no registry), but it creates a window and registers
-    /// two unusual global hotkeys, so it is ignored by default and reported as such.
-    /// CI runs it with `cargo test -- --include-ignored`; locally use
-    /// `cargo test -- --ignored settings_window` (on a spare desktop if you like).
+    /// temp settings file, no engine, no registry), but it registers unusual global
+    /// hotkeys (Ctrl+Alt+Shift+F20…F24) and adds a tray icon, so it is ignored by
+    /// default. CI runs it with `cargo test -- --include-ignored`; locally use
+    /// `cargo test -- --ignored host_window` (on a spare desktop if you like).
     #[test]
-    #[ignore = "drives a real window; CI runs it with --include-ignored"]
-    fn settings_window_end_to_end() {
+    #[ignore = "registers global hotkeys and a tray icon; CI runs it with --include-ignored"]
+    fn host_window_end_to_end() {
         let dir = env::temp_dir().join(format!("mosaik-capture-ui-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let ini = dir.join("settings.ini");
-        let folders = DefaultFolders::new(Path::new(r"C:\Bilder"), Path::new(r"C:\Videos"));
-        let mut config = Config::defaults(&folders);
+        let mut config = Config::defaults(&folders());
         config.screenshot_hotkey = "Strg+Alt+Shift+F23".to_owned();
         config.recording_hotkey = "Strg+Alt+Shift+F24".to_owned();
         config.autostart = false;
@@ -556,111 +517,81 @@ mod tests {
         let isolation = Isolation::for_test(&format!("e2e-{}", std::process::id()), &dir);
         let app = Box::new(App::new(
             instance,
-            Dpi::new(96),
             SettingsStore::at(ini.clone()),
             config.clone(),
             env::current_exe().ok(),
             Some(&isolation),
         ));
         let class = register_class(&app, "MosaikCapture.Host.Test").unwrap();
-        let window = create_window(&app, &class, &Monitor::under_cursor()).unwrap();
+        let window = create_window(&app, &class).unwrap();
         let _cleanup = Cleanup { window, dir };
-        // Whatever monitor the window landed on, lay it out for 96 DPI first.
-        app.apply_dpi(Dpi::new(96), None);
 
         // Requests from outside are not handled before start-up has finished.
         assert_eq!(send(window, ipc::PROBE, 0), 0, "probe before start");
-        assert_eq!(send(window, ipc::SHOW_SETTINGS, 0), 0);
         assert_eq!(send(window, ipc::QUIT, 0), ipc::QUIT_REFUSED, "quit before start");
-        assert!(!is_visible(window), "show request before start is ignored");
+        assert_eq!(check(window, "screenshot_hotkey", "Alt+1"), 0);
 
-        app.start(Action::Background).unwrap();
+        app.start(Action::Background);
         assert_eq!(send(window, ipc::PROBE, 0), ipc::ProbeResponse::HEALTHY);
-        // SAFETY: WM_GETICON takes no pointers.
-        let icon = unsafe { SendMessageW(window, WM_GETICON, ICON_SMALL as usize, 0) };
-        assert_ne!(icon, 0, "DPI-specific window icon is set");
-        assert!(!is_visible(window), "background start stays hidden");
+        // SAFETY: no pointer arguments.
+        assert_eq!(unsafe { IsWindowVisible(window) }, 0, "never shown");
         let source = IniFile::new(&ini);
-        assert_eq!(Config::load(&source, &folders), config, "settings written at start");
+        assert_eq!(Config::load(&source, &folders()), config, "settings written at start");
 
-        let hotkey_edit = Control::child(window, id::RECORDING_HOTKEY);
-        hotkey_edit.set_text("Alt+");
-        command(window, id::SAVE);
-        assert_eq!(status(window), strings::status::INVALID_HOTKEY);
+        let shot = "screenshot_hotkey";
+        assert_eq!(set(window, shot, "Strg+Alt+Shift+F22"), reply(Reply::Ok));
+        assert_eq!(send(window, ipc::PROBE, 0), ipc::ProbeResponse::HEALTHY);
+        assert_eq!(app.config().screenshot_hotkey, "Strg+Alt+Shift+F22");
 
-        hotkey_edit.set_text("Shift+R");
-        command(window, id::SAVE);
-        assert_eq!(status(window), strings::status::SHIFT_ONLY_HOTKEY);
+        // Another registration holds Ctrl+Alt+Shift+F21 (posted to this thread).
+        let modifiers = MOD_CONTROL | MOD_ALT | MOD_SHIFT;
+        let foreign_id = 0x0100;
+        // SAFETY: no pointer arguments; a null window means this thread.
+        let held =
+            unsafe { RegisterHotKey(ptr::null_mut(), foreign_id, modifiers, u32::from(VK_F21)) };
+        assert_ne!(held, 0, "Ctrl+Alt+Shift+F21 is free on this desktop");
+        assert_eq!(set(window, shot, "Ctrl+Alt+Shift+F21"), reply(Reply::Taken));
+        assert_eq!(app.config().screenshot_hotkey, "Strg+Alt+Shift+F22", "old one kept");
+        assert_eq!(send(window, ipc::PROBE, 0), ipc::ProbeResponse::HEALTHY, "and registered");
+        assert_eq!(check(window, shot, "Strg+Alt+Shift+F21"), reply(Reply::Taken));
+        assert_eq!(check(window, shot, "Shift+Ctrl+Alt+F22"), reply(Reply::Ok), "its own");
+        assert_eq!(check(window, shot, "Strg+Alt+Shift+F20"), reply(Reply::Ok));
+        assert_eq!(
+            check(window, "recording_hotkey", "Strg+Alt+Shift+F22"),
+            reply(Reply::Duplicate)
+        );
+        // SAFETY: no pointer arguments.
+        unsafe { UnregisterHotKey(ptr::null_mut(), foreign_id) };
 
-        hotkey_edit.set_text("Strg+Alt+Shift+F23");
-        command(window, id::SAVE);
-        assert_eq!(status(window), strings::status::DUPLICATE_HOTKEY);
-
-        hotkey_edit.set_text("Strg+Alt+Shift+F22");
-        Control::child(window, id::COUNTDOWN).select(2);
-        command(window, IDOK); // Enter
-        assert_eq!(status(window), strings::status::SAVED);
-        assert_eq!(source.string("recording_hotkey", OsStr::new("")), "Strg+Alt+Shift+F22");
-
-        // Owner-drawn buttons also report double clicks; those must not save again.
-        hotkey_edit.set_text("Alt+");
-        let save_button = Control::child(window, id::SAVE);
-        let double_click =
-            (usize::try_from(BN_DOUBLECLICKED).unwrap() << 16) | usize::try_from(id::SAVE).unwrap();
-        // SAFETY: WM_COMMAND carries the button handle, no pointers to memory.
-        unsafe { SendMessageW(window, WM_COMMAND, double_click, save_button.handle() as LPARAM) };
-        assert_eq!(status(window), strings::status::SAVED, "double click is not a save");
-        hotkey_edit.set_text("Strg+Alt+Shift+F22");
-        assert_eq!(source.int("countdown", 0), 5);
+        // While the engine records a hotkey, both are released.
+        assert_eq!(copy_data(window, copydata::SUSPEND_HOTKEYS, "1"), reply(Reply::Ok));
+        assert_eq!(send(window, ipc::PROBE, 0), 1, "alive, no hotkeys");
+        assert_eq!(set(window, shot, "Strg+Alt+Shift+F20"), reply(Reply::Ok));
+        assert_eq!(send(window, ipc::PROBE, 0), 1, "still suspended");
+        assert_eq!(check(window, shot, "Strg+Alt+Shift+F20"), reply(Reply::Ok));
+        assert_eq!(copy_data(window, copydata::SUSPEND_HOTKEYS, "0"), reply(Reply::Ok));
         assert_eq!(send(window, ipc::PROBE, 0), ipc::ProbeResponse::HEALTHY);
 
-        assert_eq!(send(window, ipc::AUDIO_SETTINGS, 1), 1);
-        assert_eq!(source.int("microphone", 0), 1);
-        assert_eq!(source.int("system_audio", 1), 0);
-        assert!(Control::child(window, id::MICROPHONE).is_checked());
-        // An unsaved edit of a check box survives the next change from the engine;
-        // untouched boxes follow it.
-        Control::child(window, id::MICROPHONE).set_checked(false);
-        assert_eq!(send(window, ipc::AUDIO_SETTINGS, 1 | 2 | 4), 1);
-        assert_eq!((source.int("microphone", 0), source.int("show_clicks", 0)), (1, 1));
-        assert!(!Control::child(window, id::MICROPHONE).is_checked(), "unsaved edit kept");
-        assert!(Control::child(window, id::SYSTEM_AUDIO).is_checked());
-        assert!(Control::child(window, id::SHOW_CLICKS).is_checked());
+        // A hotkey taken while suspended is retried until it is free again.
+        assert_eq!(copy_data(window, copydata::SUSPEND_HOTKEYS, "1"), reply(Reply::Ok));
+        // SAFETY: no pointer arguments; a null window means this thread.
+        let held =
+            unsafe { RegisterHotKey(ptr::null_mut(), foreign_id, modifiers, u32::from(VK_F20)) };
+        assert_ne!(held, 0);
+        assert_eq!(copy_data(window, copydata::SUSPEND_HOTKEYS, "0"), reply(Reply::Taken));
+        assert_eq!(send(window, ipc::PROBE, 0), 1 | 4, "only the recording hotkey");
+        assert_eq!(send(window, WM_TIMER, app::HOTKEY_RETRY_TIMER), 0);
+        assert_eq!(send(window, ipc::PROBE, 0), 1 | 4, "still taken");
+        // SAFETY: no pointer arguments.
+        unsafe { UnregisterHotKey(ptr::null_mut(), foreign_id) };
+        assert_eq!(send(window, WM_TIMER, app::HOTKEY_RETRY_TIMER), 0);
+        assert_eq!(send(window, ipc::PROBE, 0), ipc::ProbeResponse::HEALTHY, "retried");
 
-        let status_control = Control::child(window, id::STATUS);
-        let width_at_96 = client_width(status_control.handle());
-        let suggested = RECT { left: 10, top: 10, right: 1600, bottom: 1500 };
-        // SAFETY: WM_DPICHANGED reads the RECT behind lParam, which outlives the call.
-        unsafe {
-            SendMessageW(window, WM_DPICHANGED, 0x00C0_00C0, (&raw const suggested) as LPARAM)
-        };
-        assert_eq!(app.dpi(), Dpi::new(192));
-        assert_eq!(
-            client_width(status_control.handle()),
-            Dpi::new(192).scale(width_at_96),
-            "controls follow the DPI"
-        );
-
-        send(window, ipc::SHOW_SETTINGS, 0);
-        assert!(is_visible(window));
-        // A second request must not overwrite unsaved edits in the visible window.
-        hotkey_edit.set_text("Strg+Alt+K");
-        send(window, ipc::SHOW_RECORDING_SETTINGS, 0);
-        assert_eq!(hotkey_edit.text(), "Strg+Alt+K", "unsaved edit kept");
-        command(window, IDCANCEL); // Escape
-        assert!(!is_visible(window), "escape hides");
-        send(window, ipc::SHOW_RECORDING_SETTINGS, 0);
-        assert_eq!(
-            hotkey_edit.text(),
-            "Strg+Alt+Shift+F22",
-            "a hidden window is refilled from the saved settings"
-        );
-        send(window, WM_CLOSE, 0);
-        assert!(!is_visible(window), "closing only hides");
-
-        // No engine runs next to the test executable, so nothing blocks quitting.
+        // No engine runs next to the test executable, so nothing blocks quitting; the
+        // pending change is written on the way out.
         assert_eq!(send(window, ipc::QUIT, 0), ipc::QUIT_ACCEPTED);
         // SAFETY: no pointer arguments.
         assert_eq!(unsafe { IsWindow(window) }, 0, "quit destroys the window");
+        assert_eq!(source.string(shot, OsStr::new("")), "Strg+Alt+Shift+F20");
     }
 }

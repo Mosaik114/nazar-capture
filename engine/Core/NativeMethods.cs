@@ -54,6 +54,8 @@ internal static partial class NativeMethods
 
     public const int VK_ESCAPE = 0x1B;
     public const int WM_HOTKEY = 0x0312;
+    public const int WM_COPYDATA = 0x004A;
+    public const uint SMTO_ABORTIFHUNG = 0x0002;
     public const uint MOD_NOREPEAT = 0x4000;
     public const int MDT_EFFECTIVE_DPI = 0;
     public const int DWMWA_WINDOW_CORNER_PREFERENCE = 33;
@@ -197,6 +199,16 @@ internal static partial class NativeMethods
     [DllImport("shcore.dll")] public static extern int GetDpiForMonitor(IntPtr monitor, int dpiType, out uint dpiX, out uint dpiY);
     [DllImport("user32.dll")][return: MarshalAs(UnmanagedType.Bool)] public static extern bool IsHungAppWindow(IntPtr hwnd);
     [DllImport("user32.dll")] public static extern IntPtr GetShellWindow();
+    [DllImport("user32.dll", SetLastError = true)] public static extern IntPtr SendMessageTimeout(IntPtr hwnd, int message, IntPtr wParam, IntPtr lParam, uint flags, uint timeoutMs, out IntPtr result);
+
+    /// <summary>The block WM_COPYDATA carries (the settings window's requests to the host).</summary>
+    [StructLayout(LayoutKind.Sequential)]
+    public struct COPYDATASTRUCT
+    {
+        public IntPtr dwData;
+        public int cbData;
+        public IntPtr lpData;
+    }
     [DllImport("user32.dll", SetLastError = true)][return: MarshalAs(UnmanagedType.Bool)] public static extern bool RegisterHotKey(IntPtr hwnd, int id, uint modifiers, uint key);
     [DllImport("user32.dll")][return: MarshalAs(UnmanagedType.Bool)] public static extern bool UnregisterHotKey(IntPtr hwnd, int id);
     [DllImport("user32.dll")] public static extern IntPtr MonitorFromWindow(IntPtr hwnd, uint flags);

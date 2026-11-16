@@ -1,4 +1,4 @@
-//! The notification-area icon and its context menu.
+//! The notification-area icon, its balloon messages and its context menu.
 //!
 //! The icon uses the version-4 callback protocol (`NOTIFYICON_VERSION_4`): Windows
 //! reports *what the user meant* — select (click, Space/Enter) or context menu (right
@@ -9,17 +9,17 @@ use std::{mem, ptr};
 
 use windows_sys::Win32::Foundation::{HWND, LPARAM, WPARAM};
 use windows_sys::Win32::UI::Shell::{
-    NIF_ICON, NIF_MESSAGE, NIF_SHOWTIP, NIF_TIP, NIM_ADD, NIM_DELETE, NIM_SETVERSION, NIN_SELECT,
-    NOTIFY_ICON_MESSAGE, NOTIFYICON_VERSION_4, NOTIFYICONDATAW, Shell_NotifyIconW,
+    NIF_ICON, NIF_INFO, NIF_MESSAGE, NIF_SHOWTIP, NIF_TIP, NIIF_WARNING, NIM_ADD, NIM_DELETE,
+    NIM_MODIFY, NIM_SETVERSION, NIN_SELECT, NOTIFY_ICON_MESSAGE, NOTIFYICON_VERSION_4,
+    NOTIFYICONDATAW, Shell_NotifyIconW,
 };
 use windows_sys::Win32::UI::WindowsAndMessaging::{
-    AppendMenuW, CreatePopupMenu, DestroyMenu, GetSystemMetrics, HICON, HMENU, MF_STRING,
-    PostMessageW, SM_MENUDROPALIGNMENT, SetForegroundWindow, TPM_LEFTALIGN, TPM_RETURNCMD,
-    TPM_RIGHTALIGN, TPM_RIGHTBUTTON, TRACK_POPUP_MENU_FLAGS, TrackPopupMenu, WM_CONTEXTMENU,
-    WM_NULL,
+    AppendMenuW, CreatePopupMenu, DestroyMenu, GetSystemMetrics, HICON, HMENU, MF_SEPARATOR,
+    MF_STRING, PostMessageW, SM_MENUDROPALIGNMENT, SetForegroundWindow, TPM_LEFTALIGN,
+    TPM_RETURNCMD, TPM_RIGHTALIGN, TPM_RIGHTBUTTON, TRACK_POPUP_MENU_FLAGS, TrackPopupMenu,
+    WM_CONTEXTMENU, WM_NULL,
 };
 
-use super::layout::id;
 use super::strings;
 use crate::ipc;
 use crate::wide::{copy_to_buffer, to_wide};
@@ -29,12 +29,18 @@ const ICON_ID: u32 = 1;
 /// `NIN_KEYSELECT` (`NIN_SELECT | NINF_KEY`): Space or Enter on the focused icon.
 const NIN_KEYSELECT: u32 = NIN_SELECT | 1;
 
-fn notify(window: HWND, icon: HICON, message: NOTIFY_ICON_MESSAGE) -> bool {
+/// The data identifying our icon, with nothing else set.
+fn icon_data(window: HWND) -> NOTIFYICONDATAW {
     // SAFETY: NOTIFYICONDATAW is a plain C struct for which all-zero is a valid value.
     let mut data: NOTIFYICONDATAW = unsafe { mem::zeroed() };
     data.cbSize = u32::try_from(mem::size_of::<NOTIFYICONDATAW>()).unwrap_or(u32::MAX);
     data.hWnd = window;
     data.uID = ICON_ID;
+    data
+}
+
+fn notify(window: HWND, icon: HICON, message: NOTIFY_ICON_MESSAGE) -> bool {
+    let mut data = icon_data(window);
     // Version 4 shows the standard tooltip only with NIF_SHOWTIP.
     data.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP | NIF_SHOWTIP;
     data.uCallbackMessage = ipc::TRAY_CALLBACK;
@@ -86,6 +92,18 @@ pub fn remove(window: HWND) {
     notify(window, ptr::null_mut(), NIM_DELETE);
 }
 
+/// Shows `text` as a warning balloon (a toast on Windows 10 and later) at the icon.
+/// Returns `false` if the icon is not there.
+pub fn balloon(window: HWND, text: &str) -> bool {
+    let mut data = icon_data(window);
+    data.uFlags = NIF_INFO;
+    data.dwInfoFlags = NIIF_WARNING;
+    copy_to_buffer(&mut data.szInfoTitle, strings::APP_NAME);
+    copy_to_buffer(&mut data.szInfo, text);
+    // SAFETY: `data` is fully initialised and outlives the call.
+    unsafe { Shell_NotifyIconW(NIM_MODIFY, &raw const data) != 0 }
+}
+
 /// What the user did with the tray icon.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TrayEvent {
@@ -132,15 +150,37 @@ pub enum MenuCommand {
 }
 
 impl MenuCommand {
+    /// Every command with its menu id (0 is "dismissed") and text, in menu order.
     const ALL: [(Self, i32, &'static str); 4] = [
-        (Self::Screenshot, id::TAKE_SCREENSHOT, strings::MENU_SCREENSHOT),
-        (Self::Recording, id::TOGGLE_RECORDING, strings::MENU_RECORDING),
-        (Self::Settings, id::MENU_SETTINGS, strings::MENU_SETTINGS),
-        (Self::Quit, id::MENU_QUIT, strings::MENU_QUIT),
+        (Self::Screenshot, 1, strings::MENU_SCREENSHOT),
+        (Self::Recording, 2, strings::MENU_RECORDING),
+        (Self::Settings, 3, strings::MENU_SETTINGS),
+        (Self::Quit, 4, strings::MENU_QUIT),
     ];
 
     fn from_id(command: i32) -> Option<Self> {
         Self::ALL.iter().find(|(_, id, _)| *id == command).map(|(cmd, _, _)| *cmd)
+    }
+}
+
+/// The registered hotkeys as German key-cap labels (`Umschalt+Alt+4`), shown next to
+/// their menu entries; `None` shows the entry without one.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct MenuHotkeys {
+    pub screenshot: Option<String>,
+    pub recording: Option<String>,
+}
+
+impl MenuHotkeys {
+    /// The text of `command`'s entry: `Name\tHotkey`, which Windows shows with the
+    /// hotkey right-aligned.
+    fn text(&self, command: MenuCommand, name: &str) -> String {
+        let hotkey = match command {
+            MenuCommand::Screenshot => self.screenshot.as_deref(),
+            MenuCommand::Recording => self.recording.as_deref(),
+            MenuCommand::Settings | MenuCommand::Quit => None,
+        };
+        hotkey.map_or_else(|| name.to_owned(), |hotkey| format!("{name}\t{hotkey}"))
     }
 }
 
@@ -165,13 +205,17 @@ impl Drop for PopupMenu {
 
 /// Shows the context menu at `(x, y)` and returns the chosen command. Runs a modal
 /// menu loop until the user chooses or dismisses.
-pub fn show_menu(window: HWND, x: i32, y: i32) -> Option<MenuCommand> {
+pub fn show_menu(window: HWND, x: i32, y: i32, hotkeys: &MenuHotkeys) -> Option<MenuCommand> {
     let menu = PopupMenu::new()?;
-    for (_, command, text) in MenuCommand::ALL {
-        let text = to_wide(text);
-        let command = usize::try_from(command).unwrap_or_default();
+    for (command, id, name) in MenuCommand::ALL {
+        if command == MenuCommand::Quit {
+            // SAFETY: a separator takes no text.
+            unsafe { AppendMenuW(menu.0, MF_SEPARATOR, 0, ptr::null()) };
+        }
+        let text = to_wide(hotkeys.text(command, name));
+        let id = usize::try_from(id).unwrap_or_default();
         // SAFETY: `text` is NUL-terminated and copied by the menu.
-        unsafe { AppendMenuW(menu.0, MF_STRING, command, text.as_ptr()) };
+        unsafe { AppendMenuW(menu.0, MF_STRING, id, text.as_ptr()) };
     }
     // SAFETY: the menu and window handles are valid; no other pointers.
     let chosen = unsafe {
@@ -248,6 +292,47 @@ mod tests {
             assert_eq!(MenuCommand::from_id(id), Some(command));
         }
         assert_eq!(MenuCommand::from_id(0), None, "dismissed menu");
+    }
+
+    #[test]
+    fn menu_entries_show_their_hotkeys() {
+        let hotkeys =
+            MenuHotkeys { screenshot: Some("Umschalt+Alt+4".to_owned()), recording: None };
+        let text = |command| {
+            let (_, _, name) =
+                MenuCommand::ALL.into_iter().find(|(c, _, _)| *c == command).unwrap();
+            hotkeys.text(command, name)
+        };
+        assert_eq!(text(MenuCommand::Screenshot), "Screenshot erstellen\tUmschalt+Alt+4");
+        assert_eq!(text(MenuCommand::Recording), strings::MENU_RECORDING, "not registered");
+        assert_eq!(text(MenuCommand::Settings), strings::MENU_SETTINGS);
+        assert_eq!(text(MenuCommand::Quit), strings::MENU_QUIT);
+        let recording =
+            MenuHotkeys { recording: Some("Druck".to_owned()), ..MenuHotkeys::default() };
+        assert!(recording.text(MenuCommand::Recording, "Aufnahme").ends_with("\tDruck"));
+    }
+
+    #[test]
+    fn balloon_texts_fit_without_truncation() {
+        use strings::balloon::*;
+        // SAFETY: NOTIFYICONDATAW is plain data; only the buffer sizes are read.
+        let data: NOTIFYICONDATAW = unsafe { mem::zeroed() };
+        assert!(strings::APP_NAME.encode_utf16().count() < data.szInfoTitle.len());
+        let texts = [
+            INVALID_HOTKEY,
+            SHIFT_ONLY_HOTKEY,
+            DUPLICATE_HOTKEY,
+            INVALID_FOLDER,
+            HOTKEY_TAKEN,
+            EXE_UNKNOWN,
+            SAVE_FAILED,
+            STARTUP_SAVE_FAILED,
+            ENGINE_FAILED,
+            BUSY,
+        ];
+        for text in texts {
+            assert!(text.encode_utf16().count() < data.szInfo.len(), "{text}");
+        }
     }
 
     #[test]

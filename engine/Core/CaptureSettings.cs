@@ -19,6 +19,10 @@ internal sealed class CaptureSettingsSnapshot
     /// <summary>The recording hotkey (the recording bar's keyboard way adds Ctrl to it).</summary>
     public string RecordingHotkey { get; init; } = DefaultRecordingHotkey;
     public const string DefaultRecordingHotkey = "Shift+Alt+5";
+    /// <summary>Start with Windows (written by the host into the Run key).</summary>
+    public bool Autostart { get; init; } = true;
+    /// <summary>Look for a new version once a day.</summary>
+    public bool CheckUpdates { get; init; } = true;
 
     public AudioSettings Audio => new(Microphone, SystemAudio, Clicks);
 }
@@ -91,7 +95,12 @@ internal static class CaptureSettings
         Fps = NormalizeFps(Number(file, "fps", 60)),
         Countdown = NormalizeCountdown(Number(file, "countdown", 3)),
         Appearance = NormalizeAppearance(Number(file, "appearance", 0)),
+        Autostart = Number(file, "autostart", 1) != 0,
+        CheckUpdates = Number(file, "check_updates", 1) != 0,
     };
+
+    /// <summary>The settings window changed the appearance: windows opened from now on follow it.</summary>
+    internal static void UseAppearance(Appearance value) => Volatile.Write(ref appearance, (int)value);
 
     /// <summary>0 = like Windows, 1 = light, 2 = dark; anything else means like Windows.</summary>
     internal static Appearance NormalizeAppearance(int value) => value is 1 or 2 ? (Appearance)value : Appearance.System;

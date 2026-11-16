@@ -25,6 +25,7 @@ static class UiText
         public const string Click = "Mosaiks-Aufnahme Klick";
         public const string Trim = "Aufnahme kürzen";
         public const string KitDemo = "Bausteine";
+        public const string Settings = "Einstellungen";
     }
 
     /// <summary>Names of the files the user gets.</summary>
@@ -234,5 +235,43 @@ static class UiText
         public const string Taken = "Belegt von einem anderen Programm. Das bisherige Kürzel bleibt aktiv.";
         public const string TakenRetrying = "Belegt von einem anderen Programm, wird alle 30 Sekunden erneut versucht.";
         public const string PrintHint = "Druck allein: in Windows unter Einstellungen > Barrierefreiheit > Tastatur „Druck-Taste zum Öffnen des Bildschirmausschnitts verwenden“ ausschalten.";
+    }
+    /// <summary>The settings window.</summary>
+    public static class Settings
+    {
+        public const string Title = "Einstellungen";
+        public const string TakeScreenshot = "Screenshot erstellen";
+        public const string StartRecording = "Aufnahme starten";
+        public const string ScreenshotGroup = "Screenshot";
+        public const string RecordingGroup = "Aufnahme";
+        public const string GeneralGroup = "Allgemein";
+        public const string Hotkey = "Kurzbefehl";
+        public const string ScreenshotHotkeyHint = "Startet die Auswahl auf allen Bildschirmen.";
+        public const string RecordingHotkeyHint = "Startet und beendet eine Bildschirmaufnahme.";
+        public const string Folder = "Speicherort";
+        public const string Change = "Ändern";
+        public const string Open = "Öffnen";
+        public const string FolderMissing = "Der Ordner fehlt. Mit „Ändern“ einen anderen wählen.";
+        public const string FolderUnusable = "Dieser Ordner lässt sich nicht nutzen. Das bisherige bleibt.";
+        public const string FrameRate = "Bildrate";
+        public const string Countdown = "Countdown";
+        public const string CountdownHint = "Zeit bis zum Start, Esc bricht ab.";
+        public const string Microphone = "Mikrofon aufnehmen";
+        public const string SystemAudio = "Systemton aufnehmen";
+        public const string Clicks = "Klicks zeigen";
+        public const string ClicksHint = "Ein Kreis an jedem Mausklick im Video.";
+        public const string Appearance = "Darstellung";
+        public const string Autostart = "Mit Windows starten";
+        public const string CheckUpdates = "Nach Updates suchen";
+        public const string CheckUpdatesHint = "Einmal am Tag, ohne Konto; installiert wird nur nach deiner Bestätigung.";
+        public const string Version = "Version";
+        public const string NoHost = "Das Programm im Infobereich antwortet nicht. Nicht gespeichert.";
+        public const string SaveFailed = "Konnte nicht gespeichert werden.";
+        public const string AutostartFailed = "Der Autostart-Eintrag ließ sich nicht schreiben.";
+        public const string Recording = "die Aufnahme";
+        public const string Screenshot = "den Screenshot";
+        public static readonly string[] FrameRates = { "30 Bilder pro Sekunde", "60 Bilder pro Sekunde" };
+        public static readonly string[] Countdowns = { "Aus", "3 Sekunden", "5 Sekunden" };
+        public static readonly string[] Appearances = { "Wie Windows", "Hell", "Dunkel" };
     }
 }

@@ -11,6 +11,7 @@
     <StartupObject>MosaikCapture.Engine.Core.Program</StartupObject>
     <ApplicationIcon>..\assets\capture.ico</ApplicationIcon>
     <ApplicationManifest>..\assets\app.manifest</ApplicationManifest>
+    <Version>1.1.3</Version>
     <Product>Mosaik Capture</Product>
     <Company>Mosaik Capture</Company>
     <Description>Screenshot and screen recording engine of Mosaik Capture</Description>
