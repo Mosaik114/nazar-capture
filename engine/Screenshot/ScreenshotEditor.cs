@@ -190,7 +190,7 @@ internal sealed partial class ScreenshotEditor : Window
         Background = UiTokens.Fixed.ScreenBackdropBrush;
         UseLayoutRounding = true;
         TextOptions.SetTextFormattingMode(this, TextFormattingMode.Display);
-        Palette.Apply(Resources);
+        Palette.Apply(Resources, PaintToolIcons);
     }
 
     // Layers from bottom to top: screenshot, dimming, markup, crop frame and handles, then the controls.

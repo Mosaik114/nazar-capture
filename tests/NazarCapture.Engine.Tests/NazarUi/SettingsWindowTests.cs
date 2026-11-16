@@ -58,7 +58,7 @@ public sealed class SettingsWindowTests
         Assert.Equal("Shift+Alt+4", window.ScreenshotHotkey.Combo);
         Assert.Equal("C:\\Bilder\\Shots", window.ScreenshotFolderRow.Description);
         Assert.True(window.Microphone.IsChecked);
-        Assert.Equal(0, window.Appearance.SelectedValue);   // new key: like Windows
+        Assert.Equal(1, window.Appearance.SelectedValue);   // new key: light, as in Hams (the host settles old files)
         Assert.Equal(30, ((Select)window.Row("fps").Control!).SelectedValue);
         window.Close();
     });
@@ -241,28 +241,81 @@ public sealed class SettingsWindowTests
     });
 
     [Fact]
-    public void TheAppearanceSwitchesTheWindowAtOnce() => WpfThread.Run(() =>
+    public void TheAppearanceOffersLightAndDarkOnly() => WpfThread.Run(() =>
+    {
+        using var settings = new TestSettings(Version112 + "appearance=2\r\n");
+        var window = Window(new FakeHost(), settings);
+        var entries = window.Appearance.Items.Cast<SelectItem>().Select(item => ((string)item.Content, (int)item.Tag)).ToArray();
+        Assert.Equal(new[] { ("Hell", 1), ("Dunkel", 2) }, entries);   // as in Hams: no "like Windows"
+        Assert.Equal(2, window.Appearance.SelectedValue);
+        window.Close();
+    });
+
+    [Fact]
+    public void TheAppearanceSwitchesEveryOpenWindowAtOnce()
     {
         bool? force = Palette.Force;
+        ResourceDictionary? elsewhere = null;
+        var otherThread = new Thread(() =>
+        {
+            elsewhere = new ResourceDictionary();
+            CaptureSettings.UseAppearance(Appearance.Light);
+            Palette.Apply(elsewhere);
+            Dispatcher.Run();
+        });
+        otherThread.SetApartmentState(ApartmentState.STA);
+        otherThread.IsBackground = true;
         try
         {
-            using var settings = new TestSettings(Version112);
-            var host = new FakeHost();
-            var window = Window(host, settings);
-            Palette.Force = null;
-            CaptureSettings.UseAppearance(Appearance.Light);
-            window.Appearance.SelectedValue = 2;
-            Assert.Contains("set appearance=2", host.Calls);
-            Assert.Equal(Appearance.Dark, CaptureSettings.Appearance);
-            Assert.Contains(MuiTheme.Dark, window.Resources.MergedDictionaries);
-            window.Close();
+            otherThread.Start();
+            Assert.True(SpinWait.SpinUntil(() => elsewhere != null && Palette.Follows(elsewhere), 5000));
+            WpfThread.Run(() =>
+            {
+                using var settings = new TestSettings(Version112 + "appearance=1\r\n");
+                var host = new FakeHost();
+                Palette.Force = null;
+                CaptureSettings.UseAppearance(Appearance.Light);
+                var window = Window(host, settings);
+                var main = new MainWindow(settings.Load, () => false, null);
+                var card = new ScreenshotCard(() => { }, () => { }, () => { }) { Offscreen = true };
+                var editor = new ScreenshotEditor((_, _) => { }, _ => { }, (_, _) => { });
+                Palette.Apply(window.Resources);
+                foreach (var resources in new[] { window.Resources, main.Resources, card.Resources, editor.Resources })
+                    Assert.Contains(MuiTheme.Light, resources.MergedDictionaries);
+                editor.PaintToolIcons();
+                var lightIcons = editor.ToolIconColors();
+
+                window.Appearance.SelectedValue = 2;
+                Assert.Contains("set appearance=2", host.Calls);
+                Assert.Equal(Appearance.Dark, CaptureSettings.Appearance);
+                foreach (var resources in new[] { window.Resources, main.Resources, card.Resources, editor.Resources })
+                {
+                    Assert.Contains(MuiTheme.Dark, resources.MergedDictionaries);
+                    Assert.DoesNotContain(MuiTheme.Light, resources.MergedDictionaries);
+                }
+                Assert.NotEqual(lightIcons, editor.ToolIconColors());   // copied colors follow, too
+
+                window.Appearance.SelectedValue = 1;
+                Assert.Contains("set appearance=1", host.Calls);
+                foreach (var resources in new[] { window.Resources, main.Resources, card.Resources, editor.Resources })
+                    Assert.Contains(MuiTheme.Light, resources.MergedDictionaries);
+                Assert.Equal(lightIcons, editor.ToolIconColors());
+                window.Appearance.SelectedValue = 2;
+                window.Close();
+                main.Close();
+                card.Close();
+                editor.Close();
+            });
+            // A window of another UI thread switches on its own thread.
+            Assert.True(SpinWait.SpinUntil(() => Dispatcher.FromThread(otherThread)!.Invoke(() => elsewhere!.MergedDictionaries.Contains(MuiTheme.Dark)), 5000));
         }
         finally
         {
+            Dispatcher.FromThread(otherThread)?.InvokeShutdown();
             Palette.Force = force;
-            CaptureSettings.UseAppearance(Appearance.System);
+            CaptureSettings.UseAppearance(Appearance.Light);
         }
-    });
+    }
 
     [Fact]
     public void TheBannerComesInStepsAndOnlyWithRoom()
@@ -305,7 +358,7 @@ public sealed class SettingsWindowTests
     public void SettingsWindowLooks(bool light, double scale) => WpfThread.Run(() =>
     {
         PixelComparison.RequireFonts();
-        using var settings = new TestSettings(Version112);
+        using var settings = new TestSettings(Version112 + (light ? "appearance=1\r\n" : "appearance=2\r\n"));   // the select shows the theme
         var window = new SettingsWindow(new FakeHost(), settings.Load, pending: () => null);
         MuiTheme.Apply(window.Resources, light);
         var content = (FrameworkElement)window.Content;

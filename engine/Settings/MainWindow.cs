@@ -145,12 +145,6 @@ internal sealed class MainWindow : Window
         shared.Open();
     }
 
-    /// <summary>The appearance changed in the settings: the main window follows at once.</summary>
-    public static void Repaint()
-    {
-        if (shared != null) Palette.Apply(shared.Resources);
-    }
-
     public void Open()
     {
         Refresh();

@@ -6,6 +6,11 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+- "Darstellung" offers only "Hell" and "Dunkel", as in Hams; "Wie Windows" is gone. A stored
+  "like Windows" becomes, once at start, the palette Windows shows then; new users start light.
+  A change applies at once in every open window: main window, settings, cards, bars and overlays.
+
 ## [1.1.3] - 2026-11-16
 
 ### Changed

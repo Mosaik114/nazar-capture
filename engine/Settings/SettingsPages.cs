@@ -50,7 +50,7 @@ internal static class NazarSettings
     public const string IssuesUrl = ProjectUrl + "/issues";
     public const string LicenseUrl = ProjectUrl + "/blob/main/LICENSE";
 
-    static readonly int[] FrameRates = { 30, 60 }, Countdowns = { 0, 3, 5 }, Appearances = { 0, 1, 2 };
+    static readonly int[] FrameRates = { 30, 60 }, Countdowns = { 0, 3, 5 }, Appearances = { (int)NazarUi.Appearance.Light, (int)NazarUi.Appearance.Dark };
 
     /// <summary>Index of the recording page (the tray's "recording settings" open it).</summary>
     public const int RecordingPage = 1;

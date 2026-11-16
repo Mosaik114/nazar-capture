@@ -20,11 +20,12 @@ internal partial class TokensDark : ResourceDictionary
     }
 }
 
-/// <summary>Which palette the windows show; stored as a number in settings.ini (key "appearance").</summary>
+/// <summary>
+/// Which palette the windows show, chosen by the user as in Hams; stored as a number in settings.ini (key
+/// "appearance"). Versions up to 1.1.3 also had 0 = like Windows, which the host settles once at start-up.
+/// </summary>
 internal enum Appearance
 {
-    /// <summary>Follow the Windows app theme.</summary>
-    System = 0,
     Light = 1,
     Dark = 2,
 }
@@ -76,13 +77,8 @@ internal static class MuiTheme
         if (!merged.Contains(wanted)) merged.Add(wanted);
     }
 
-    /// <summary>Whether <paramref name="appearance"/> means the light palette; System asks Windows.</summary>
-    public static bool IsLight(Appearance appearance, Func<bool> windowsUsesLightTheme) => appearance switch
-    {
-        Appearance.Light => true,
-        Appearance.Dark => false,
-        _ => windowsUsesLightTheme(),
-    };
+    /// <summary>Whether <paramref name="appearance"/> means the light palette.</summary>
+    public static bool IsLight(Appearance appearance) => appearance != Appearance.Dark;
 
     internal static void AddFonts(ResourceDictionary dictionary)
     {

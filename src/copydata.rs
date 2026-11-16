@@ -350,7 +350,7 @@ mod tests {
     fn choices_are_normalised_like_stored_values() {
         assert_eq!(set("fps\t45"), Ok(Request::Set(Setting::FrameRate(FrameRate::Fps60))));
         assert_eq!(set("countdown\t4"), Ok(Request::Set(Setting::Countdown(Countdown::Seconds3))));
-        assert_eq!(set("appearance\t9"), Ok(Request::Set(Setting::Appearance(Appearance::System))));
+        assert_eq!(set("appearance\t9"), Ok(Request::Set(Setting::Appearance(Appearance::Light))));
         assert_eq!(set("microphone\t+1"), Ok(Request::Set(Setting::Microphone(true))));
     }
 
@@ -432,7 +432,7 @@ mod tests {
             (Setting::CheckUpdates(false), |c| c.check_updates = false),
             (Setting::FrameRate(FrameRate::Fps30), |c| c.frame_rate = FrameRate::Fps30),
             (Setting::Countdown(Countdown::Off), |c| c.countdown = Countdown::Off),
-            (Setting::Appearance(Appearance::Light), |c| c.appearance = Appearance::Light),
+            (Setting::Appearance(Appearance::Dark), |c| c.appearance = Appearance::Dark),
             (Setting::ScreenshotFolder(r"E:\S".into()), |c| c.screenshot_folder = r"E:\S".into()),
         ];
         for (setting, edit) in cases {

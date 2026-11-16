@@ -84,10 +84,9 @@ public sealed class ThemeTests : IDisposable
     [Fact]
     public void AppearanceChoosesThePalette()
     {
-        Assert.True(MuiTheme.IsLight(Appearance.Light, () => false));
-        Assert.False(MuiTheme.IsLight(Appearance.Dark, () => true));
-        Assert.True(MuiTheme.IsLight(Appearance.System, () => true));
-        Assert.False(MuiTheme.IsLight(Appearance.System, () => false));
+        Assert.True(MuiTheme.IsLight(Appearance.Light));
+        Assert.False(MuiTheme.IsLight(Appearance.Dark));
+        Assert.Equal(new[] { Appearance.Light, Appearance.Dark }, Enum.GetValues(typeof(Appearance)).Cast<Appearance>());
     }
 
     [Fact]
@@ -95,8 +94,11 @@ public sealed class ThemeTests : IDisposable
     {
         Assert.Equal(Appearance.Light, CaptureSettings.NormalizeAppearance(1));
         Assert.Equal(Appearance.Dark, CaptureSettings.NormalizeAppearance(2));
-        foreach (int value in new[] { 0, 3, -1, 99 }) Assert.Equal(Appearance.System, CaptureSettings.NormalizeAppearance(value));
+        // 0 was "like Windows" up to 1.1.3; the host settles it before the engine reads it, anything left means light.
+        foreach (int value in new[] { 0, 3, -1, 99 }) Assert.Equal(Appearance.Light, CaptureSettings.NormalizeAppearance(value));
         using var settings = new TestSettings("[capture]\r\nappearance=2\r\n");
         Assert.Equal(Appearance.Dark, settings.Load().Appearance);
+        using var fresh = new TestSettings("[capture]\r\n");
+        Assert.Equal(Appearance.Light, fresh.Load().Appearance);   // new users: light, as in Hams
     }
 }

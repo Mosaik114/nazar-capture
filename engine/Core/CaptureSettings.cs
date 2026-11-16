@@ -11,8 +11,8 @@ internal sealed class CaptureSettingsSnapshot
     public bool Clicks { get; init; } = true;
     public int Fps { get; init; } = 60;
     public int Countdown { get; init; } = 3;
-    /// <summary>Light, dark or like Windows (the windows follow it from the next time they open).</summary>
-    public Appearance Appearance { get; init; } = Appearance.System;
+    /// <summary>Light or dark; light for new users, as in Hams.</summary>
+    public Appearance Appearance { get; init; } = Appearance.Light;
     /// <summary>The screenshot hotkey as the host reads it (the card's keyboard way adds Ctrl to it).</summary>
     public string ScreenshotHotkey { get; init; } = DefaultScreenshotHotkey;
     public const string DefaultScreenshotHotkey = "Shift+Alt+4";
@@ -67,11 +67,11 @@ internal static class CaptureSettings
     /// <summary>Points the engine at another settings file (self-test, live test, unit tests).</summary>
     internal static void UseFile(string path) => fileName = path;
 
-    static int appearance;
+    static int appearance = (int)Appearance.Light;
 
     /// <summary>
     /// The appearance as of the latest <see cref="Load()"/> (every capture and recording reads the settings once),
-    /// so opening a window costs no file access; like Windows until the settings were read.
+    /// so opening a window costs no file access; light until the settings were read.
     /// </summary>
     public static Appearance Appearance => (Appearance)Volatile.Read(ref appearance);
 
@@ -94,7 +94,7 @@ internal static class CaptureSettings
         Clicks = Number(file, "show_clicks", 1) != 0,
         Fps = NormalizeFps(Number(file, "fps", 60)),
         Countdown = NormalizeCountdown(Number(file, "countdown", 3)),
-        Appearance = NormalizeAppearance(Number(file, "appearance", 0)),
+        Appearance = NormalizeAppearance(Number(file, "appearance", (int)Appearance.Light)),
         Autostart = Number(file, "autostart", 1) != 0,
         CheckUpdates = Number(file, "check_updates", 1) != 0,
     };
@@ -102,8 +102,8 @@ internal static class CaptureSettings
     /// <summary>The settings window changed the appearance: windows opened from now on follow it.</summary>
     internal static void UseAppearance(Appearance value) => Volatile.Write(ref appearance, (int)value);
 
-    /// <summary>0 = like Windows, 1 = light, 2 = dark; anything else means like Windows.</summary>
-    internal static Appearance NormalizeAppearance(int value) => value is 1 or 2 ? (Appearance)value : Appearance.System;
+    /// <summary>1 = light, 2 = dark; anything else means light (the host has settled the old 0 = like Windows).</summary>
+    internal static Appearance NormalizeAppearance(int value) => value == 2 ? Appearance.Dark : Appearance.Light;
 
     /// <summary>Only 30 and 60 fps are supported; anything else means 60.</summary>
     internal static int NormalizeFps(int fps) => fps == 30 ? 30 : 60;

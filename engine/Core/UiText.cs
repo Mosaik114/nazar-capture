@@ -295,7 +295,7 @@ static class UiText
         public const string Screenshot = "den Screenshot";
         public static readonly string[] FrameRates = { "30 Bilder pro Sekunde", "60 Bilder pro Sekunde" };
         public static readonly string[] Countdowns = { "Aus", "3 Sekunden", "5 Sekunden" };
-        public static readonly string[] Appearances = { "Wie Windows", "Hell", "Dunkel" };
+        public static readonly string[] Appearances = { "Hell", "Dunkel" };
     }
     /// <summary>The main window (Hams' main window: head, status, the two actions, the hotkeys as keys).</summary>
     public static class Main

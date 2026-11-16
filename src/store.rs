@@ -19,11 +19,12 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 use std::{env, ptr, thread};
 
-use windows_sys::Win32::Foundation::{ERROR_LOCK_VIOLATION, ERROR_SHARING_VIOLATION};
+use windows_sys::Win32::Foundation::{ERROR_LOCK_VIOLATION, ERROR_SHARING_VIOLATION, ERROR_SUCCESS};
 use windows_sys::Win32::Storage::FileSystem::{
     MOVEFILE_REPLACE_EXISTING, MOVEFILE_WRITE_THROUGH, MoveFileExW,
 };
 use windows_sys::Win32::System::Com::CoTaskMemFree;
+use windows_sys::Win32::System::Registry::{HKEY_CURRENT_USER, RRF_RT_REG_DWORD, RegGetValueW};
 use windows_sys::Win32::System::WindowsProgramming::GetPrivateProfileStringW;
 use windows_sys::Win32::UI::Shell::{
     FOLDERID_LocalAppData, FOLDERID_Pictures, FOLDERID_Profile, FOLDERID_Videos, KF_FLAG_DEFAULT,
@@ -31,7 +32,7 @@ use windows_sys::Win32::UI::Shell::{
 };
 use windows_sys::core::GUID;
 
-use crate::config::{Config, DefaultFolders, ProfileSource, SECTION};
+use crate::config::{Appearance, Config, DefaultFolders, ProfileSource, SECTION, keys};
 use crate::wide::{from_wide, from_wide_ptr, to_wide};
 
 /// Folder below `%LOCALAPPDATA%` that holds the settings.
@@ -78,10 +79,51 @@ impl SettingsStore {
         Config::load(&IniFile::new(&self.path), &known_default_folders())
     }
 
+    /// Reads the settings like [`Self::load`] and, once, settles the appearance of earlier
+    /// versions: a file whose `appearance` is not light or dark (0 = "like Windows", or the
+    /// key missing) gets the palette those versions showed right now, `windows_light`, and
+    /// is saved. Without a file (a new user) the appearance is light, as in Hams.
+    ///
+    /// If saving fails, the settled value is still used and the next start tries again.
+    pub fn load_settled(&self, windows_light: impl FnOnce() -> bool) -> Config {
+        let mut config = self.load();
+        if self.path.is_file() {
+            let stored = IniFile::new(&self.path).int(keys::APPEARANCE, 0);
+            if !Appearance::is_choice(stored) {
+                config.appearance = Appearance::like_windows(windows_light());
+                let _ = self.save(&config);
+            }
+        }
+        config
+    }
+
     /// Writes all settings to a temporary file and moves it over the old one.
     pub fn save(&self, config: &Config) -> io::Result<()> {
         write_atomic(&self.path, &config.to_ini())
     }
+}
+
+/// Whether Windows shows apps in the light theme (`AppsUseLightTheme`); light if the value
+/// cannot be read, which is Windows' own default.
+pub fn windows_uses_light_theme() -> bool {
+    let key = to_wide(r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize");
+    let name = to_wide("AppsUseLightTheme");
+    let mut value = 1u32;
+    let mut size = u32::try_from(size_of::<u32>()).unwrap_or(4);
+    // SAFETY: both names are NUL-terminated; `value` holds `size` bytes and outlives the
+    // call; the type pointer is optional.
+    let status = unsafe {
+        RegGetValueW(
+            HKEY_CURRENT_USER,
+            key.as_ptr(),
+            name.as_ptr(),
+            RRF_RT_REG_DWORD,
+            ptr::null_mut(),
+            (&raw mut value).cast(),
+            &raw mut size,
+        )
+    };
+    status != ERROR_SUCCESS || value != 0
 }
 
 /// The settings file below a local application-data folder.
@@ -447,6 +489,47 @@ pub mod tests {
     }
 
     #[test]
+    fn like_windows_of_earlier_versions_is_settled_once() {
+        for (windows_light, settled) in [(false, Appearance::Dark), (true, Appearance::Light)] {
+            for stored in ["appearance=0\r\n", "", "appearance=7\r\n"] {
+                let dir = TempDir::new();
+                let path = dir.file("settings.ini");
+                write_utf16(&path, &format!("[capture]\r\nfps=30\r\n{stored}"));
+                let store = SettingsStore::at(path.clone());
+                let config = store.load_settled(|| windows_light);
+                assert_eq!(config.appearance, settled, "{stored:?}");
+                assert_eq!(config.frame_rate, FrameRate::Fps30, "the other values stay");
+                let written = IniFile::new(&path).int(keys::APPEARANCE, 0);
+                assert_eq!(written, settled.value(), "saved: {stored:?}");
+                // Settled for good: the Windows theme is not asked again.
+                let again = store.load_settled(|| panic!("asked Windows a second time"));
+                assert_eq!(again.appearance, settled);
+            }
+        }
+    }
+
+    #[test]
+    fn a_chosen_appearance_and_a_new_user_are_left_alone() {
+        let dir = TempDir::new();
+        let path = dir.file("settings.ini");
+        let store = SettingsStore::at(path.clone());
+        let config = store.load_settled(|| panic!("a new user does not follow Windows"));
+        assert_eq!(config.appearance, Appearance::Light, "new users start light, as in Hams");
+        assert!(!path.exists(), "nothing is written for a new user");
+        for (stored, chosen) in [("1", Appearance::Light), ("2", Appearance::Dark)] {
+            write_utf16(&path, &format!("[capture]\r\nappearance={stored}\r\n"));
+            let config = store.load_settled(|| panic!("a choice does not follow Windows"));
+            assert_eq!(config.appearance, chosen);
+        }
+    }
+
+    #[test]
+    fn windows_theme_can_be_read() {
+        // Whatever the machine uses; the call must simply not fail or hang.
+        let _ = windows_uses_light_theme();
+    }
+
+    #[test]
     fn round_trip_through_real_file() {
         let dir = TempDir::new();
         let path = dir.file("settings.ini");
@@ -470,7 +553,7 @@ pub mod tests {
             autostart: false,
             frame_rate: FrameRate::Fps30,
             countdown: Countdown::Seconds5,
-            appearance: Appearance::Light,
+            appearance: Appearance::Dark,
             check_updates: false,
         };
         SettingsStore::at(path.clone()).save(&config).unwrap();

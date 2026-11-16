@@ -94,7 +94,8 @@ pub fn run(action: Action, isolation: Option<&Isolation>) -> Result<(), UiError>
     let store = isolation.map_or_else(SettingsStore::user_default, |isolation| {
         SettingsStore::at(isolation.settings.clone())
     });
-    let mut config = store.load();
+    // Earlier versions could follow the Windows theme; that becomes the palette shown now.
+    let mut config = store.load_settled(crate::store::windows_uses_light_theme);
     if isolation.is_some() {
         config.autostart = false;
     }
@@ -453,7 +454,7 @@ mod tests {
 
         assert_eq!(set(window, "fps", "30"), reply(Reply::Ok));
         assert_eq!(set(window, "countdown", "5"), reply(Reply::Ok));
-        assert_eq!(set(window, "appearance", "1"), reply(Reply::Ok));
+        assert_eq!(set(window, "appearance", "2"), reply(Reply::Ok));
         assert_eq!(set(window, "check_updates", "0"), reply(Reply::Ok));
         assert_eq!(set(window, "microphone", "1"), reply(Reply::Ok));
         assert_eq!(set(window, "recording_folder", r"D:\Filme"), reply(Reply::Ok));
@@ -461,7 +462,7 @@ mod tests {
         let applied = app.config();
         assert_eq!(applied.frame_rate, FrameRate::Fps30, "in effect at once");
         assert_eq!(applied.countdown, Countdown::Seconds5);
-        assert_eq!(applied.appearance, Appearance::Light);
+        assert_eq!(applied.appearance, Appearance::Dark);
         assert!(!applied.check_updates && applied.microphone && !applied.autostart);
         assert_eq!(applied.recording_folder, Path::new(r"D:\Filme"));
         assert!(!ini.exists(), "written only after the delay");

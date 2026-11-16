@@ -1,10 +1,10 @@
-using Microsoft.Win32;
+using System.Runtime.CompilerServices;
 
 namespace NazarCapture.Engine.Core;
 
 /// <summary>
 /// Look of all windows: the theme colors (warm cream or warm dark gray, turquoise accent) as
-/// resources that follow the Windows light/dark setting, plus the shared fonts and fixed brushes.
+/// resources that follow the "appearance" setting (light or dark), plus the shared fonts and fixed brushes.
 /// The accent comes in two roles: <see cref="Accent"/> for lines, icons, bars and frames (dark
 /// turquoise on cream, bright turquoise on dark gray, both at least 3:1 against the background) and
 /// <see cref="AccentFill"/> for surfaces that carry light text or icons (at least 4.5:1 with
@@ -57,24 +57,70 @@ static class Palette
 
     internal static bool? Force;   // tests only: light/dark regardless of the settings and Windows
 
+    /// <summary>Whether the windows show the light theme: the "appearance" setting, see <see cref="CaptureSettings.Appearance"/>.</summary>
+    static bool LightTheme => Force ?? MuiTheme.IsLight(CaptureSettings.Appearance);
+
+    // Every dictionary that shows the setting's theme, with the thread it belongs to (the token dictionaries are
+    // per thread), so a change reaches all open windows. Weak: a closed window is not kept alive.
+    static readonly List<(WeakReference<ResourceDictionary> Resources, Dispatcher Dispatcher)> following = new();
+    static readonly ConditionalWeakTable<ResourceDictionary, Action> afterSwitch = new();
+
     /// <summary>
-    /// Puts the theme colors into <paramref name="resources"/>: the "appearance" setting (light, dark or like
-    /// Windows) as read with the latest settings, see <see cref="CaptureSettings.Appearance"/>.
+    /// Puts the theme colors into <paramref name="resources"/>: the "appearance" setting as read with the latest
+    /// settings. From then on the dictionary follows every change at once, see <see cref="ApplyEverywhere"/>;
+    /// <paramref name="switched"/> then runs for what copies a color instead of referencing it.
     /// </summary>
-    public static void Apply(ResourceDictionary resources) =>
-        Apply(resources, Force ?? MuiTheme.IsLight(CaptureSettings.Appearance, WindowsUsesLightTheme));
+    public static void Apply(ResourceDictionary resources, Action? switched = null)
+    {
+        Follow(resources, switched);
+        Apply(resources, LightTheme);
+    }
 
     /// <summary>The token dictionary of the theme (Mui.* tokens, fixed tones and the legacy keys above).</summary>
     public static void Apply(ResourceDictionary resources, bool light) => MuiTheme.Apply(resources, light);
 
-    static bool WindowsUsesLightTheme()
+    /// <summary>
+    /// The appearance changed: every open window (main window, settings, cards, bars, overlays) shows it at once,
+    /// those of the calling thread before this returns, those of other threads on their own thread.
+    /// </summary>
+    public static void ApplyEverywhere()
     {
-        try
+        bool light = LightTheme;
+        (WeakReference<ResourceDictionary> Resources, Dispatcher Dispatcher)[] all;
+        lock (following) all = following.ToArray();
+        foreach (var (reference, dispatcher) in all)
         {
-            object? value = Registry.GetValue(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize", "AppsUseLightTheme", 0);
-            return value is int light && light != 0;
+            if (!reference.TryGetTarget(out var resources)) continue;
+            if (dispatcher.CheckAccess()) Switch(resources, light);
+            else if (dispatcher.Thread.IsAlive && !dispatcher.HasShutdownStarted)
+                dispatcher.BeginInvoke(new Action(() => Switch(resources, light)));
         }
-        catch (System.Security.SecurityException) { return false; }   // setting not readable: stay dark
-        catch (IOException) { return false; }
+    }
+
+    static void Switch(ResourceDictionary resources, bool light)
+    {
+        Apply(resources, light);
+        if (afterSwitch.TryGetValue(resources, out var switched)) switched();
+    }
+
+    /// <summary>Whether <paramref name="resources"/> follows the setting (tests).</summary>
+    internal static bool Follows(ResourceDictionary resources)
+    {
+        lock (following) return following.Any(entry => entry.Resources.TryGetTarget(out var known) && ReferenceEquals(known, resources));
+    }
+
+    static void Follow(ResourceDictionary resources, Action? switched)
+    {
+        if (switched != null)
+        {
+            afterSwitch.Remove(resources);
+            afterSwitch.Add(resources, switched);
+        }
+        lock (following)
+        {
+            following.RemoveAll(entry => !entry.Resources.TryGetTarget(out _));
+            if (following.Any(entry => entry.Resources.TryGetTarget(out var known) && ReferenceEquals(known, resources))) return;
+            following.Add((new WeakReference<ResourceDictionary>(resources), Dispatcher.CurrentDispatcher));
+        }
     }
 }

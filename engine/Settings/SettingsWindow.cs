@@ -354,10 +354,9 @@ internal sealed class SettingsWindow : NazarWindow
             row.ShowStatus("", Status.None);
             if (key == NazarSettings.Appearance)
             {
-                // works at once in the open window, and in every window opened from now on
+                // works at once in every open window, and in every window opened from now on
                 CaptureSettings.UseAppearance(CaptureSettings.NormalizeAppearance((int)select.SelectedValue));
-                Palette.Apply(Resources);
-                MainWindow.Repaint();
+                Palette.ApplyEverywhere();
             }
             current = load();
             return;

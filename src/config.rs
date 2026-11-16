@@ -27,7 +27,7 @@ pub mod keys {
     pub const FPS: &str = "fps";
     /// Countdown before a recording starts, in seconds.
     pub const COUNTDOWN: &str = "countdown";
-    /// Light, dark or like Windows (read by the engine).
+    /// Light or dark (read by the engine).
     pub const APPEARANCE: &str = "appearance";
     /// Look for a newer version (read by the engine).
     pub const CHECK_UPDATES: &str = "check_updates";
@@ -96,33 +96,39 @@ impl Countdown {
     }
 }
 
-/// Which palette the windows show. Unknown values mean "like Windows".
+/// Which palette the windows show: the user chooses light or dark, as in Hams. Unknown
+/// values mean light, the default for new users.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum Appearance {
-    /// Follow the Windows app theme.
     #[default]
-    System,
     Light,
     Dark,
 }
 
 impl Appearance {
-    /// Interprets a stored value: 1 = light, 2 = dark, anything else = like Windows.
+    /// Interprets a stored value: 2 = dark, anything else = light.
     pub const fn from_value(value: i32) -> Self {
-        match value {
-            1 => Self::Light,
-            2 => Self::Dark,
-            _ => Self::System,
-        }
+        if value == 2 { Self::Dark } else { Self::Light }
     }
 
     /// The value as stored.
     pub const fn value(self) -> i32 {
         match self {
-            Self::System => 0,
             Self::Light => 1,
             Self::Dark => 2,
         }
+    }
+
+    /// Whether a stored value is one of the two choices. Versions up to 1.1.3 also knew
+    /// 0 = "like Windows" (and showed any other value, or a missing key, that way); such
+    /// a file is settled once, see [`crate::store::SettingsStore::load_settled`].
+    pub const fn is_choice(value: i32) -> bool {
+        matches!(value, 1 | 2)
+    }
+
+    /// The palette "like Windows" shows while Windows uses the given app theme.
+    pub const fn like_windows(windows_light: bool) -> Self {
+        if windows_light { Self::Light } else { Self::Dark }
     }
 }
 
@@ -367,7 +373,7 @@ mod tests {
         assert!(config.system_audio && config.show_clicks && config.autostart);
         assert_eq!(config.frame_rate, FrameRate::Fps60);
         assert_eq!(config.countdown, Countdown::Seconds3);
-        assert_eq!(config.appearance, Appearance::System);
+        assert_eq!(config.appearance, Appearance::Light, "new users start light, as in Hams");
         assert!(config.check_updates);
         assert!(config.validate().is_ok());
     }
@@ -401,11 +407,15 @@ mod tests {
         assert_eq!(Appearance::from_value(1), Appearance::Light);
         assert_eq!(Appearance::from_value(2), Appearance::Dark);
         for value in [0, 3, -1, 10, i32::MAX] {
-            assert_eq!(Appearance::from_value(value), Appearance::System, "{value}");
+            assert_eq!(Appearance::from_value(value), Appearance::Light, "{value}");
+            assert!(!Appearance::is_choice(value), "{value}");
         }
-        for appearance in [Appearance::System, Appearance::Light, Appearance::Dark] {
+        for appearance in [Appearance::Light, Appearance::Dark] {
             assert_eq!(Appearance::from_value(appearance.value()), appearance);
+            assert!(Appearance::is_choice(appearance.value()));
         }
+        assert_eq!(Appearance::like_windows(true), Appearance::Light);
+        assert_eq!(Appearance::like_windows(false), Appearance::Dark);
     }
 
     #[test]
@@ -447,7 +457,7 @@ mod tests {
             autostart=1\r\n\
             fps=30\r\n\
             countdown=0\r\n\
-            appearance=0\r\n\
+            appearance=1\r\n\
             check_updates=1\r\n";
         assert_eq!(config.to_ini(), expected);
     }

@@ -339,6 +339,16 @@ internal sealed partial class ScreenshotEditor
 
     Color ThemeColor(string key) => ((SolidColorBrush)Resources[key]).Color;
 
+    /// <summary>The tool icons copy their color (see <see cref="SetTool"/>), so they follow a theme switch here.</summary>
+    internal void PaintToolIcons()
+    {
+        foreach (var group in groups)
+            group.IconBrush.Color = ThemeColor(group.Button.IsChecked == true ? UiTokens.Keys.AccentTint : UiTokens.Keys.TextPrimary);
+    }
+
+    /// <summary>The colors of the tool icons (tests).</summary>
+    internal Color[] ToolIconColors() => groups.Select(group => group.IconBrush.Color).ToArray();
+
     internal void SetTool(Tool selected)
     {
         CommitText();

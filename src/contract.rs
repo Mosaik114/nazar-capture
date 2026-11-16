@@ -335,7 +335,8 @@ fn hotkey_retry_and_save_delay() {
 #[test]
 fn settings_file_of_version_1_1_2_loads_without_loss() {
     // Written by 1.1.2 (UTF-16LE with BOM, as the store writes it): no appearance and
-    // no check_updates yet, which take their defaults.
+    // no check_updates yet, which take their defaults (the host settles the appearance
+    // once at start-up, see `SettingsStore::load_settled`).
     let dir = TempDir::new();
     let path = dir.file("settings.ini");
     write_utf16(
@@ -364,7 +365,7 @@ fn settings_file_of_version_1_1_2_loads_without_loss() {
         autostart: true,
         frame_rate: FrameRate::Fps60,
         countdown: Countdown::Seconds3,
-        appearance: Appearance::System,
+        appearance: Appearance::Light,
         check_updates: true,
     };
     assert_eq!(loaded, expected);
