@@ -25,6 +25,7 @@ internal sealed class SettingsWindow : MosaikWindow
     readonly SettingRow screenshotHotkeyRow, recordingHotkeyRow, screenshotFolderRow, recordingFolderRow;
     readonly Select fps, countdown, appearance;
     readonly ToggleSwitch microphone, systemAudio, clicks, autostart, checkUpdates;
+    readonly SettingRow versionRow;
     CaptureSettingsSnapshot current = new();
     bool populating;
 
@@ -77,7 +78,8 @@ internal sealed class SettingsWindow : MosaikWindow
         generalGroup.Add(new SettingRow(UiText.Settings.Appearance, null, appearance));
         generalGroup.Add(new SettingRow(UiText.Settings.Autostart, null, autostart));
         generalGroup.Add(new SettingRow(UiText.Settings.CheckUpdates, UiText.Settings.CheckUpdatesHint, checkUpdates));
-        generalGroup.Add(SettingRow.Display(UiText.Settings.Version, AppInfo.Version));
+        versionRow = SettingRow.Display(UiText.Settings.Version, AppInfo.Version);
+        generalGroup.Add(versionRow);
 
         page.Children.Add(screenshotGroup);
         page.Children.Add(recordingGroup);
@@ -174,6 +176,16 @@ internal sealed class SettingsWindow : MosaikWindow
         }
         finally { populating = false; }
         ShowHotkeyState();
+        ShowUpdate(Updates.UpdateNotice.Pending());
+    }
+
+    /// <summary>A newer version (as remembered by the daily check) shows in the version row with a button.</summary>
+    internal void ShowUpdate(Updates.Release? pending)
+    {
+        if (pending == null) { versionRow.ShowStatus("", Status.None); return; }
+        versionRow.ShowStatus(UiText.Update.Available(pending.Version), Status.Processing);
+        if (versionRow.Control is not PrimaryButton)
+            versionRow.SetControl(new PrimaryButton(UiText.Update.Now, () => Updates.UpdateNotice.Show(pending), IconGlyphs.Refresh));
     }
 
     void ShowHotkeyState()

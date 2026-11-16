@@ -276,4 +276,26 @@ static class UiText
         public static readonly string[] Countdowns = { "Aus", "3 Sekunden", "5 Sekunden" };
         public static readonly string[] Appearances = { "Wie Windows", "Hell", "Dunkel" };
     }
+    /// <summary>The update notice.</summary>
+    public static class Update
+    {
+        public const string Title = "Mosaiks-Screenshot Update";
+        public const string Now = "Jetzt aktualisieren";
+        public const string Later = "Später";
+        public const string WhatsNew = "Was ist neu";
+        public const string Downloading = "Wird heruntergeladen und geprüft …";
+        public const string Installing = "Wird installiert, das Programm startet neu.";
+        public const string Failed = "Update nicht möglich";
+        public static string Available(string version) => "Version " + version + " ist da";
+        public static string Running(string version) => "Du hast " + version + ".";
+        public static string Reason(Engine.Updates.UpdateProblem problem) => problem switch
+        {
+            Engine.Updates.UpdateProblem.NoDownload => "Das Release enthält keine Windows-Datei.",
+            Engine.Updates.UpdateProblem.NoChecksum => "Für den Download gibt es keine Prüfsumme; ohne sie wird nichts installiert.",
+            Engine.Updates.UpdateProblem.ChecksumMismatch => "Die Prüfsumme stimmt nicht; der Download wurde verworfen.",
+            Engine.Updates.UpdateProblem.DownloadFailed => "Der Download ist fehlgeschlagen. Später noch einmal versuchen.",
+            Engine.Updates.UpdateProblem.InstallerMissing => "Im Download fehlt das Programm.",
+            _ => "Das Installationsprogramm ließ sich nicht starten.",
+        };
+    }
 }

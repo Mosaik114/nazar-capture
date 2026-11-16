@@ -98,7 +98,7 @@ pub fn balloon(window: HWND, text: &str) -> bool {
     let mut data = icon_data(window);
     data.uFlags = NIF_INFO;
     data.dwInfoFlags = NIIF_WARNING;
-    copy_to_buffer(&mut data.szInfoTitle, strings::APP_NAME);
+    copy_to_buffer(&mut data.szInfoTitle, strings::PRODUCT);
     copy_to_buffer(&mut data.szInfo, text);
     // SAFETY: `data` is fully initialised and outlives the call.
     unsafe { Shell_NotifyIconW(NIM_MODIFY, &raw const data) != 0 }
@@ -317,7 +317,7 @@ mod tests {
         use strings::balloon::*;
         // SAFETY: NOTIFYICONDATAW is plain data; only the buffer sizes are read.
         let data: NOTIFYICONDATAW = unsafe { mem::zeroed() };
-        assert!(strings::APP_NAME.encode_utf16().count() < data.szInfoTitle.len());
+        assert!(strings::PRODUCT.encode_utf16().count() < data.szInfoTitle.len());
         let texts = [
             INVALID_HOTKEY,
             SHIFT_ONLY_HOTKEY,
@@ -338,5 +338,6 @@ mod tests {
     #[test]
     fn tooltip_fits_without_truncation() {
         assert!(strings::TRAY_TOOLTIP.encode_utf16().count() < 128);
+        assert!(strings::TRAY_TOOLTIP.starts_with(strings::PRODUCT));
     }
 }

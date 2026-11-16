@@ -29,6 +29,7 @@ internal static class WarmUp
             ErrorLog.Write("Warming up", ex);
         }
         MemoryRelief.Soon();
+        Updates.UpdateNotice.CheckSoon();   // once a day, after logon, in the background
     }
 
     static void Lay(FrameworkElement element)

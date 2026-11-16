@@ -32,6 +32,14 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Framework assemblies of .NET 4.8 (nothing downloaded): JSON of the GitHub API and unpacking the update ZIP. -->
+    <Reference Include="System.Web" />
+    <Reference Include="System.Web.Extensions" />
+    <Reference Include="System.IO.Compression" />
+    <Reference Include="System.IO.Compression.FileSystem" />
+  </ItemGroup>
+
+  <ItemGroup>
     <InternalsVisibleTo Include="MosaikCapture.Engine.Tests" />
   </ItemGroup>
 

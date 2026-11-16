@@ -97,7 +97,9 @@ jobs:
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: mosaik-capture-win-x64
-          path: dist/*.zip
+          path: |
+            dist/*.zip
+            dist/*.zip.sha256
 
   release:
     name: Attach to GitHub release
@@ -112,4 +114,6 @@ jobs:
           name: mosaik-capture-win-x64
       - uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3.0.4
         with:
-          files: "*.zip"
+          files: |
+            *.zip
+            *.zip.sha256

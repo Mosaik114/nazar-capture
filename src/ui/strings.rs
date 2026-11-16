@@ -1,9 +1,12 @@
 //! User-visible German texts. Each doc comment says what the text means in English.
 
-/// Name of the app in German message boxes and balloons ("Mosaiks Aufnahme").
-pub const APP_NAME: &str = "Mosaiks Aufnahme";
-/// Tooltip of the notification-area icon ("… – screenshot and screen recording").
-pub const TRAY_TOOLTIP: &str = "Mosaiks Aufnahme – Screenshot und Bildschirmaufnahme";
+/// The product name the user sees: tray tooltip, balloon and message-box titles, the
+/// autostart entry, the Start-menu shortcut. Technical names (executables, window
+/// classes, mutexes, folders) stay `MosaikCapture`.
+pub const PRODUCT: &str = "Nazar Capture";
+/// Tooltip of the notification-area icon ("… – screenshot and screen recording"); it
+/// starts with [`PRODUCT`].
+pub const TRAY_TOOLTIP: &str = "Nazar Capture – Screenshot und Bildschirmaufnahme";
 
 /// Tray menu: "Take screenshot".
 pub const MENU_SCREENSHOT: &str = "Screenshot erstellen";

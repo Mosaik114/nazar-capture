@@ -128,7 +128,9 @@ pub fn known_default_folders() -> DefaultFolders {
     DefaultFolders::new(&base(&FOLDERID_Pictures, "Pictures"), &base(&FOLDERID_Videos, "Videos"))
 }
 
-fn known_folder(id: &GUID) -> Option<PathBuf> {
+/// A known folder of the current user (e.g. `FOLDERID_LocalAppData`), if Windows
+/// knows it.
+pub fn known_folder(id: &GUID) -> Option<PathBuf> {
     let mut path = ptr::null_mut();
     // SAFETY: `id` is a valid GUID; `path` receives a COM-allocated string.
     let result = unsafe {

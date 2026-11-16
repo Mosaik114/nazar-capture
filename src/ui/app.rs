@@ -742,8 +742,12 @@ impl App {
                     recording: registered.recording.map(Hotkey::label),
                 };
                 match self.run_modal(|| tray::show_menu(self.window(), x, y, &hotkeys)) {
-                    Some(MenuCommand::Screenshot) => self.deliver_with(EngineRequest::Screenshot, true),
-                    Some(MenuCommand::Recording) => self.deliver_with(EngineRequest::Recording, true),
+                    Some(MenuCommand::Screenshot) => {
+                        self.deliver_with(EngineRequest::Screenshot, true);
+                    }
+                    Some(MenuCommand::Recording) => {
+                        self.deliver_with(EngineRequest::Recording, true);
+                    }
                     Some(MenuCommand::Settings) => self.deliver(EngineRequest::Settings),
                     Some(MenuCommand::Quit) => {
                         // A refusal is shown as a balloon.

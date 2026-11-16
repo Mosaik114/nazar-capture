@@ -15,10 +15,11 @@ use crate::wide::to_wide;
 
 /// The per-user autostart key.
 const RUN_KEY: &str = r"Software\Microsoft\Windows\CurrentVersion\Run";
-/// Name of this app's value under [`RUN_KEY`].
-const VALUE_NAME: &str = "Mosaik Capture";
-/// Value name used by earlier versions; removed whenever autostart is written.
-const LEGACY_VALUE_NAME: &str = "Mosaiks Aufnahme";
+/// Name of this app's value under [`RUN_KEY`]: the product name, which Windows shows
+/// in the list of startup apps.
+const VALUE_NAME: &str = crate::ui::PRODUCT;
+/// Value names used by earlier versions; removed whenever autostart is written.
+const LEGACY_VALUE_NAMES: [&str; 2] = ["Mosaik Capture", "Mosaiks Aufnahme"];
 
 /// The command Windows runs at logon: the quoted executable plus `--background`.
 pub fn command_line(exe: &Path) -> OsString {
@@ -29,11 +30,25 @@ pub fn command_line(exe: &Path) -> OsString {
 }
 
 /// Adds or removes the autostart entry for `exe`. Removing a missing entry succeeds.
-/// The entry of earlier versions is removed in both cases, so the app never starts
+/// The entries of earlier versions are removed in both cases, so the app never starts
 /// twice at logon.
 pub fn set_enabled(enabled: bool, exe: &Path) -> io::Result<()> {
-    let key = RunKey::open()?;
-    key.delete(LEGACY_VALUE_NAME)?;
+    apply(&RunKey::open()?, enabled, exe)
+}
+
+/// The values of a `Run` key, as far as autostart needs them.
+trait RunValues {
+    fn set(&self, name: &str, value: &OsStr) -> io::Result<()>;
+    /// Removes a value; a missing one is success.
+    fn delete(&self, name: &str) -> io::Result<()>;
+}
+
+/// Brings `key` to exactly one entry of this app (or none): the old names go first,
+/// then the current one is written or removed.
+fn apply(key: &impl RunValues, enabled: bool, exe: &Path) -> io::Result<()> {
+    for legacy in LEGACY_VALUE_NAMES {
+        key.delete(legacy)?;
+    }
     if enabled { key.set(VALUE_NAME, &command_line(exe)) } else { key.delete(VALUE_NAME) }
 }
 
@@ -62,7 +77,9 @@ impl RunKey {
         check(status)?;
         Ok(Self(key))
     }
+}
 
+impl RunValues for RunKey {
     fn set(&self, name: &str, value: &OsStr) -> io::Result<()> {
         let name = to_wide(name);
         let data: Vec<u8> = to_wide(value).iter().flat_map(|unit| unit.to_le_bytes()).collect();
@@ -103,8 +120,47 @@ fn check(status: WIN32_ERROR) -> io::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::cell::RefCell;
+    use std::collections::BTreeMap;
 
     // The registry itself is deliberately not touched by tests.
+
+    /// A `Run` key in memory.
+    #[derive(Default)]
+    struct FakeRunKey(RefCell<BTreeMap<String, OsString>>);
+
+    impl RunValues for FakeRunKey {
+        fn set(&self, name: &str, value: &OsStr) -> io::Result<()> {
+            self.0.borrow_mut().insert(name.to_owned(), value.to_owned());
+            Ok(())
+        }
+        fn delete(&self, name: &str) -> io::Result<()> {
+            self.0.borrow_mut().remove(name);
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn an_update_keeps_exactly_one_entry_under_the_new_name() {
+        let exe = Path::new(r"C:\Apps\MosaikCapture.exe");
+        let key = FakeRunKey::default();
+        key.set("Mosaik Capture", OsStr::new(r#""C:\Alt\MosaikCapture.exe" --background"#))
+            .unwrap();
+        key.set("Mosaiks Aufnahme", OsStr::new("alt")).unwrap();
+        key.set("OneDrive", OsStr::new("fremd")).unwrap();
+
+        apply(&key, true, exe).unwrap();
+        let values = key.0.borrow().clone();
+        assert_eq!(values.keys().collect::<Vec<_>>(), ["Nazar Capture", "OneDrive"]);
+        assert_eq!(values["Nazar Capture"], command_line(exe));
+        assert_eq!(values["OneDrive"], "fremd", "other programs are left alone");
+
+        apply(&key, true, exe).unwrap();
+        assert_eq!(key.0.borrow().len(), 2, "writing again changes nothing");
+        key.set("Mosaik Capture", OsStr::new("alt")).unwrap();
+        apply(&key, false, exe).unwrap();
+        assert_eq!(key.0.borrow().keys().collect::<Vec<_>>(), ["OneDrive"], "off removes all");
+    }
 
     #[test]
     fn command_line_quotes_executable() {
@@ -124,8 +180,8 @@ mod tests {
 
     #[test]
     fn value_names() {
-        assert_eq!(VALUE_NAME, "Mosaik Capture");
-        assert_eq!(LEGACY_VALUE_NAME, "Mosaiks Aufnahme");
+        assert_eq!(VALUE_NAME, "Nazar Capture");
+        assert_eq!(LEGACY_VALUE_NAMES, ["Mosaik Capture", "Mosaiks Aufnahme"]);
         assert_eq!(RUN_KEY, r"Software\Microsoft\Windows\CurrentVersion\Run");
     }
 }

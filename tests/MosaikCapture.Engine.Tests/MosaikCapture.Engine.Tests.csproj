@@ -24,6 +24,8 @@
   <ItemGroup>
     <!-- JavaScriptSerializer reads contract/contract.json, the IPC and settings contract shared with the Rust host. -->
     <Reference Include="System.Web.Extensions" />
+    <Reference Include="System.IO.Compression" />
+    <Reference Include="System.IO.Compression.FileSystem" />
     <None Include="..\..\contract\contract.json" Link="contract.json" CopyToOutputDirectory="PreserveNewest" />
     <!-- The design tokens and Hams' generated values (TokenTests). -->
     <None Include="..\..\design\design-tokens.json" Link="design-tokens.json" CopyToOutputDirectory="PreserveNewest" />

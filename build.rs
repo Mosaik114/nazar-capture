@@ -49,8 +49,9 @@ fn main() -> Result<(), String> {
             version_part("CARGO_PKG_VERSION_MINOR")?,
             version_part("CARGO_PKG_VERSION_PATCH")?,
         ],
-        file_description: "Mosaik Capture",
-        product_name: "Mosaik Capture",
+        // The product name (src/ui/strings.rs `PRODUCT`); the file names stay technical.
+        file_description: "Nazar Capture",
+        product_name: "Nazar Capture",
         original_filename: "MosaikCapture.exe",
         company_name: "Mazgin Abdulwahed Ahmad",
         legal_copyright: "Copyright (c) 2026 Mazgin Abdulwahed Ahmad",

@@ -263,7 +263,8 @@ impl Engine {
                 allow_foreground(window);
                 // SAFETY: posting to a window handle has no memory-safety preconditions.
                 let posted =
-                    unsafe { PostMessageW(window, request.message(), usize::from(from_menu), 0) } != 0;
+                    unsafe { PostMessageW(window, request.message(), usize::from(from_menu), 0) }
+                        != 0;
                 if posted { Delivery::Posted } else { Delivery::Failed }
             }
             Step::Wait => Delivery::AlreadyStarting,

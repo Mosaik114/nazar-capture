@@ -15,7 +15,8 @@
     25 screenshots, compared with tests\Measurementsaseline-1.1.2.json. It opens the real overlay.
 
 .PARAMETER Package
-    Also zip bin\ into dist\mosaik-capture-<version>-win-x64.zip.
+    Also zip bin\ into dist\nazar-capture-<version>-win-x64.zip (the installer: unpack, run MosaikCapture.exe --install)
+    and write its SHA-256 next to it (.sha256), which the in-app update checks.
 
 .PARAMETER RustToolchain
     Optional rustup toolchain, e.g. stable-x86_64-pc-windows-gnu on machines without the
@@ -95,9 +96,13 @@ if ($Package) {
     $version = (Select-String -Path (Join-Path $root 'Cargo.toml') -Pattern '^version = "(.+)"').Matches[0].Groups[1].Value
     $dist = Join-Path $root 'dist'
     New-Item -ItemType Directory -Force $dist | Out-Null
-    $zip = Join-Path $dist "mosaik-capture-$version-win-x64.zip"
+    # The ZIP is also the installer: unpack it and run MosaikCapture.exe --install (the in-app update does exactly that).
+    $zip = Join-Path $dist "nazar-capture-$version-win-x64.zip"
     Compress-Archive -Path (Join-Path $bin '*.exe') -DestinationPath $zip -Force
-    Write-Host "Package: $zip"
+    # The update checks the download against this SHA-256 (and GitHub's asset digest) before it installs anything.
+    $hash = (Get-FileHash -Algorithm SHA256 $zip).Hash.ToLowerInvariant()
+    Set-Content -Path "$zip.sha256" -Value "$hash  $(Split-Path -Leaf $zip)" -Encoding ascii
+    Write-Host "Package: $zip ($hash)"
 }
 
 Write-Host "Built: $bin" -ForegroundColor Green

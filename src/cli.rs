@@ -10,18 +10,25 @@
 //! | `--quit`          | quit the running instance                               |
 //! | `--probe`         | exit with 0 only if a healthy instance is running       |
 //! | `--self-test`     | run the built-in checks and exit                        |
+//! | `--install [dir]` | install or update from this executable's folder         |
 //!
-//! When several actions are given, the last one wins. Unknown arguments are ignored.
+//! When several actions are given, the last one wins; `--self-test` and `--install`
+//! win over all others. The argument after `--install` is the target folder unless it
+//! starts with `--`. Unknown arguments are ignored.
 //! A separate settings file for tests or previews is chosen through the environment
 //! (see [`crate::isolation`]), never on the command line.
 
 use std::ffi::OsString;
+use std::path::PathBuf;
 
 use crate::ipc;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Command {
     SelfTest,
+    /// Install or update from the folder of this executable, into the given folder
+    /// or the default one.
+    Install(Option<PathBuf>),
     /// Run normally, or forward the action to the running instance.
     Run(Action),
 }
@@ -71,15 +78,20 @@ impl Action {
 /// Parses the arguments that follow the program name.
 pub fn parse(args: impl IntoIterator<Item = OsString>) -> Command {
     let mut action = Action::default();
-    for arg in args {
+    let mut install = None;
+    let mut args = args.into_iter().peekable();
+    while let Some(arg) = args.next() {
         if arg == "--self-test" {
             return Command::SelfTest;
         }
-        if let Some(parsed) = Action::from_arg(&arg) {
+        if arg == "--install" {
+            let is_folder = |next: &OsString| !next.to_string_lossy().starts_with("--");
+            install = Some(args.next_if(is_folder).map(PathBuf::from));
+        } else if let Some(parsed) = Action::from_arg(&arg) {
             action = parsed;
         }
     }
-    Command::Run(action)
+    install.map_or(Command::Run(action), Command::Install)
 }
 
 #[cfg(test)]
@@ -93,7 +105,7 @@ mod tests {
     fn action(args: &[&str]) -> Action {
         match run(args) {
             Command::Run(action) => action,
-            Command::SelfTest => panic!("unexpected self-test for {args:?}"),
+            other => panic!("unexpected {other:?} for {args:?}"),
         }
     }
 
@@ -124,6 +136,22 @@ mod tests {
     fn self_test_wins_anywhere() {
         assert_eq!(run(&["--self-test"]), Command::SelfTest);
         assert_eq!(run(&["--quit", "--self-test"]), Command::SelfTest);
+        assert_eq!(run(&["--install", "--self-test"]), Command::SelfTest);
+    }
+
+    #[test]
+    fn install_with_and_without_folder() {
+        assert_eq!(run(&["--install"]), Command::Install(None));
+        assert_eq!(
+            run(&["--install", r"D:\Apps\Nazar"]),
+            Command::Install(Some(PathBuf::from(r"D:\Apps\Nazar")))
+        );
+        assert_eq!(run(&["--install", "--background"]), Command::Install(None), "not a folder");
+        assert_eq!(run(&["--screenshot", "--install"]), Command::Install(None), "install wins");
+        assert_eq!(
+            run(&["--install", "ziel", "--quit"]),
+            Command::Install(Some(PathBuf::from("ziel")))
+        );
     }
 
     #[test]

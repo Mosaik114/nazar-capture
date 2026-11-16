@@ -33,6 +33,7 @@ use crate::wide::to_wide;
 use app::App;
 #[cfg(test)]
 pub use app::{HOTKEY_RETRY_SECONDS, SAVE_DELAY_MS};
+pub use strings::PRODUCT;
 
 /// Which step of running the user interface failed.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -72,8 +73,13 @@ impl UiError {
 /// Tells the user why the app could not start (for interactive starts; a background
 /// start at logon only sets the exit code).
 pub fn report(error: UiError) {
-    let text = to_wide(error.message());
-    let title = to_wide(strings::APP_NAME);
+    report_message(&error.message());
+}
+
+/// Shows a German error message (start-up or `--install`) in a message box.
+pub fn report_message(text: &str) {
+    let text = to_wide(text);
+    let title = to_wide(PRODUCT);
     // SAFETY: both strings are NUL-terminated and outlive the modal call; no owner.
     unsafe { MessageBoxW(ptr::null_mut(), text.as_ptr(), title.as_ptr(), MB_OK | MB_ICONERROR) };
 }
@@ -163,7 +169,7 @@ fn register_class(app: &App, name: &str) -> Result<WindowClass, UiError> {
 /// receives Explorer's `TaskbarCreated` broadcast, and a tool window, so it would stay
 /// off the taskbar and Alt+Tab even if something showed it.
 fn create_window(app: &App, class: &WindowClass) -> Result<HWND, UiError> {
-    let title = to_wide(strings::APP_NAME);
+    let title = to_wide(PRODUCT);
     // SAFETY: class name and title are NUL-terminated and outlive the call. `app`
     // outlives the window (see `run`), so handing its address to WM_NCCREATE is sound.
     let window = unsafe {

@@ -1,4 +1,4 @@
-//! Mosaik Capture host: a small tray app that owns the global screenshot and recording
+//! Nazar Capture host (technical name `MosaikCapture`): a small tray app that owns the global screenshot and recording
 //! hotkeys and `settings.ini`, and starts the capture engine, which also shows the
 //! settings window.
 //!
@@ -21,6 +21,7 @@ mod contract;
 mod copydata;
 mod engine;
 mod hotkey;
+mod install;
 mod ipc;
 mod isolation;
 mod process;
@@ -75,6 +76,7 @@ fn main() -> ExitCode {
                 Exit::SelfTestFailed
             }
         }
+        Command::Install(target) => install(target.as_deref(), Isolation::from_env().as_ref()),
         Command::Run(action) => run(action, Isolation::from_env().as_ref()),
     }
     .into()
@@ -104,6 +106,18 @@ fn run(action: Action, isolation: Option<&Isolation>) -> Exit {
                 Exit::Failed
             }
         },
+    }
+}
+
+/// `--install`: errors are shown in a message box; a refusal because of a running
+/// capture has its own exit code.
+fn install(target: Option<&std::path::Path>, isolation: Option<&Isolation>) -> Exit {
+    match install::run(target, isolation) {
+        Ok(_) => Exit::Success,
+        Err(error) => {
+            ui::report_message(&error.message());
+            if error.is_busy() { Exit::QuitRefused } else { Exit::Failed }
+        }
     }
 }
 
