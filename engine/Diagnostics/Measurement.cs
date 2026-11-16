@@ -24,7 +24,7 @@ internal static class Measurement
     /// </summary>
     static int captures = Captures;
     static bool prestarted;
-    static int pins = Pins;
+    static int pins;   // 0 by default: comparable with the 1.1.2 baseline; --pins 5 for the budget run
 
     internal static void Options(string[] args)
     {

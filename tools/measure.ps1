@@ -23,13 +23,15 @@
 #>
 [CmdletBinding()]
 param(
-    [string]$Engine = (Join-Path $PSScriptRoot '..\bin\MosaikCapture.Engine.exe'),
+    [string]$Engine,
     [int]$Runs = 5,
     [string]$Baseline,
     [string]$Report = (Join-Path ([IO.Path]::GetTempPath()) 'mosaik-capture-measure-report.json')
 )
 
 $ErrorActionPreference = 'Stop'
+# Windows PowerShell 5.1 has no $PSScriptRoot in parameter defaults.
+if (-not $Engine) { $Engine = Join-Path (Split-Path -Parent $MyInvocation.MyCommand.Path) '..\bin\MosaikCapture.Engine.exe' }
 # Windows PowerShell 5.1 has no $PSScriptRoot in parameter defaults.
 if (-not $Engine) { $Engine = Join-Path (Split-Path -Parent $MyInvocation.MyCommand.Path) '..in\MosaikCapture.Engine.exe' }
 Set-StrictMode -Version Latest
