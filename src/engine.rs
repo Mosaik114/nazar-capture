@@ -242,6 +242,8 @@ impl Engine {
 
     /// Hands a request to the engine: posts it to the running engine or launches a new
     /// one, unless an engine we launched is still starting.
+    // Only the tests use this short form; the app always calls `deliver_with` (hotkey or menu).
+    #[cfg(test)]
     pub fn deliver(&self, request: EngineRequest) -> Delivery {
         self.deliver_with(request, false)
     }

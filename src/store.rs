@@ -19,7 +19,9 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 use std::{env, ptr, thread};
 
-use windows_sys::Win32::Foundation::{ERROR_LOCK_VIOLATION, ERROR_SHARING_VIOLATION, ERROR_SUCCESS};
+use windows_sys::Win32::Foundation::{
+    ERROR_LOCK_VIOLATION, ERROR_SHARING_VIOLATION, ERROR_SUCCESS,
+};
 use windows_sys::Win32::Storage::FileSystem::{
     MOVEFILE_REPLACE_EXISTING, MOVEFILE_WRITE_THROUGH, MoveFileExW,
 };
