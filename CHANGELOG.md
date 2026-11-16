@@ -6,10 +6,19 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.1.4] - 2026-11-16
+
+A lighter look: the light mode becomes "Kalkweiß", as in Hams Dictate.
+
 ### Changed
 - **Light mode "Kalkweiß":** the light palette is no longer cream paper but an almost neutral chalk white
   with a hint of warmth (window `#F5F4F1`, plates white, stones `#F0EEEA`, lighter ink edge and sides),
   the same values as Hams Dictate; the cobalt accent and the dark mode stay.
+- The README pictures are drawn anew in the light look; the code that renders them with the app's own
+  drawing code is now in the repository (`tools/readme/render.ps1`).
+
+### Fixed
+- The white marker colour in the editor toolbar has a fine ink edge, so it stays visible on the light toolbar.
 
 ## [1.1.3] - 2026-11-16
 
@@ -179,7 +188,8 @@ First public release as a standalone project.
   repository on 2026-11-12 (tag [`original-import`](https://github.com/Mosaik114/nazar-capture/tree/original-import)),
   so the whole 1.0.0 restructuring can be read as a before/after diff.
 
-[Unreleased]: https://github.com/Mosaik114/nazar-capture/compare/v1.1.3...HEAD
+[Unreleased]: https://github.com/Mosaik114/nazar-capture/compare/v1.1.4...HEAD
+[1.1.4]: https://github.com/Mosaik114/nazar-capture/releases/tag/v1.1.4
 [1.1.3]: https://github.com/Mosaik114/nazar-capture/releases/tag/v1.1.3
 [1.1.2]: https://github.com/Mosaik114/nazar-capture/releases/tag/v1.1.2
 [1.1.1]: https://github.com/Mosaik114/nazar-capture/releases/tag/v1.1.1
