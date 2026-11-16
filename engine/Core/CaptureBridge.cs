@@ -6,7 +6,7 @@ namespace MosaikCapture.Engine.Core;
 /// </summary>
 /// <remarks>
 /// Command line: <c>--screenshot</c> (default), <c>--recording</c>, <c>--idle</c>,
-/// <c>--self-test &lt;report&gt;</c>, <c>--live-test &lt;dir&gt;</c>, <c>--measure &lt;dir&gt;</c>. The engine adds
+/// <c>--self-test &lt;report&gt;</c>, <c>--live-test &lt;dir&gt;</c>, <c>--measure &lt;dir&gt;</c>, <c>--kit-demo</c>. The engine adds
 /// <c>--after &lt;pid&gt;</c> when it restarts itself after a crash: the new process waits for the old
 /// one to be gone before it takes the mutex (the host never sends this flag).
 /// Only one engine runs per session (mutex <see cref="MutexName"/>). A second start forwards its
@@ -54,6 +54,7 @@ internal static class CaptureBridge
         if (args.Length > 0 && args[0] == "--self-test") { Diagnostics.SelfTest.Run(args.Length > 1 ? args[1] : "capture-test.json"); return; }
         if (args.Length > 1 && args[0] == "--live-test") { Diagnostics.LiveTest.Run(args[1]); return; }
         if (args.Length > 1 && args[0] == "--measure") { Diagnostics.Measurement.Run(args[1]); return; }
+        if (args.Length > 0 && args[0] == "--kit-demo") { KitSamples.ShowDemo(); return; }
         int command = ParseCommand(args);
         if (ParseParent(args) is int parent) WaitForExit(parent, ParentExitTimeout);
         using var single = new Mutex(false, MutexName);

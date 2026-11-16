@@ -122,14 +122,18 @@ internal static class Roles
 /// <see cref="Roles"/> for the look and sets fill, side, ink, focus colour and the text colour of its content (as
 /// resource references). Every kit control's template is this chrome around its content; no control colours itself.
 /// </summary>
-internal sealed class RoleChrome : StoneChrome
+internal class RoleChrome : StoneChrome
 {
     Control? owner;
 
-    static readonly DependencyProperty[] Watched =
+    // The owner's properties the look depends on; the type says on which controls a property exists (null: attached).
+    static readonly (DependencyProperty Property, Type? On)[] Watched =
     {
-        UIElement.IsMouseOverProperty, ButtonBase.IsPressedProperty, PressBehavior.PressedProperty, UIElement.IsEnabledProperty, ToggleButton.IsCheckedProperty,
-        Mui.RoleProperty, Mui.ShowFocusProperty, Mui.IsErrorProperty, Mui.IsLoadingProperty, Selector.IsSelectedProperty,
+        (UIElement.IsMouseOverProperty, null), (UIElement.IsEnabledProperty, null), (ButtonBase.IsPressedProperty, typeof(ButtonBase)),
+        (PressBehavior.PressedProperty, null), (ToggleButton.IsCheckedProperty, typeof(ToggleButton)), (Mui.RoleProperty, null),
+        (Mui.ShowFocusProperty, null), (Mui.IsErrorProperty, null), (Mui.IsLoadingProperty, null), (Selector.IsSelectedProperty, null),
+        (MenuItem.IsHighlightedProperty, typeof(MenuItem)), (ComboBoxItem.IsHighlightedProperty, typeof(ComboBoxItem)),
+        (ComboBox.IsDropDownOpenProperty, typeof(ComboBox)),
     };
 
     // One mirror property per watched owner property, bound one way: bindings listen weakly, so the chrome never keeps
@@ -139,9 +143,9 @@ internal sealed class RoleChrome : StoneChrome
         new PropertyMetadata(null, (d, _) => ((RoleChrome)d).Refresh()))).ToArray();
 
     /// <summary>The look shown now (tests and the sample sheet read it).</summary>
-    public Roles.Look Look { get; private set; }
+    public Roles.Look Look { get; protected set; }
 
-    public SurfaceState State { get; private set; }
+    public SurfaceState State { get; protected set; }
 
     protected override void OnInitialized(EventArgs e)
     {
@@ -155,21 +159,31 @@ internal sealed class RoleChrome : StoneChrome
         owner = control;
         for (int i = 0; i < Watched.Length; i++)
         {
-            if (Watched[i] == ToggleButton.IsCheckedProperty && control is not ToggleButton) continue;
-            if (Watched[i] == ButtonBase.IsPressedProperty && control is not ButtonBase) continue;
-            BindingOperations.SetBinding(this, Mirrors[i], new System.Windows.Data.Binding { Path = new PropertyPath(Watched[i]), Source = control, Mode = System.Windows.Data.BindingMode.OneWay });
+            var (property, on) = Watched[i];
+            if (on != null && !on.IsInstanceOfType(control)) continue;
+            BindingOperations.SetBinding(this, Mirrors[i], new System.Windows.Data.Binding { Path = new PropertyPath(property), Source = control, Mode = System.Windows.Data.BindingMode.OneWay });
         }
         Refresh();
     }
 
+    /// <summary>The control this chrome follows.</summary>
+    protected Control? Owner => owner;
+
+    /// <summary>The surface state of a control: hover includes keyboard highlight in menus and lists, an open list is selected.</summary>
+    public static SurfaceState StateOf(Control control)
+    {
+        bool pressed = PressBehavior.IsPressed(control);
+        bool hover = control.IsMouseOver || control is MenuItem { IsHighlighted: true } || control is ComboBoxItem { IsHighlighted: true };
+        bool selected = control is ToggleButton { IsChecked: true } || Selector.GetIsSelected(control) || control is ComboBox { IsDropDownOpen: true };
+        return Roles.State(control.IsEnabled, Mui.GetIsError(control), Mui.GetIsLoading(control), pressed, hover, selected);
+    }
+
     /// <summary>Recomputes the look from the owner's state.</summary>
-    public void Refresh()
+    public virtual void Refresh()
     {
         var control = owner;
         if (control == null) return;
-        bool pressed = PressBehavior.IsPressed(control);
-        bool selected = control is ToggleButton { IsChecked: true } || Selector.GetIsSelected(control);
-        State = Roles.State(control.IsEnabled, Mui.GetIsError(control), Mui.GetIsLoading(control), pressed, control.IsMouseOver, selected);
+        State = StateOf(control);
         Look = Roles.Resolve(Mui.GetRole(control), State);
 
         if (Look.Fill == null)
@@ -186,6 +200,8 @@ internal sealed class RoleChrome : StoneChrome
         }
         SetResourceReference(FocusInkProperty, Roles.FocusInk(Look));
         SetResourceReference(TextElement.ForegroundProperty, Look.Text);
+        // The content is the control's logical child and inherits from the control, not from this chrome.
+        control.SetResourceReference(Control.ForegroundProperty, Look.Text);
         IsPressed = State == SurfaceState.Pressed;
         ShowFocus = Roles.ShowsFocus(Mui.GetShowFocus(control), State);
     }

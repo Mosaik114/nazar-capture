@@ -5,6 +5,7 @@ internal static class IconGlyphs
 {
     public const string Accept = "";
     public const string Cancel = "";
+    public const string ChevronDown = "";
     public const string ChromeClose = "";
     public const string Copy = "";
     public const string Delete = "";
@@ -17,11 +18,13 @@ internal static class IconGlyphs
     public const string MicrophoneOff = "";
     public const string Move = "";
     public const string Mute = "";
+    public const string Keyboard = "";
     public const string Pause = "";
     public const string Pen = "";
     public const string Pin = "";
     public const string Play = "";
     public const string PlaySolid = "";
+    public const string Refresh = "";
     public const string Rectangle = "";
     public const string Redo = "";
     public const string Save = "";
@@ -33,6 +36,7 @@ internal static class IconGlyphs
     public const string Undo = "";
     public const string Video = "";
     public const string Volume = "";
+    public const string Settings = "";
     public const string Warning = "";
     public const string ZoomOriginal = "";
 }

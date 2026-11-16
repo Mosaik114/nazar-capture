@@ -24,6 +24,7 @@ static class UiText
         public const string RecordingCard = "Mosaiks-Aufnahme Karte";
         public const string Click = "Mosaiks-Aufnahme Klick";
         public const string Trim = "Aufnahme kürzen";
+        public const string KitDemo = "Bausteine";
     }
 
     /// <summary>Names of the files the user gets.</summary>
@@ -187,5 +188,25 @@ static class UiText
         public static string NotSaved(string reason) => "Nicht gespeichert: " + reason;
         public static string Progress(string label, double fraction) => label + "  " + (int)Math.Round(fraction * 100) + " %";
         public static string VideoInfo(string fileName, string duration, int width, int height) => fileName + " · " + duration + " · " + Common.Size(width, height);
+    }
+    /// <summary>The hotkey field (key caps, recording, the reasons of a refusal).</summary>
+    public static class Hotkeys
+    {
+        public const string Change = "Ändern";
+        public const string Default = "Standard";
+        public const string Cancel = "Aufnahme abbrechen (Esc)";
+        public const string Unset = "nicht belegt";
+        public const string PressKeys = "Tasten drücken …";
+        public const string Capture = "Drücke die neue Tastenkombination. Esc bricht ab.";
+        public const string Saved = "Übernommen.";
+        public const string ShiftOnly = "Umschalt allein reicht nicht. Nimm Strg, Alt oder Win dazu.";
+        public const string MissingModifier = "Dazu gehört Strg, Alt oder Win (nur Druck und Pause gehen allein).";
+        public const string MissingKey = "Es fehlt eine Taste neben Strg, Alt oder Umschalt.";
+        public const string Unsupported = "Diese Taste geht nicht als Kurzbefehl.";
+        /// <summary>{0}: the other action, e.g. "die Aufnahme".</summary>
+        public const string Duplicate = "Schon für {0} vergeben.";
+        public const string Taken = "Belegt von einem anderen Programm. Das bisherige Kürzel bleibt aktiv.";
+        public const string TakenRetrying = "Belegt von einem anderen Programm, wird alle 30 Sekunden erneut versucht.";
+        public const string PrintHint = "Druck allein: in Windows unter Einstellungen > Barrierefreiheit > Tastatur „Druck-Taste zum Öffnen des Bildschirmausschnitts verwenden“ ausschalten.";
     }
 }

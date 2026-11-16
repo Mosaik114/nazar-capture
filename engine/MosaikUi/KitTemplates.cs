@@ -20,12 +20,14 @@ internal static class KitTemplates
         chrome.SetValue(StoneChrome.PaddingProperty, new TemplateBindingExtension(Control.PaddingProperty));
         chrome.SetValue(UIElement.SnapsToDevicePixelsProperty, true);
         var content = new FrameworkElementFactory(typeof(ContentPresenter));
+        content.SetValue(ContentPresenter.ContentProperty, new TemplateBindingExtension(ContentControl.ContentProperty));
+        content.SetValue(ContentPresenter.ContentTemplateProperty, new TemplateBindingExtension(ContentControl.ContentTemplateProperty));
         content.SetValue(FrameworkElement.HorizontalAlignmentProperty, new TemplateBindingExtension(Control.HorizontalContentAlignmentProperty));
         content.SetValue(FrameworkElement.VerticalAlignmentProperty, new TemplateBindingExtension(Control.VerticalContentAlignmentProperty));
         content.SetValue(UIElement.FocusableProperty, false);
         content.SetValue(ContentPresenter.RecognizesAccessKeyProperty, true);
         chrome.AppendChild(content);
-        var template = new ControlTemplate(typeof(Control)) { VisualTree = chrome };
+        var template = new ControlTemplate(typeof(ContentControl)) { VisualTree = chrome };
         template.Seal();
         return template;
     }
