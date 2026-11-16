@@ -1,4 +1,4 @@
-namespace MosaikCapture.Engine.Screenshot;
+namespace NazarCapture.Engine.Screenshot;
 
 /// <summary>What the screenshot windows report back to <see cref="ScreenshotController"/> (all on the UI thread).</summary>
 internal interface IScreenshotFlow

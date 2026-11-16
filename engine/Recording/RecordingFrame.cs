@@ -1,4 +1,4 @@
-namespace MosaikCapture.Engine.Recording;
+namespace NazarCapture.Engine.Recording;
 
 /// <summary>Frame around the recorded area (click-through, invisible in the video).</summary>
 internal sealed class RecordingFrame : ToolWindowBase

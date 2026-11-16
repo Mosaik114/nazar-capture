@@ -1,6 +1,6 @@
 using System.ComponentModel;
 
-namespace MosaikCapture.Engine.Screenshot;
+namespace NazarCapture.Engine.Screenshot;
 
 /// <summary>Reads the screen: pixels, monitors and the visible windows.</summary>
 internal static class ScreenGrabber

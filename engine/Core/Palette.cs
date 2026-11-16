@@ -1,6 +1,6 @@
 using Microsoft.Win32;
 
-namespace MosaikCapture.Engine.Core;
+namespace NazarCapture.Engine.Core;
 
 /// <summary>
 /// Look of all windows: the theme colors (warm cream or warm dark gray, turquoise accent) as

@@ -1,6 +1,6 @@
 using System.ComponentModel;
 
-namespace MosaikCapture.Engine.Recording;
+namespace NazarCapture.Engine.Recording;
 
 /// <summary>
 /// Makes clicks visible: a small circle at the click position (visible in the video). The low-level

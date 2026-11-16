@@ -1,6 +1,6 @@
 using System.Windows.Controls.Primitives;
 
-namespace MosaikCapture.Engine.Core;
+namespace NazarCapture.Engine.Core;
 
 /// <summary>
 /// What the screenshot card and the recording card share, built from the kit: the <see cref="Card"/> plate with header
@@ -125,7 +125,7 @@ internal abstract class CardWindow : ToolWindowBase
         var fade = new DoubleAnimation(1, Motion.SlideIn) { EasingFunction = ease };
         var rise = new DoubleAnimation(0, Motion.SlideIn) { EasingFunction = ease };
         if (appearing) { fade.From = 0; rise.From = 12; }
-        card.BeginAnimation(UIElement.OpacityProperty, fade);
+        card.BeginAnimation(OpacityProperty, fade);
         slide.BeginAnimation(TranslateTransform.YProperty, rise);
         OfferKeyboard();
     }
@@ -136,7 +136,7 @@ internal abstract class CardWindow : ToolWindowBase
         ReleaseKeyboard();
         var fade = new DoubleAnimation(0, Motion.FadeOut) { EasingFunction = new CubicEase { EasingMode = EasingMode.EaseIn } };
         fade.Completed += delegate { faded(); };
-        card.BeginAnimation(UIElement.OpacityProperty, fade);
+        card.BeginAnimation(OpacityProperty, fade);
     }
 
     protected override void OnClosed(EventArgs e)

@@ -65,12 +65,12 @@ off-screen by the real WPF code.</sub>
 
 ```mermaid
 flowchart LR
-    subgraph host["MosaikCapture.exe · Rust"]
+    subgraph host["NazarCapture.exe · Rust"]
         HK["Global hotkeys<br/>RegisterHotKey"]
         UI["Settings window<br/>+ tray icon"]
         CFG[("settings.ini<br/>UTF-16, atomic writes")]
     end
-    subgraph engine["MosaikCapture.Engine.exe · C#/WPF"]
+    subgraph engine["NazarCapture.Engine.exe · C#/WPF"]
         SHOT["Screenshot<br/>overlay · editor · card · pin · OCR"]
         REC["Recording<br/>countdown · bar · trim · GIF"]
     end
@@ -103,7 +103,7 @@ tested, and three engineering problems and how they were solved — are in
 
 1. Download `nazar-capture-<version>-win-x64.zip` from the
    [latest release](https://github.com/Mosaik114/mosaik-capture/releases/latest) and unzip it.
-2. Run `MosaikCapture.exe --install`. It installs into `%LOCALAPPDATA%\Programs\MosaikCapture`,
+2. Run `NazarCapture.exe --install`. It installs into `%LOCALAPPDATA%\Programs\NazarCapture`,
    adds a Start-menu entry, the tray icon and (by default) autostart. Updates come the same way:
    once a day the app looks for a new release (switch it off under *Allgemein*) and shows a calm
    card; *Jetzt aktualisieren* downloads the ZIP, checks its SHA-256 against the release and only
@@ -126,16 +126,17 @@ with *Smart App Control* enabled Windows refuses to run them.
 | `Space` · `I` / `O` · `←` `→` | Trim window: play, set in/out, step |
 
 Shortcuts, folders, microphone, system sound, click display, frame rate, countdown, appearance,
-update check and autostart are configured in the settings window (tray icon → *Einstellungen*);
+update check and autostart are configured in the settings window (the gear in the main window, which the
+tray icon opens, or the tray menu → *Einstellungen*);
 every change applies at once. A shortcut is recorded by pressing it: one key (letter, digit,
 Space, F1–F24, Insert, numpad) plus Ctrl, Alt or Win, optionally with Shift, so it can never
 swallow normal typing; Print and Pause may also stand alone (switch off Windows' own use of the
 Print key for the Snipping Tool first).
-Settings live in `%LOCALAPPDATA%\MosaikCapture\settings.ini`. By default screenshots go to
-`Pictures\Mosaiks-Screenshots` and recordings to `Videos\Mosaiks-Aufnahmen` — user-facing
+Settings live in `%LOCALAPPDATA%\NazarCapture\settings.ini`. By default screenshots go to
+`Pictures\Nazar-Screenshots` and recordings to `Videos\Nazar-Aufnahmen` — user-facing
 names, so they follow the German UI (as do output file names like
 `Nazar-Aufnahme 2026-09-26 14-03-12.mp4`); both folders can be changed in the settings.
-The default folders keep their names from the time the app was called Mosaik Capture.
+An update from 1.1.2 keeps the folders stored in `settings.ini`.
 
 ## Build from source
 

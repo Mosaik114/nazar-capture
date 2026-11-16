@@ -1,4 +1,4 @@
-namespace MosaikCapture.Engine.Diagnostics;
+namespace NazarCapture.Engine.Diagnostics;
 
 /// <summary>
 /// <c>--measure &lt;dir&gt;</c>: the measuring run of the redesign (baseline and budgets). Takes

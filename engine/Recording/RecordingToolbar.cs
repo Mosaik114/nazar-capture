@@ -1,6 +1,6 @@
 using System.Windows.Controls.Primitives;
 
-namespace MosaikCapture.Engine.Recording;
+namespace NazarCapture.Engine.Recording;
 
 /// <summary>
 /// Toolbar shown while recording: time, microphone, system sound, click highlights, pause, stop and discard. Built from

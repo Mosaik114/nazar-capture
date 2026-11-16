@@ -1,4 +1,4 @@
-namespace MosaikCapture.Engine.Core;
+namespace NazarCapture.Engine.Core;
 
 /// <summary>
 /// Whether quitting the engine now would lose the user's work: one answer for the host's quit command

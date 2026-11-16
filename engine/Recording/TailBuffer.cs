@@ -1,4 +1,4 @@
-namespace MosaikCapture.Engine.Recording;
+namespace NazarCapture.Engine.Recording;
 
 /// <summary>
 /// The last lines of a process's output, at most about <c>maxChars</c> characters: ffmpeg prints the

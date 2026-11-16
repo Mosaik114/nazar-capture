@@ -35,9 +35,11 @@ use crate::config::{Config, DefaultFolders, ProfileSource, SECTION};
 use crate::wide::{from_wide, from_wide_ptr, to_wide};
 
 /// Folder below `%LOCALAPPDATA%` that holds the settings.
-pub const APP_FOLDER: &str = "MosaikCapture";
-/// Folder used by earlier versions; its settings are copied over once.
-pub const LEGACY_APP_FOLDER: &str = "Mosaiks-Aufnahme";
+pub const APP_FOLDER: &str = "NazarCapture";
+/// Folder of versions up to 1.1.3; its settings (and the engine's state files) are copied over once.
+pub const LEGACY_APP_FOLDER: &str = "MosaikCapture";
+/// The engine's own files that move along with the settings (update check, window places).
+const COMPANION_FILES: [&str; 2] = ["update-state.json", "windows.txt"];
 pub const FILE_NAME: &str = "settings.ini";
 /// How often a write is attempted while another process (e.g. the engine reading the
 /// settings) briefly holds the file open.
@@ -52,7 +54,7 @@ pub struct SettingsStore {
 }
 
 impl SettingsStore {
-    /// Uses `%LOCALAPPDATA%\MosaikCapture\settings.ini`, creating the folder and
+    /// Uses `%LOCALAPPDATA%\NazarCapture\settings.ini`, creating the folder and
     /// migrating the settings of earlier versions if needed.
     pub fn user_default() -> Self {
         let local_app_data = first_absolute([
@@ -93,7 +95,7 @@ fn first_absolute(candidates: impl IntoIterator<Item = Option<PathBuf>>) -> Path
     candidates.into_iter().flatten().find(|path| path.is_absolute()).unwrap_or_else(env::temp_dir)
 }
 
-/// Creates `<local_app_data>\MosaikCapture` and, once, copies the settings of
+/// Creates `<local_app_data>\NazarCapture` and, once, copies the settings of
 /// earlier versions into it. Returns the settings file.
 ///
 /// Errors are ignored on purpose: without the folder, saving fails later and the
@@ -103,8 +105,18 @@ fn prepare_user_folder(local_app_data: &Path) -> PathBuf {
     let _ = fs::create_dir(local_app_data.join(APP_FOLDER));
     let legacy = local_app_data.join(LEGACY_APP_FOLDER).join(FILE_NAME);
     if let Some(source) = migration_source(&file, &legacy, Path::is_file) {
-        // The old file stays where it is, so downgrading keeps working.
-        let _ = fs::copy(source, &file);
+        // Copied, not moved: the old folder stays until the update has started (installer, by hand).
+        if fs::copy(source, &file).is_ok() {
+            for name in COMPANION_FILES {
+                let (from, to) = (
+                    local_app_data.join(LEGACY_APP_FOLDER).join(name),
+                    local_app_data.join(APP_FOLDER).join(name),
+                );
+                if from.is_file() && !to.exists() {
+                    let _ = fs::copy(from, to);
+                }
+            }
+        }
     }
     file
 }
@@ -273,7 +285,7 @@ pub mod tests {
         pub fn new() -> Self {
             static NEXT: AtomicU32 = AtomicU32::new(0);
             let name = format!(
-                "mosaik-capture-test-{}-{}",
+                "nazar-capture-test-{}-{}",
                 std::process::id(),
                 NEXT.fetch_add(1, Ordering::Relaxed)
             );
@@ -381,14 +393,20 @@ pub mod tests {
     #[test]
     fn user_folder_is_created_and_legacy_settings_are_copied_once() {
         let dir = TempDir::new();
-        let legacy = dir.0.join("Mosaiks-Aufnahme").join("settings.ini");
+        let legacy = dir.0.join("MosaikCapture").join("settings.ini");
+        fs::create_dir_all(legacy.parent().unwrap()).unwrap();
+        fs::write(dir.0.join("MosaikCapture").join("update-state.json"), b"{}").unwrap();
         fs::create_dir_all(legacy.parent().unwrap()).unwrap();
         write_utf16(&legacy, "[capture]\r\nfps=30\r\n");
 
         let file = prepare_user_folder(&dir.0);
-        assert_eq!(file, dir.0.join("MosaikCapture").join("settings.ini"));
+        assert_eq!(file, dir.0.join("NazarCapture").join("settings.ini"));
         assert_eq!(fs::read(&file).unwrap(), fs::read(&legacy).unwrap());
         assert!(legacy.exists(), "the old file is kept");
+        assert!(
+            dir.0.join("NazarCapture").join("update-state.json").is_file(),
+            "the engine's state moves along"
+        );
 
         // A second start must not overwrite newer settings with the legacy file.
         write_utf16(&file, "[capture]\r\nfps=60\r\n");
@@ -415,8 +433,8 @@ pub mod tests {
     #[test]
     fn known_folders_resolve() {
         let folders = known_default_folders();
-        assert!(folders.screenshots.ends_with("Mosaiks-Screenshots"));
-        assert!(folders.recordings.ends_with("Mosaiks-Aufnahmen"));
+        assert!(folders.screenshots.ends_with("Nazar-Screenshots"));
+        assert!(folders.recordings.ends_with("Nazar-Aufnahmen"));
         assert!(folders.screenshots.is_absolute(), "{}", folders.screenshots.display());
         assert!(folders.recordings.is_absolute(), "{}", folders.recordings.display());
     }

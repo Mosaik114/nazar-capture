@@ -20,7 +20,7 @@ body:
     id: version
     attributes:
       label: Version
-      description: File properties of MosaikCapture.exe → Details → Product version
+      description: File properties of NazarCapture.exe → Details → Product version
     validations:
       required: true
   - type: input
@@ -32,5 +32,5 @@ body:
     id: log
     attributes:
       label: Error log
-      description: Relevant lines from %LOCALAPPDATA%\MosaikCapture\logs\error.log, if any
+      description: Relevant lines from %LOCALAPPDATA%\NazarCapture\logs\error.log, if any
       render: text

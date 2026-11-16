@@ -1,4 +1,4 @@
-namespace MosaikCapture.Engine.Screenshot;
+namespace NazarCapture.Engine.Screenshot;
 
 /// <summary>
 /// Card in the bottom right after a capture (the frame is shared with the recording card, see

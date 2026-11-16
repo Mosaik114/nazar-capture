@@ -1,5 +1,5 @@
 using System.ComponentModel;
-namespace MosaikCapture.Engine.Core;
+namespace NazarCapture.Engine.Core;
 
 /// <summary>The settings as they were when a flow (a screenshot, a recording) started; immutable.</summary>
 internal sealed class CaptureSettingsSnapshot
@@ -29,21 +29,21 @@ internal sealed class CaptureSettingsSnapshot
 
 /// <summary>
 /// Settings shared with the host: a Unicode INI file, section [capture], written by the host. Each flow
-/// reads it once (<see cref="Load()"/>) and works with that snapshot. <c>MOSAIK_CAPTURE_TEST_CONFIG</c>
+/// reads it once (<see cref="Load()"/>) and works with that snapshot. <c>NAZAR_CAPTURE_TEST_CONFIG</c>
 /// points to a different file; an isolated host (see <see cref="TestIsolation"/>) sets it, and it is read once
 /// at startup. The keys, defaults and normalisation follow contract/contract.json, as on the host.
 /// </summary>
 internal static class CaptureSettings
 {
-    internal const string TestConfigVariable = "MOSAIK_CAPTURE_TEST_CONFIG";
-    internal static readonly string HostWindowClass = TestIsolation.Isolate("MosaikCapture.Host");
+    internal const string TestConfigVariable = "NAZAR_CAPTURE_TEST_CONFIG";
+    internal static readonly string HostWindowClass = TestIsolation.Isolate("NazarCapture.Host");
     internal const int SaveAudioMessage = 0x8014;
-    internal const string AppFolderName = "MosaikCapture";
+    internal const string AppFolderName = "NazarCapture";
 
     /// <summary>%LOCALAPPDATA%, or its stand-in under test isolation.</summary>
     static readonly string LocalAppData = TestIsolation.LocalAppData ?? Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
 
-    /// <summary>%LOCALAPPDATA%\MosaikCapture: settings and temporary recording files.</summary>
+    /// <summary>%LOCALAPPDATA%\NazarCapture: settings and temporary recording files.</summary>
     public static readonly string Home = Path.Combine(LocalAppData, AppFolderName);
 
     /// <summary>Work folders of running recordings (video segments and audio tracks).</summary>
@@ -53,14 +53,14 @@ internal static class CaptureSettings
     public static readonly string LegacyRecordingWorkRoot = Path.Combine(LocalAppData, LegacyHomeName, LegacyWorkFolderName);
 
     // Folder names of older versions (which used German names); only read to clean up their leftovers.
-    const string LegacyHomeName = "Mosaiks-Aufnahme", LegacyWorkFolderName = "Aufnahme";
+    const string LegacyHomeName = "MosaikCapture", LegacyWorkFolderName = "recording";
 
     static volatile string fileName = ResolveFileName(Environment.GetEnvironmentVariable(TestConfigVariable));
 
     /// <summary>The INI file, decided once at startup.</summary>
     public static string FileName => fileName;
 
-    /// <summary>The override path if set, otherwise %LOCALAPPDATA%\MosaikCapture\settings.ini.</summary>
+    /// <summary>The override path if set, otherwise %LOCALAPPDATA%\NazarCapture\settings.ini.</summary>
     internal static string ResolveFileName(string? overridePath) =>
         string.IsNullOrWhiteSpace(overridePath) ? Path.Combine(Home, "settings.ini") : overridePath!;
 

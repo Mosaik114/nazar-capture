@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Builds Mosaik Capture: the Rust tray app and the C# capture engine, side by side in bin\.
+    Builds Nazar Capture: the Rust tray app and the C# capture engine, side by side in bin\.
 
 .DESCRIPTION
     Requires the Rust toolchain (cargo) and the .NET SDK 10 (dotnet). Rust and .NET are
@@ -15,7 +15,7 @@
     25 screenshots, compared with tests\Measurementsaseline-1.1.2.json. It opens the real overlay.
 
 .PARAMETER Package
-    Also zip bin\ into dist\nazar-capture-<version>-win-x64.zip (the installer: unpack, run MosaikCapture.exe --install)
+    Also zip bin\ into dist\nazar-capture-<version>-win-x64.zip (the installer: unpack, run NazarCapture.exe --install)
     and write its SHA-256 next to it (.sha256), which the in-app update checks.
 
 .PARAMETER RustToolchain
@@ -38,8 +38,8 @@ Set-StrictMode -Version Latest
 
 $root = $PSScriptRoot
 $bin = Join-Path $root 'bin'
-$engineProject = Join-Path $root 'engine/MosaikCapture.Engine.csproj'
-$solution = Join-Path $root 'MosaikCapture.sln'
+$engineProject = Join-Path $root 'engine/NazarCapture.Engine.csproj'
+$solution = Join-Path $root 'NazarCapture.sln'
 
 function Invoke-Step([string]$Name, [scriptblock]$Command) {
     Write-Host "==> $Name" -ForegroundColor Cyan
@@ -59,10 +59,10 @@ Invoke-Step 'C# capture engine' { dotnet build $engineProject -c Release -o $bin
 
 New-Item -ItemType Directory -Force $bin | Out-Null
 $targetDir = if ($env:CARGO_TARGET_DIR) { $env:CARGO_TARGET_DIR } else { Join-Path $root 'target' }
-$rustExe = Get-ChildItem $targetDir -Recurse -Filter 'MosaikCapture.exe' |
+$rustExe = Get-ChildItem $targetDir -Recurse -Filter 'NazarCapture.exe' |
     Where-Object { $_.Directory.Name -eq 'release' } |
     Sort-Object LastWriteTime -Descending | Select-Object -First 1
-if (-not $rustExe) { throw "MosaikCapture.exe not found under $targetDir" }
+if (-not $rustExe) { throw "NazarCapture.exe not found under $targetDir" }
 Copy-Item $rustExe.FullName $bin -Force
 
 if ($Test) {
@@ -71,32 +71,32 @@ if ($Test) {
     # GUI-subsystem executables: wait on the process object to get their exit codes
     # Under test-only names and data folders (see docs/architecture.md), never those of an installed copy.
     # Set only here: the C# tests above must run unisolated.
-    $isolated = $env:MOSAIK_CAPTURE_TEST_INSTANCE
-    $env:MOSAIK_CAPTURE_TEST_INSTANCE = 'build-self-test'
+    $isolated = $env:NAZAR_CAPTURE_TEST_INSTANCE
+    $env:NAZAR_CAPTURE_TEST_INSTANCE = 'build-self-test'
     try {
-        foreach ($exe in 'MosaikCapture.exe', 'MosaikCapture.Engine.exe') {
+        foreach ($exe in 'NazarCapture.exe', 'NazarCapture.Engine.exe') {
             Write-Host "==> Self-test $exe" -ForegroundColor Cyan
-            $report = Join-Path ([IO.Path]::GetTempPath()) 'mosaik-capture-self-test.json'
+            $report = Join-Path ([IO.Path]::GetTempPath()) 'nazar-capture-self-test.json'
             $process = [Diagnostics.Process]::Start((Join-Path $bin $exe), "--self-test `"$report`"")
             $process.WaitForExit()
             if ($process.ExitCode -ne 0) { throw "Self-test of $exe failed with exit code $($process.ExitCode)" }
         }
     }
     finally {
-        $env:MOSAIK_CAPTURE_TEST_INSTANCE = $isolated
+        $env:NAZAR_CAPTURE_TEST_INSTANCE = $isolated
     }
 }
 
 if ($Measure) {
     Write-Host "==> Measuring run" -ForegroundColor Cyan
-    & (Join-Path $root 'tools/measure.ps1') -Engine (Join-Path $bin 'MosaikCapture.Engine.exe') -Baseline (Join-Path $root 'tests/Measurements/baseline-1.1.2.json')
+    & (Join-Path $root 'tools/measure.ps1') -Engine (Join-Path $bin 'NazarCapture.Engine.exe') -Baseline (Join-Path $root 'tests/Measurements/baseline-1.1.2.json')
 }
 
 if ($Package) {
     $version = (Select-String -Path (Join-Path $root 'Cargo.toml') -Pattern '^version = "(.+)"').Matches[0].Groups[1].Value
     $dist = Join-Path $root 'dist'
     New-Item -ItemType Directory -Force $dist | Out-Null
-    # The ZIP is also the installer: unpack it and run MosaikCapture.exe --install (the in-app update does exactly that).
+    # The ZIP is also the installer: unpack it and run NazarCapture.exe --install (the in-app update does exactly that).
     $zip = Join-Path $dist "nazar-capture-$version-win-x64.zip"
     Compress-Archive -Path (Join-Path $bin '*.exe') -DestinationPath $zip -Force
     # The update checks the download against this SHA-256 (and GitHub's asset digest) before it installs anything.

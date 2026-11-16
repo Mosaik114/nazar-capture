@@ -19,7 +19,7 @@ Prerequisites: Rust (stable) and the .NET SDK 10. On Windows:
 This builds both programs into `bin\` and runs the Rust and C# test suites, including the
 pixel comparisons. Two Rust tests are opt-in locally: the end-to-end test creates a real
 (short-lived) settings window, and the cross-process test starts the engine from `bin\`
-(build it first). Both run under test-only names (`MOSAIK_CAPTURE_TEST_INSTANCE`), so they
+(build it first). Both run under test-only names (`NAZAR_CAPTURE_TEST_INSTANCE`), so they
 never meet an installed copy:
 
 ```powershell

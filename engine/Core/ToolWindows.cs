@@ -1,4 +1,4 @@
-namespace MosaikCapture.Engine.Core;
+namespace NazarCapture.Engine.Core;
 
 /// <summary>Helpers of the tool windows that are no part of the look (handles, scale, capture exclusion, images).</summary>
 internal static class ToolWindows

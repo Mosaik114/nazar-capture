@@ -1,4 +1,4 @@
-namespace MosaikCapture.Engine.Core;
+namespace NazarCapture.Engine.Core;
 
 /// <summary>
 /// One error log file with size-based rotation: beyond 1 MB it is renamed to error.old.log and started
@@ -40,7 +40,7 @@ internal sealed class ErrorLogFile
 }
 
 /// <summary>
-/// The engine's error log, in %LOCALAPPDATA%\MosaikCapture\logs\error.log (the exe's folder may be
+/// The engine's error log, in %LOCALAPPDATA%\NazarCapture\logs\error.log (the exe's folder may be
 /// read-only, e.g. below Program Files). A static facade over one <see cref="ErrorLogFile"/>, because
 /// every part of the engine logs; tests replace the file with one in a temporary folder.
 /// </summary>

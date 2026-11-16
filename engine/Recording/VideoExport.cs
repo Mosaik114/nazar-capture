@@ -1,4 +1,4 @@
-namespace MosaikCapture.Engine.Recording;
+namespace NazarCapture.Engine.Recording;
 
 /// <summary>Trimming a recording into a new MP4 (re-encoded, frame accurate) or a GIF.</summary>
 internal static class VideoExport
@@ -113,7 +113,7 @@ internal static class VideoExport
     static async Task<RecordedVideo> ExportGifAsync(RecordedVideo source, double from, double to, double length, string target,
         MonotonicProgress progress, CancellationToken cancellation)
     {
-        string palette = Path.Combine(Path.GetTempPath(), "mosaik-palette-" + Guid.NewGuid().ToString("N") + ".png");
+        string palette = Path.Combine(Path.GetTempPath(), "nazar-palette-" + Guid.NewGuid().ToString("N") + ".png");
         try
         {
             progress.Report(PaletteStarted);

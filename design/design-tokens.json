@@ -3,7 +3,7 @@
     "The one source of colours and measures shared by Hams and this capture tool.",
     "Everything under 'shared' is taken over from Hams (hams/ui_kit/theme.py, branch redesign) with the same",
     "names and values; 'apps' holds what each app sets on its own: the accent (Hams turquoise, the capture tool cobalt).",
-    "design/generate_tokens.py writes engine/MosaikUi/Tokens.Light.xaml, Tokens.Dark.xaml and UiTokens.g.cs from it,",
+    "design/generate_tokens.py writes engine/NazarUi/Tokens.Light.xaml, Tokens.Dark.xaml and UiTokens.g.cs from it,",
     "plus design/generated/hams-theme-values.json, the values Hams' theme.py can read. Never edit the generated files.",
     "'fixed' are tones that do not change with the theme (on images, video, the dimmed screen, markup ink): ARGB.",
     "'legacy' are the engine's colours before the redesign under their old resource keys (Bg, Sel, Accent, ...): the",

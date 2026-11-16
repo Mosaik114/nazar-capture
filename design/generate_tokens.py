@@ -7,8 +7,8 @@ usage:
                                                 fail if Hams' palettes differ from the tokens
 
 Writes:
-    engine/MosaikUi/Tokens.Light.xaml, engine/MosaikUi/Tokens.Dark.xaml   resource dictionaries (frozen brushes)
-    engine/MosaikUi/UiTokens.g.cs                                       measures, fixed tones, key names
+    engine/NazarUi/Tokens.Light.xaml, engine/NazarUi/Tokens.Dark.xaml   resource dictionaries (frozen brushes)
+    engine/NazarUi/UiTokens.g.cs                                       measures, fixed tones, key names
     design/generated/hams-theme-values.json                            Hams' palettes (shared + Hams' accent)
 
 Standard library only. Hams' theme.py is read as text (ast), never imported.
@@ -50,7 +50,7 @@ def xaml(tokens: dict, mode: str) -> str:
     palette = palettes(tokens, APP)[mode]
     lines = [
         "<!-- " + HEADER + " -->",
-        '<ResourceDictionary x:Class="MosaikCapture.Engine.MosaikUi.Tokens' + mode.capitalize() + '" x:ClassModifier="internal"',
+        '<ResourceDictionary x:Class="NazarCapture.Engine.NazarUi.Tokens' + mode.capitalize() + '" x:ClassModifier="internal"',
         '                    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"',
         '                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"',
         '                    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"',
@@ -82,7 +82,7 @@ def csharp(tokens: dict) -> str:
         "// " + HEADER,
         "// </auto-generated>",
         "",
-        "namespace MosaikCapture.Engine.MosaikUi;",
+        "namespace NazarCapture.Engine.NazarUi;",
         "",
         "/// <summary>Measures (logical pixels), fixed tones and resource keys of the design tokens, as in Hams' theme.py.</summary>",
         "internal static partial class UiTokens",
@@ -162,9 +162,9 @@ def hams_values(tokens: dict) -> str:
 
 def outputs(tokens: dict) -> dict:
     return {
-        ROOT / "engine" / "MosaikUi" / "Tokens.Light.xaml": xaml(tokens, "light"),
-        ROOT / "engine" / "MosaikUi" / "Tokens.Dark.xaml": xaml(tokens, "dark"),
-        ROOT / "engine" / "MosaikUi" / "UiTokens.g.cs": csharp(tokens),
+        ROOT / "engine" / "NazarUi" / "Tokens.Light.xaml": xaml(tokens, "light"),
+        ROOT / "engine" / "NazarUi" / "Tokens.Dark.xaml": xaml(tokens, "dark"),
+        ROOT / "engine" / "NazarUi" / "UiTokens.g.cs": csharp(tokens),
         ROOT / "design" / "generated" / "hams-theme-values.json": hams_values(tokens),
     }
 

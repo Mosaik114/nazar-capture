@@ -1,4 +1,4 @@
-namespace MosaikCapture.Engine.Screenshot;
+namespace NazarCapture.Engine.Screenshot;
 
 /// <summary>
 /// A pinned screenshot: floats above everything, exactly where it was captured.

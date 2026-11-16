@@ -1,4 +1,4 @@
-namespace MosaikCapture.Engine.Recording;
+namespace NazarCapture.Engine.Recording;
 
 // Trim window: exporting the selection as MP4 or GIF.
 internal sealed partial class TrimWindow

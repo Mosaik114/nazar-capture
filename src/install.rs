@@ -1,11 +1,11 @@
-//! `MosaikCapture.exe --install [<folder>]`: installs or updates the app from the
+//! `NazarCapture.exe --install [<folder>]`: installs or updates the app from the
 //! folder of the running executable (an extracted release ZIP).
 //!
 //! 1. The running instance is asked to quit through the normal quit protocol
 //!    ([`ipc::QUIT`], which also quits the engine); it refuses while a capture runs,
 //!    and installing stops there. Processes are never killed.
 //! 2. Every file of the source folder (not its subfolders) is copied into the target
-//!    folder, by default `%LOCALAPPDATA%\Programs\MosaikCapture`. A file the old
+//!    folder, by default `%LOCALAPPDATA%\Programs\NazarCapture`. A file the old
 //!    process still holds is retried briefly. The settings are never touched.
 //! 3. The autostart entry follows the stored setting, a Start-menu shortcut is
 //!    written (an older one is removed), and the installed app starts with
@@ -36,9 +36,9 @@ use crate::wide::to_wide;
 use crate::{autostart, engine, ipc, ui};
 
 /// File name of the host executable in a release.
-pub const HOST_EXE_NAME: &str = "MosaikCapture.exe";
-/// The default target below `%LOCALAPPDATA%` (technical names, unchanged by renames).
-const DEFAULT_TARGET: [&str; 2] = ["Programs", "MosaikCapture"];
+pub const HOST_EXE_NAME: &str = "NazarCapture.exe";
+/// The default target below `%LOCALAPPDATA%`.
+const DEFAULT_TARGET: [&str; 2] = ["Programs", "NazarCapture"];
 /// The Start-menu shortcut, named after the product.
 const SHORTCUT_NAME: &str = "Nazar Capture.lnk";
 /// Shortcuts of earlier versions, removed when the new one is written.
@@ -401,7 +401,7 @@ mod tests {
     fn target_folder_resolution() {
         let local = Path::new(r"C:\Users\Ada\AppData\Local");
         let default = resolve_target(None, Some(local), false).unwrap();
-        assert_eq!(default, Path::new(r"C:\Users\Ada\AppData\Local\Programs\MosaikCapture"));
+        assert_eq!(default, Path::new(r"C:\Users\Ada\AppData\Local\Programs\NazarCapture"));
         let explicit = resolve_target(Some(Path::new(r"D:\Apps\Nazar")), Some(local), true);
         assert_eq!(explicit.unwrap(), Path::new(r"D:\Apps\Nazar"), "given folder always wins");
         let relative = resolve_target(Some(Path::new("ziel")), None, false).unwrap();
@@ -418,25 +418,25 @@ mod tests {
     #[test]
     fn file_list_is_flat_and_needs_both_executables() {
         let dir = TempDir::new();
-        fs::write(dir.file("MosaikCapture.exe"), b"host").unwrap();
+        fs::write(dir.file("NazarCapture.exe"), b"host").unwrap();
         fs::write(dir.file("LIESMICH.txt"), b"text").unwrap();
         fs::create_dir(dir.file("sub")).unwrap();
         fs::write(dir.file("sub").join("nested.dll"), b"x").unwrap();
         assert!(matches!(
             release_files(&dir.0),
-            Err(InstallError::Incomplete("MosaikCapture.Engine.exe"))
+            Err(InstallError::Incomplete("NazarCapture.Engine.exe"))
         ));
-        fs::write(dir.file("mosaikcapture.engine.EXE"), b"engine").unwrap();
+        fs::write(dir.file("nazarcapture.engine.EXE"), b"engine").unwrap();
         let files = release_files(&dir.0).unwrap();
         let names: Vec<_> = files.iter().map(|f| f.file_name().unwrap().to_owned()).collect();
-        assert_eq!(names, ["LIESMICH.txt", "MosaikCapture.exe", "mosaikcapture.engine.EXE"]);
+        assert_eq!(names, ["LIESMICH.txt", "NazarCapture.exe", "nazarcapture.engine.EXE"]);
     }
 
     #[test]
     fn shortcut_script_quotes_every_path() {
         let script = shortcut_script(
             r"C:\Users\O'Neil\Start Menu\Nazar Capture.lnk",
-            r"C:\Apps\Nazar Capture\MosaikCapture.exe",
+            r"C:\Apps\Nazar Capture\NazarCapture.exe",
             r"C:\Apps\Nazar Capture",
             "Nazar Capture",
         );
@@ -444,7 +444,7 @@ mod tests {
             script,
             "$s = (New-Object -ComObject WScript.Shell).CreateShortcut(\
              'C:\\Users\\O''Neil\\Start Menu\\Nazar Capture.lnk'); \
-             $s.TargetPath = 'C:\\Apps\\Nazar Capture\\MosaikCapture.exe'; \
+             $s.TargetPath = 'C:\\Apps\\Nazar Capture\\NazarCapture.exe'; \
              $s.WorkingDirectory = 'C:\\Apps\\Nazar Capture'; \
              $s.Description = 'Nazar Capture'; $s.Save()"
         );

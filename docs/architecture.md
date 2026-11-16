@@ -1,12 +1,12 @@
 # Architecture
 
-Nazar Capture (formerly Mosaik Capture; the executables, the settings folder and the window classes keep the
-technical name `MosaikCapture`) is two cooperating Windows processes:
+Nazar Capture (formerly Nazar Capture; the executables, the settings folder and the window classes keep the
+technical name `NazarCapture`) is two cooperating Windows processes:
 
 | Process | Language | Lifetime | Responsibility |
 |---|---|---|---|
-| `MosaikCapture.exe` (*host*) | Rust, `windows-sys` | from login, always | global hotkeys, settings window, tray icon, autostart, starting the engine |
-| `MosaikCapture.Engine.exe` (*engine*) | C# 14, WPF, .NET Framework 4.8 | from the first capture, then resident | freeze-frame overlay, editor, OCR, pinning, screen recording, trimming, GIF export |
+| `NazarCapture.exe` (*host*) | Rust, `windows-sys` | from login, always | global hotkeys, settings window, tray icon, autostart, starting the engine |
+| `NazarCapture.Engine.exe` (*engine*) | C# 14, WPF, .NET Framework 4.8 | from the first capture, then resident | freeze-frame overlay, editor, OCR, pinning, screen recording, trimming, GIF export |
 
 ## Why split it this way
 
@@ -17,7 +17,7 @@ technical name `MosaikCapture`) is two cooperating Windows processes:
   drop shadows), hit testing, undo/redo, animations and per-monitor DPI. WPF provides all
   of that; doing it in raw Win32/GDI from Rust would multiply the code for no user benefit.
 - **Fault isolation.** A crash in the editor or in an ffmpeg pipeline cannot take down
-  hotkey handling. The engine logs the error to `%LOCALAPPDATA%\MosaikCapture\logs\error.log` and
+  hotkey handling. The engine logs the error to `%LOCALAPPDATA%\NazarCapture\logs\error.log` and
   restarts itself (but not within its first minute, to avoid a crash loop) with
   `--idle --after <pid>`, so the new process waits for the old one to exit before taking the
   single-instance mutex; the host simply spawns it again on the next capture. Inside the
@@ -44,18 +44,19 @@ starts the built engine and drives the quit protocol from the host code. Note th
 | Direction | Mechanism | Meaning |
 |---|---|---|
 | host → engine | `CreateProcess` `--screenshot` / `--recording` | first capture: start the engine with a command |
-| host → engine | `PostMessage` `WM_APP+1` / `+2` to the hidden window titled `MosaikCapture.Engine` | screenshot / toggle recording |
+| host → engine | `PostMessage` `WM_APP+1` / `+2` to the hidden window titled `NazarCapture.Engine` | screenshot / toggle recording |
 | host → engine | `WM_APP+3` | quit (ignored while the engine is busy, the same state as bit 0 below) |
 | host → engine | `SendMessageTimeout` `WM_APP+10` | state query: bit 0 = busy (a recording in any phase from picking the area to saving, the screenshot overlay or editor open, a screenshot being saved, the trim window open or a trim/GIF export running), bit 1 = recording live |
-| engine → host | `PostMessage` `WM_APP+20` to window class `MosaikCapture.Host` | microphone / system sound / click display toggled in the recording bar (bits 0–2), so the host persists them |
+| engine → host | `PostMessage` `WM_APP+20` to window class `NazarCapture.Host` | microphone / system sound / click display toggled in the recording bar (bits 0–2), so the host persists them |
 | anyone → host | second start of the host with `--screenshot`, `--recording`, `--quit`, `--probe`, and a bare `recording` (show settings at the recording section) | forwarded to the running instance (`WM_APP+1…+4`, `+9`, `+10`); see the exit codes below |
 
-Single instance on both sides uses session-local mutexes (`Local\MosaikCapture.Host`,
-`Local\MosaikCapture.Engine`). Settings are shared through
-`%LOCALAPPDATA%\MosaikCapture\settings.ini` (UTF-16, `[capture]` section): the host owns
+Single instance on both sides uses session-local mutexes (`Local\NazarCapture.Host`,
+`Local\NazarCapture.Engine`). Settings are shared through
+`%LOCALAPPDATA%\NazarCapture\settings.ini` (UTF-16, `[capture]` section): the host owns
 writes (temporary file, flushed, then `MoveFileExW(REPLACE_EXISTING | WRITE_THROUGH)`), the
-engine only reads. On first start the host copies settings from the pre-1.0 location
-(`%LOCALAPPDATA%\Mosaiks-Aufnahme`) and replaces the old autostart value.
+engine only reads. On first start the host copies the settings (and the engine's `update-state.json` and
+`windows.txt`) from the folder of versions up to 1.1.3 (`%LOCALAPPDATA%\MosaikCapture`) and replaces the
+old autostart value.
 
 The host's exit codes are for scripts and CI; only outcomes a caller acts on have their own
 code:
@@ -68,16 +69,16 @@ code:
 | 5 | `--probe`: no running instance with registered hotkeys (or it did not answer) |
 | 11 | `--quit` refused (the engine is busy, see the state query above; a dialog open; or still starting) |
 
-The engine window is only trusted if its process runs `MosaikCapture.Engine.exe` from the
+The engine window is only trusted if its process runs `NazarCapture.Engine.exe` from the
 host's own folder (the image path Windows reports, compared case-insensitively), so a
 foreign window with the same title is never messaged.
 
-**Test isolation.** With `MOSAIK_CAPTURE_TEST_INSTANCE=<name>` set, both programs append
+**Test isolation.** With `NAZAR_CAPTURE_TEST_INSTANCE=<name>` set, both programs append
 `.Test.<name>` to every mutex, window class and title, keep their data below
-`%TEMP%\MosaikCapture.Test.<name>` instead of `%LOCALAPPDATA%`, and the host never touches
+`%TEMP%\NazarCapture.Test.<name>` instead of `%LOCALAPPDATA%`, and the host never touches
 autostart; the host passes the variables on to the engine it starts. Such an instance can
 neither reach nor block the real one, which is what the Rust end-to-end and cross-process
-tests use. `MOSAIK_CAPTURE_TEST_CONFIG=<ini>` picks the settings file (and alone isolates the
+tests use. `NAZAR_CAPTURE_TEST_CONFIG=<ini>` picks the settings file (and alone isolates the
 host as instance `preview`). Only an isolated engine accepts the test message that simulates
 work; it feeds the engine's own busy check, so the cross-process test meets the real refusal.
 
@@ -196,7 +197,7 @@ pause/resume: closes the segment, opens a new one on the same clocks            
 | Contract (both) | `contract/contract.json` is loaded by both suites; the Rust side checks the keys and defaults it writes, how it reads numbers (through the real profile API), message numbers, bits, names and exit codes; the C# side checks the keys it reads and their defaults, number parsing, normalisation, names and messages. `cargo test -- --include-ignored` also starts the built engine (`bin\`) `--idle` under test-only names and checks that it reports idle and quits, and that it refuses to quit while (test-only) busy |
 | Engine logic (C#) | xUnit on a shared STA dispatcher thread: the recording state machine with fakes, WASAPI track padding/trimming with a fake capture client, shape recognition, highlighter snapping, selection geometry (including a randomized check over 5,000 rectangles), command-line quoting (500 random round trips through `CommandLineToArgvW`), settings parsing, error-log rotation |
 | Engine + ffmpeg | real ffmpeg runs: audio stays in sync after a pause, one or zero audio tracks, trim with and without sound, GIF export, broken input files (skipped when ffmpeg is missing) |
-| Visual | pixel tests render the states of the real windows off-screen (editor toolbar, menu, scene; recording bar, card, frame, countdown; trim window) and compare them with reference images; on mismatch the actual image and a red diff are written. They skip, naming the font, when a reference font is missing; `MOSAIK_PIXEL_TOLERANCE=lenient` compares slightly blurred images to absorb font-version differences (used in CI) |
+| Visual | pixel tests render the states of the real windows off-screen (editor toolbar, menu, scene; recording bar, card, frame, countdown; trim window) and compare them with reference images; on mismatch the actual image and a red diff are written. They skip, naming the font, when a reference font is missing; `NAZAR_PIXEL_TOLERANCE=lenient` compares slightly blurred images to absorb font-version differences (used in CI) |
 
 All suites run on every push. Only the settings-window end-to-end test and the
 cross-process test create real windows (briefly, under test-only names with temp
@@ -217,7 +218,7 @@ tracks positioned by the device's own timestamps (`AudioTrack` pads gaps and tri
 Each video segment records its start on both the wall clock and the audio clock; when
 saving, the real segment durations are measured with `ffprobe` and the audio is cut to
 exactly those windows. A real-ffmpeg test pauses, resumes and asserts the offset
-([`SystemSoundAndMicrophoneStayInSyncAfterAPause`](../tests/MosaikCapture.Engine.Tests/Recording/FfmpegIntegrationTests.cs)).
+([`SystemSoundAndMicrophoneStayInSyncAfterAPause`](../tests/NazarCapture.Engine.Tests/Recording/FfmpegIntegrationTests.cs)).
 
 **No black flash on very large screens.** A transparent, layered WPF window showing the
 frozen screen is too slow at 5120 × 1440 and can show a black frame before WPF has rendered.
@@ -228,4 +229,4 @@ first frame while invisible and is uncloaked only then; only the dimming animate
 run lazily with a timeout on the UI thread. If it timed out, the first segment used x264 and
 later ones NVENC, and the stream-copy concatenation produced a broken file. Detection now runs
 once in the background, and each recording session fixes its encoder for all its segments
-([`RecordingSessionTests`](../tests/MosaikCapture.Engine.Tests/Recording/RecordingSessionTests.cs)).
+([`RecordingSessionTests`](../tests/NazarCapture.Engine.Tests/Recording/RecordingSessionTests.cs)).

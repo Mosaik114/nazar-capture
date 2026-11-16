@@ -1,4 +1,4 @@
-namespace MosaikCapture.Engine.Recording;
+namespace NazarCapture.Engine.Recording;
 
 /// <summary>
 /// The two clocks that keep video and audio in sync: wall-clock microseconds since 1970 (what

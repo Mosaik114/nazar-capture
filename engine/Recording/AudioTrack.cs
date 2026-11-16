@@ -1,4 +1,4 @@
-namespace MosaikCapture.Engine.Recording;
+namespace NazarCapture.Engine.Recording;
 
 /// <summary>
 /// One audio track written as raw samples (stereo 32-bit float, 48 kHz, no header: a WAV header cannot

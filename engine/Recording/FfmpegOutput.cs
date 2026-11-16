@@ -1,4 +1,4 @@
-namespace MosaikCapture.Engine.Recording;
+namespace NazarCapture.Engine.Recording;
 
 /// <summary>Reading what ffmpeg and ffprobe print.</summary>
 internal static class FfmpegOutput

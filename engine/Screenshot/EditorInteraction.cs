@@ -1,4 +1,4 @@
-namespace MosaikCapture.Engine.Screenshot;
+namespace NazarCapture.Engine.Screenshot;
 
 /// <summary>What the pointer is doing in the editor between press and release.</summary>
 internal enum PointerMode

@@ -1,4 +1,4 @@
-namespace MosaikCapture.Engine.Recording;
+namespace NazarCapture.Engine.Recording;
 
 // Trim window: building the controls from the kit (fields and construction in TrimWindow.cs).
 internal sealed partial class TrimWindow

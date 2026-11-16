@@ -1,4 +1,4 @@
-namespace MosaikCapture.Engine.Core;
+namespace NazarCapture.Engine.Core;
 
 /// <summary>
 /// Every text the user can see. The app's UI language is German; logic files reference these
@@ -36,9 +36,9 @@ static class UiText
     public static class Files
     {
         /// <summary>Default folder below Pictures (user-visible, so German).</summary>
-        public const string ScreenshotFolder = "Mosaiks-Screenshots";
+        public const string ScreenshotFolder = "Nazar-Screenshots";
         /// <summary>Default folder below Videos.</summary>
-        public const string RecordingFolder = "Mosaiks-Aufnahmen";
+        public const string RecordingFolder = "Nazar-Aufnahmen";
         public const string ScreenshotPrefix = "Nazar-Screenshot ";
         public const string RecordingPrefix = "Nazar-Aufnahme ";
         public const string TrimmedSuffix = " gekürzt";
@@ -320,13 +320,13 @@ static class UiText
         public const string Failed = "Update nicht möglich";
         public static string Available(string version) => "Version " + version + " ist da";
         public static string Running(string version) => "Du hast " + version + ".";
-        public static string Reason(Engine.Updates.UpdateProblem problem) => problem switch
+        public static string Reason(Updates.UpdateProblem problem) => problem switch
         {
-            Engine.Updates.UpdateProblem.NoDownload => "Das Release enthält keine Windows-Datei.",
-            Engine.Updates.UpdateProblem.NoChecksum => "Für den Download gibt es keine Prüfsumme; ohne sie wird nichts installiert.",
-            Engine.Updates.UpdateProblem.ChecksumMismatch => "Die Prüfsumme stimmt nicht; der Download wurde verworfen.",
-            Engine.Updates.UpdateProblem.DownloadFailed => "Der Download ist fehlgeschlagen. Später noch einmal versuchen.",
-            Engine.Updates.UpdateProblem.InstallerMissing => "Im Download fehlt das Programm.",
+            Updates.UpdateProblem.NoDownload => "Das Release enthält keine Windows-Datei.",
+            Updates.UpdateProblem.NoChecksum => "Für den Download gibt es keine Prüfsumme; ohne sie wird nichts installiert.",
+            Updates.UpdateProblem.ChecksumMismatch => "Die Prüfsumme stimmt nicht; der Download wurde verworfen.",
+            Updates.UpdateProblem.DownloadFailed => "Der Download ist fehlgeschlagen. Später noch einmal versuchen.",
+            Updates.UpdateProblem.InstallerMissing => "Im Download fehlt das Programm.",
             _ => "Das Installationsprogramm ließ sich nicht starten.",
         };
     }

@@ -1,4 +1,4 @@
-namespace MosaikCapture.Engine.Recording;
+namespace NazarCapture.Engine.Recording;
 
 /// <summary>
 /// Card in the bottom right after a recording (like the screenshot card, see <see cref="CardWindow"/>):

@@ -1,4 +1,4 @@
-namespace MosaikCapture.Engine.Recording;
+namespace NazarCapture.Engine.Recording;
 
 /// <summary>The real recording windows. Each window is created on first use.</summary>
 internal sealed class WpfRecordingUi : IRecordingUi

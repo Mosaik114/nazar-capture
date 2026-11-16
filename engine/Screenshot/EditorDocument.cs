@@ -1,4 +1,4 @@
-namespace MosaikCapture.Engine.Screenshot;
+namespace NazarCapture.Engine.Screenshot;
 
 /// <summary>What a markup item is; decides its layer and how it reacts.</summary>
 internal enum MarkupKind

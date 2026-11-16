@@ -1,4 +1,4 @@
-namespace MosaikCapture.Engine.Recording;
+namespace NazarCapture.Engine.Recording;
 
 /// <summary>
 /// An ffmpeg/ffprobe command line built from individual arguments. Arguments are quoted only

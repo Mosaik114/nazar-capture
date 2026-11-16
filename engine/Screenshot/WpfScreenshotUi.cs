@@ -1,4 +1,4 @@
-namespace MosaikCapture.Engine.Screenshot;
+namespace NazarCapture.Engine.Screenshot;
 
 /// <summary>The real screenshot windows. Each window is created on first use.</summary>
 internal sealed class WpfScreenshotUi : IScreenshotUi

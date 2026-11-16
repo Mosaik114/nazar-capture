@@ -1,4 +1,4 @@
-namespace MosaikCapture.Engine.Screenshot;
+namespace NazarCapture.Engine.Screenshot;
 
 /// <summary>
 /// Finds the words of a text line under a horizontal highlighter stroke, in device pixels of a screenshot.

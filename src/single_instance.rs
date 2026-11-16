@@ -23,7 +23,7 @@ use crate::process::window_runs;
 use crate::wide::to_wide;
 
 /// Session-local mutex that marks the primary instance.
-pub const MUTEX_NAME: &str = r"Local\MosaikCapture.Host";
+pub const MUTEX_NAME: &str = r"Local\NazarCapture.Host";
 
 #[derive(Debug)]
 pub struct InstanceLock {
@@ -198,7 +198,7 @@ mod tests {
 
     impl FakePrimary {
         fn start(name: &str, pump: bool) -> Self {
-            let class = format!("MosaikCapture.Test.{name}.{}", std::process::id());
+            let class = format!("NazarCapture.Test.{name}.{}", std::process::id());
             let (sender, receiver) = mpsc::channel();
             let wide_class = to_wide(&class);
             let worker = thread::spawn(move || {
@@ -281,7 +281,7 @@ mod tests {
     #[test]
     fn primary_target_waits_two_seconds_at_most() {
         let target = Target::primary(ipc::WINDOW_CLASS);
-        assert_eq!(target.class, "MosaikCapture.Host");
+        assert_eq!(target.class, "NazarCapture.Host");
         assert_eq!(target.interval * target.attempts, Duration::from_secs(2));
         assert_eq!(target.timeout, Duration::from_secs(2));
     }
@@ -289,7 +289,7 @@ mod tests {
     #[test]
     fn missing_window_is_retried_then_reported() {
         let target = Target {
-            class: format!("MosaikCapture.Test.Absent.{}", std::process::id()),
+            class: format!("NazarCapture.Test.Absent.{}", std::process::id()),
             attempts: 5,
             interval: Duration::from_millis(20),
             timeout: Duration::from_millis(100),
@@ -318,7 +318,7 @@ mod tests {
     fn windows_of_other_executables_are_ignored() {
         let primary = FakePrimary::start("Foreign", true);
         let mut target = primary.target();
-        target.image = Some(std::env::temp_dir().join("MosaikCapture-elsewhere.exe"));
+        target.image = Some(std::env::temp_dir().join("NazarCapture-elsewhere.exe"));
         assert_eq!(forward_to(&target, Action::Probe), Forwarded::NoWindow);
     }
 

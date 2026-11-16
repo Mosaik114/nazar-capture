@@ -1,7 +1,7 @@
-//! Test isolation (`MOSAIK_CAPTURE_TEST_INSTANCE`, `MOSAIK_CAPTURE_TEST_CONFIG`).
+//! Test isolation (`NAZAR_CAPTURE_TEST_INSTANCE`, `NAZAR_CAPTURE_TEST_CONFIG`).
 //!
 //! An isolated host and the engine it starts append `.Test.<instance>` to every mutex,
-//! window class and title, keep their data below `<temp>\MosaikCapture.Test.<instance>`
+//! window class and title, keep their data below `<temp>\NazarCapture.Test.<instance>`
 //! instead of `%LOCALAPPDATA%`, and never touch autostart. So a test (or a preview with
 //! another settings file) can neither reach, block nor overwrite the real instance —
 //! the derived names can never equal the real ones. The engine applies the same rules
@@ -14,8 +14,8 @@ use std::path::{Path, PathBuf};
 
 use crate::store;
 
-pub const INSTANCE_VAR: &str = "MOSAIK_CAPTURE_TEST_INSTANCE";
-pub const CONFIG_VAR: &str = "MOSAIK_CAPTURE_TEST_CONFIG";
+pub const INSTANCE_VAR: &str = "NAZAR_CAPTURE_TEST_INSTANCE";
+pub const CONFIG_VAR: &str = "NAZAR_CAPTURE_TEST_CONFIG";
 /// The instance name when only a settings file is given.
 pub const DEFAULT_INSTANCE: &str = "preview";
 
@@ -46,7 +46,7 @@ impl Isolation {
         let instance = instance.map_or_else(|| DEFAULT_INSTANCE.to_owned(), |name| sanitize(&name));
         // Absolute right away: the profile API would resolve a relative name in the
         // Windows folder, and the engine gets the same path.
-        let local_app_data = temp.join(format!("MosaikCapture.Test.{instance}"));
+        let local_app_data = temp.join(format!("NazarCapture.Test.{instance}"));
         let settings = config.map_or_else(
             || store::settings_below(&local_app_data),
             |path| std::path::absolute(&path).unwrap_or_else(|_| path.into()),
@@ -105,20 +105,17 @@ mod tests {
     fn no_variables_no_isolation() {
         assert_eq!(vars(None, None), None);
         assert_eq!(vars(Some(""), Some("")), None, "empty means unset");
-        assert_eq!(isolated("MosaikCapture.Host", None), "MosaikCapture.Host");
+        assert_eq!(isolated("NazarCapture.Host", None), "NazarCapture.Host");
     }
 
     #[test]
     fn an_instance_gets_its_own_names_and_folder() {
         let isolation = vars(Some("ci-42"), None).unwrap();
-        assert_eq!(
-            isolated("MosaikCapture.Host", Some(&isolation)),
-            "MosaikCapture.Host.Test.ci-42"
-        );
-        assert_eq!(isolation.local_app_data, Path::new(r"C:\T\MosaikCapture.Test.ci-42"));
+        assert_eq!(isolated("NazarCapture.Host", Some(&isolation)), "NazarCapture.Host.Test.ci-42");
+        assert_eq!(isolation.local_app_data, Path::new(r"C:\T\NazarCapture.Test.ci-42"));
         assert_eq!(
             isolation.settings,
-            Path::new(r"C:\T\MosaikCapture.Test.ci-42\MosaikCapture\settings.ini")
+            Path::new(r"C:\T\NazarCapture.Test.ci-42\NazarCapture\settings.ini")
         );
     }
 

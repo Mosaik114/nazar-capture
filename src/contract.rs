@@ -343,7 +343,7 @@ fn settings_file_of_version_1_1_2_loads_without_loss() {
         "\r\n[capture]\r\n\
          screenshot_hotkey=Shift+Alt+4\r\n\
          recording_hotkey=Shift+Alt+5\r\n\
-         screenshot_folder=C:\\Users\\Ada\\Pictures\\Mosaiks-Screenshots\r\n\
+         screenshot_folder=C:\\Users\\Ada\\Pictures\\Nazar-Screenshots\r\n\
          recording_folder=D:\\Aufnahmen\r\n\
          microphone=0\r\n\
          system_audio=1\r\n\
@@ -356,7 +356,7 @@ fn settings_file_of_version_1_1_2_loads_without_loss() {
     let expected = Config {
         screenshot_hotkey: "Shift+Alt+4".to_owned(),
         recording_hotkey: "Shift+Alt+5".to_owned(),
-        screenshot_folder: r"C:\Users\Ada\Pictures\Mosaiks-Screenshots".into(),
+        screenshot_folder: r"C:\Users\Ada\Pictures\Nazar-Screenshots".into(),
         recording_folder: r"D:\Aufnahmen".into(),
         microphone: false,
         system_audio: true,

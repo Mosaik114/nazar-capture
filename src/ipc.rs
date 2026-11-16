@@ -9,7 +9,7 @@
 use windows_sys::Win32::UI::WindowsAndMessaging::{WM_APP, WM_COPYDATA};
 
 /// Window class of the app window, looked up with `FindWindowExW`.
-pub const WINDOW_CLASS: &str = "MosaikCapture.Host";
+pub const WINDOW_CLASS: &str = "NazarCapture.Host";
 
 /// Show the settings window (the engine's).
 pub const SHOW_SETTINGS: u32 = WM_APP + 1;

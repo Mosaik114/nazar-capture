@@ -1,6 +1,6 @@
 using Microsoft.Win32;
 
-namespace MosaikCapture.Engine.Settings;
+namespace NazarCapture.Engine.Settings;
 
 /// <summary>
 /// The settings window as Hams' (settings_window.py): the <see cref="Stage"/> (mark, title, painted banner, round close
@@ -12,7 +12,7 @@ namespace MosaikCapture.Engine.Settings;
 /// settings.ini); there is no save button. A problem shows in its own row. Hotkeys are recorded by pressing them; while
 /// one is recorded, the host releases both so the old one does not fire. The window grows with "Text vergrößern".
 /// </summary>
-internal sealed class SettingsWindow : MosaikWindow
+internal sealed class SettingsWindow : NazarWindow
 {
     /// <summary>Size and smallest size (Hams' SETTINGS_WIDTH/HEIGHT and SETTINGS_MIN_WIDTH/HEIGHT).</summary>
     public const double BaseWidth = 440, BaseHeight = 680, MinimumWidth = 400, MinimumHeight = 420;

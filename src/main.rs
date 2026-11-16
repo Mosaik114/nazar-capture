@@ -1,4 +1,4 @@
-//! Nazar Capture host (technical name `MosaikCapture`): a small tray app that owns the global screenshot and recording
+//! Nazar Capture host (technical name `NazarCapture`): a small tray app that owns the global screenshot and recording
 //! hotkeys and `settings.ini`, and starts the capture engine, which also shows the
 //! settings window.
 //!

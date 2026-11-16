@@ -1,9 +1,9 @@
-//! Talking to the capture engine (`MosaikCapture.Engine.exe`), which does the
+//! Talking to the capture engine (`NazarCapture.Engine.exe`), which does the
 //! actual screenshots and recordings.
 //!
 //! A running engine owns a hidden window titled [`WINDOW_TITLE`] and accepts
 //! `WM_APP`-based commands. Window titles are not unique, so a window only counts as
-//! the engine if its process runs `MosaikCapture.Engine.exe` from this app's folder.
+//! the engine if its process runs `NazarCapture.Engine.exe` from this app's folder.
 //! If no engine is running, it is started with the request on its command line.
 //! Besides captures, the engine also shows the settings window (the host keeps
 //! owning `settings.ini` and the hotkeys, see [`crate::copydata`]).
@@ -31,9 +31,9 @@ use crate::process::window_runs;
 use crate::wide::to_wide;
 
 /// Title of the engine's message window.
-pub const WINDOW_TITLE: &str = "MosaikCapture.Engine";
+pub const WINDOW_TITLE: &str = "NazarCapture.Engine";
 /// File name of the engine, expected next to this executable.
-pub const EXE_NAME: &str = "MosaikCapture.Engine.exe";
+pub const EXE_NAME: &str = "NazarCapture.Engine.exe";
 
 pub const MSG_SCREENSHOT: u32 = WM_APP + 1;
 /// Start or stop a recording.
@@ -310,7 +310,7 @@ impl Engine {
         started
     }
 
-    /// `<exe_dir>\MosaikCapture.Engine.exe <argument>`, without a console window.
+    /// `<exe_dir>\NazarCapture.Engine.exe <argument>`, without a console window.
     fn command(&self, argument: &str) -> Command {
         let mut command = Command::new(self.expected_image());
         command.arg(argument).current_dir(&self.exe_dir).creation_flags(CREATE_NO_WINDOW);
@@ -368,11 +368,11 @@ mod tests {
 
     #[test]
     fn engine_command_line() {
-        let engine = Engine::new(Path::new(r"C:\Apps\Mosaik"), None);
+        let engine = Engine::new(Path::new(r"C:\Apps\Nazar"), None);
         let command = engine.command(EngineRequest::Recording.flag());
-        assert_eq!(command.get_program(), Path::new(r"C:\Apps\Mosaik\MosaikCapture.Engine.exe"));
+        assert_eq!(command.get_program(), Path::new(r"C:\Apps\Nazar\NazarCapture.Engine.exe"));
         assert_eq!(command.get_args().collect::<Vec<_>>(), ["--recording"]);
-        assert_eq!(command.get_current_dir(), Some(Path::new(r"C:\Apps\Mosaik")));
+        assert_eq!(command.get_current_dir(), Some(Path::new(r"C:\Apps\Nazar")));
         assert_eq!(command.get_envs().count(), 0, "real settings: no override");
         assert_eq!(engine.title, WINDOW_TITLE);
     }
@@ -381,9 +381,9 @@ mod tests {
     fn an_isolated_engine_gets_the_isolation_variables() {
         let isolation = Isolation::for_test("unit", &env::temp_dir());
         let engine = Engine::new(Path::new(r"C:\Apps"), Some(&isolation));
-        assert_eq!(engine.title, "MosaikCapture.Engine.Test.unit");
+        assert_eq!(engine.title, "NazarCapture.Engine.Test.unit");
         let envs: Vec<_> = engine.command("--idle").get_envs().map(|(k, _)| k.to_owned()).collect();
-        assert_eq!(envs, ["MOSAIK_CAPTURE_TEST_CONFIG", "MOSAIK_CAPTURE_TEST_INSTANCE"]);
+        assert_eq!(envs, ["NAZAR_CAPTURE_TEST_CONFIG", "NAZAR_CAPTURE_TEST_INSTANCE"]);
     }
 
     #[test]
@@ -396,7 +396,7 @@ mod tests {
 
     #[test]
     fn missing_engine_is_a_failed_delivery() {
-        let missing = env::temp_dir().join("mosaik-capture-no-engine-here");
+        let missing = env::temp_dir().join("nazar-capture-no-engine-here");
         let engine = Engine::new(&missing, None);
         assert_eq!(engine.deliver(EngineRequest::Settings), Delivery::Failed);
         assert!(!engine.is_busy(), "no engine in that folder");
@@ -427,7 +427,7 @@ mod tests {
     }
 
     /// The quit protocol between two real processes: this host code against the
-    /// built engine (`bin\MosaikCapture.Engine.exe`, or `MOSAIK_CAPTURE_ENGINE_DIR`),
+    /// built engine (`bin\NazarCapture.Engine.exe`, or `NAZAR_CAPTURE_ENGINE_DIR`),
     /// started `--idle` under test-only names, with settings and data in a temp folder.
     /// The engine reports idle and quits; told to simulate work (the contract's
     /// test-only message, which counts toward the engine's own busy check) it reports
@@ -439,12 +439,12 @@ mod tests {
     #[ignore = "starts the built engine from bin\\; CI runs it with --include-ignored"]
     fn quit_protocol_across_processes() {
         let contract = contract::load();
-        let dir = env::var_os("MOSAIK_CAPTURE_ENGINE_DIR")
+        let dir = env::var_os("NAZAR_CAPTURE_ENGINE_DIR")
             .map_or_else(|| Path::new(env!("CARGO_MANIFEST_DIR")).join("bin"), PathBuf::from);
         let exe = dir.join(EXE_NAME);
         assert!(
             exe.is_file(),
-            "{} is missing: build it first (dotnet build engine/MosaikCapture.Engine.csproj -c Release -o bin)",
+            "{} is missing: build it first (dotnet build engine/NazarCapture.Engine.csproj -c Release -o bin)",
             exe.display()
         );
 

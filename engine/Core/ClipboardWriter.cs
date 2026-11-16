@@ -1,6 +1,6 @@
 using System.Collections.Specialized;
 
-namespace MosaikCapture.Engine.Core;
+namespace NazarCapture.Engine.Core;
 
 /// <summary>
 /// The one way the engine writes to the clipboard. Every write runs on its own short-lived STA thread,

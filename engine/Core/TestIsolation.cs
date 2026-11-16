@@ -1,10 +1,10 @@
-namespace MosaikCapture.Engine.Core;
+namespace NazarCapture.Engine.Core;
 
 /// <summary>
-/// Test isolation (<c>MOSAIK_CAPTURE_TEST_INSTANCE</c>), the engine's half of the host's <c>src/isolation.rs</c>;
+/// Test isolation (<c>NAZAR_CAPTURE_TEST_INSTANCE</c>), the engine's half of the host's <c>src/isolation.rs</c>;
 /// both follow <c>contract/contract.json</c>. When set, every name another process could meet (mutex, window
 /// title, the host's window class) gets the suffix ".Test.&lt;instance&gt;", which no real name can carry, and the
-/// engine keeps its data (logs, recording work folders) below %TEMP%\MosaikCapture.Test.&lt;instance&gt; instead
+/// engine keeps its data (logs, recording work folders) below %TEMP%\NazarCapture.Test.&lt;instance&gt; instead
 /// of %LOCALAPPDATA%. So a test engine can neither reach, block nor clean up after a real one.
 /// </summary>
 /// <remarks>
@@ -14,7 +14,7 @@ namespace MosaikCapture.Engine.Core;
 /// </remarks>
 internal static class TestIsolation
 {
-    internal const string InstanceVariable = "MOSAIK_CAPTURE_TEST_INSTANCE";
+    internal const string InstanceVariable = "NAZAR_CAPTURE_TEST_INSTANCE";
     internal const string Infix = ".Test.";
     internal const int SimulateBusyMessage = 0x8040;
 
@@ -24,7 +24,7 @@ internal static class TestIsolation
     internal static readonly string? Instance = Sanitize(Environment.GetEnvironmentVariable(InstanceVariable));
 
     /// <summary>Stands in for %LOCALAPPDATA% when isolated.</summary>
-    internal static readonly string? LocalAppData = Instance == null ? null : Path.Combine(Path.GetTempPath(), "MosaikCapture" + Infix + Instance);
+    internal static readonly string? LocalAppData = Instance == null ? null : Path.Combine(Path.GetTempPath(), "NazarCapture" + Infix + Instance);
 
     /// <summary>Keeps A-Z a-z 0-9 _ - and replaces every other UTF-16 unit with _, as the host does; empty means null.</summary>
     internal static string? Sanitize(string? instance) =>

@@ -1,4 +1,4 @@
-namespace MosaikCapture.Engine.Recording;
+namespace NazarCapture.Engine.Recording;
 
 /// <summary>How an ffmpeg or ffprobe call ended.</summary>
 internal readonly struct FfmpegResult

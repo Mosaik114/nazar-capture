@@ -1,4 +1,4 @@
-namespace MosaikCapture.Engine.Core;
+namespace NazarCapture.Engine.Core;
 
 /// <summary>
 /// Sizes of the editor and overlay parts (in WPF units); shadows come from the kit (Elevation) (in WPF units), so toolbars, menus, chips and

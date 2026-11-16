@@ -1,4 +1,4 @@
-namespace MosaikCapture.Engine.Recording;
+namespace NazarCapture.Engine.Recording;
 
 /// <summary>
 /// 3-2-1 countdown before the recording starts. Esc cancels: the window registers Esc as a hotkey while it is shown

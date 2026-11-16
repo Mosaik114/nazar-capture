@@ -3,7 +3,7 @@ using System.Net;
 using System.Security.Cryptography;
 using System.Web.Script.Serialization;
 
-namespace MosaikCapture.Engine.Updates;
+namespace NazarCapture.Engine.Updates;
 
 /// <summary>A release on GitHub: version, page, the installer ZIP and its SHA-256.</summary>
 internal sealed record Release(string Version, string Page, string? Download, string? Sha256);
@@ -211,7 +211,7 @@ internal sealed class UpdateCheck
 
 /// <summary>
 /// Installs a release after the user said "Jetzt aktualisieren": downloads the ZIP, checks its SHA-256 against the
-/// release (never installs without a matching checksum), unpacks it and starts its <c>MosaikCapture.exe --install</c>,
+/// release (never installs without a matching checksum), unpacks it and starts its <c>NazarCapture.exe --install</c>,
 /// which stops the running app cleanly, copies the files and starts the new version. Settings stay where they are.
 /// </summary>
 internal static class UpdateInstaller
@@ -271,7 +271,7 @@ internal static class UpdateInstaller
             ErrorLog.Write("Update: unpacking failed", ex);
             return (null, UpdateProblem.DownloadFailed);
         }
-        string? exe = Directory.EnumerateFiles(work, "MosaikCapture.exe", SearchOption.AllDirectories).FirstOrDefault();
+        string? exe = Directory.EnumerateFiles(work, "NazarCapture.exe", SearchOption.AllDirectories).FirstOrDefault();
         return exe == null ? (null, UpdateProblem.InstallerMissing) : (exe, UpdateProblem.None);
     }
 

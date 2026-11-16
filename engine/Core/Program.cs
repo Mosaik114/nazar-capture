@@ -1,4 +1,4 @@
-namespace MosaikCapture.Engine.Core;
+namespace NazarCapture.Engine.Core;
 
 /// <summary>Entry point of the capture engine and process-wide crash handling.</summary>
 internal static class Program

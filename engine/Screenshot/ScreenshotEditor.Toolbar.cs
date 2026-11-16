@@ -1,6 +1,6 @@
 using System.Windows.Controls.Primitives;
 
-namespace MosaikCapture.Engine.Screenshot;
+namespace NazarCapture.Engine.Screenshot;
 
 /// <summary>
 /// The editor's toolbar, built from the kit: a floating plate with tool buttons (a group shows the tool picked last and

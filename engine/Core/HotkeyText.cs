@@ -1,4 +1,4 @@
-namespace MosaikCapture.Engine.Core;
+namespace NazarCapture.Engine.Core;
 
 /// <summary>A hotkey as the host registers it: <c>MOD_*</c> bits and a virtual-key code.</summary>
 internal readonly record struct HotkeyChord(uint Modifiers, int Key)

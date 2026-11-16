@@ -1,4 +1,4 @@
-namespace MosaikCapture.Engine.Recording;
+namespace NazarCapture.Engine.Recording;
 
 /// <summary>Where ffmpeg and ffprobe are installed.</summary>
 internal interface IFfmpegLocator

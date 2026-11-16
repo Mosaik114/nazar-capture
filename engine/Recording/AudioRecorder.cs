@@ -1,4 +1,4 @@
-namespace MosaikCapture.Engine.Recording;
+namespace NazarCapture.Engine.Recording;
 
 /// <summary>The audio side of a recording (a seam so the session can be tested without devices).</summary>
 internal interface IAudioRecorder

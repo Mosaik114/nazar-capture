@@ -1,4 +1,4 @@
-namespace MosaikCapture.Engine.Core;
+namespace NazarCapture.Engine.Core;
 
 /// <summary>
 /// At most <c>limit</c> commands per sliding second; more are ignored. Protects against a process that

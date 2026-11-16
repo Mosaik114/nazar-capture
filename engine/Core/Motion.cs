@@ -1,4 +1,4 @@
-namespace MosaikCapture.Engine.Core;
+namespace NazarCapture.Engine.Core;
 
 /// <summary>Shared animation and UI timing, so all windows move alike and the numbers have names.</summary>
 internal static class Motion

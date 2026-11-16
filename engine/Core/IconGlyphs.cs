@@ -1,4 +1,4 @@
-namespace MosaikCapture.Engine.Core;
+namespace NazarCapture.Engine.Core;
 
 /// <summary>Icons from Segoe Fluent Icons (with Segoe MDL2 Assets as fallback), see <see cref="Palette.IconFont"/>.</summary>
 internal static class IconGlyphs

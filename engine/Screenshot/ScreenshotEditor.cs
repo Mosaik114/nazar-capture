@@ -1,4 +1,4 @@
-namespace MosaikCapture.Engine.Screenshot;
+namespace NazarCapture.Engine.Screenshot;
 
 /// <summary>
 /// Screenshot editor: the frozen screen stays dimmed, the crop is bright, has handles for

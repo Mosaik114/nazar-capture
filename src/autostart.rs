@@ -23,16 +23,19 @@ const VALUE_NAME: &str = crate::ui::PRODUCT;
 /// the value starts this app: another program of the user may use the same name (on the
 /// developer's machine "Mosaiks Aufnahme" is a different app).
 const LEGACY_VALUE_NAMES: [&str; 2] = ["Mosaik Capture", "Mosaiks Aufnahme"];
-/// The executable an entry of ours starts (the technical name stays across the rename).
-const OWN_EXE: &str = "mosaikcapture.exe";
+/// The executables an entry of ours starts: this one, and the one of versions up to 1.1.3, whose entries an
+/// update replaces.
+const OWN_EXES: [&str; 2] = ["nazarcapture.exe", "mosaikcapture.exe"];
 
-/// Whether a `Run` command starts this app (any copy of `MosaikCapture.exe`).
+/// Whether a `Run` command starts this app (any copy of `NazarCapture.exe`, or of the old executable).
 fn starts_this_app(command: &OsStr) -> bool {
     let text = command.to_string_lossy().to_lowercase();
-    text.contains(&format!("\\{OWN_EXE}"))
-        || text.contains(&format!("/{OWN_EXE}"))
-        || text.starts_with(OWN_EXE)
-        || text.starts_with(&format!("\"{OWN_EXE}"))
+    OWN_EXES.iter().any(|exe| {
+        text.contains(&format!("\\{exe}"))
+            || text.contains(&format!("/{exe}"))
+            || text.starts_with(exe)
+            || text.starts_with(&format!("\"{exe}"))
+    })
 }
 
 /// The command Windows runs at logon: the quoted executable plus `--background`.
@@ -190,8 +193,9 @@ mod tests {
 
     #[test]
     fn an_update_keeps_exactly_one_entry_under_the_new_name() {
-        let exe = Path::new(r"C:\Apps\MosaikCapture.exe");
+        let exe = Path::new(r"C:\Apps\NazarCapture.exe");
         let key = FakeRunKey::default();
+        key.set("Nazar Capture", OsStr::new(r#""C:\Alt\MosaikCapture.exe" --background"#)).unwrap();
         key.set("Mosaik Capture", OsStr::new(r#""C:\Alt\MosaikCapture.exe" --background"#))
             .unwrap();
         key.set("Mosaiks Aufnahme", OsStr::new(r#""C:\Alt2\MosaikCapture.exe" --background"#))
@@ -206,32 +210,35 @@ mod tests {
 
         apply(&key, true, exe).unwrap();
         assert_eq!(key.0.borrow().len(), 2, "writing again changes nothing");
-        key.set("Mosaik Capture", OsStr::new(r#""C:\Alt\MosaikCapture.exe" --background"#))
-            .unwrap();
+        key.set("Nazar Capture", OsStr::new(r#""C:\Alt\NazarCapture.exe" --background"#)).unwrap();
         apply(&key, false, exe).unwrap();
         assert_eq!(key.0.borrow().keys().collect::<Vec<_>>(), ["OneDrive"], "off removes all");
     }
 
     #[test]
     fn another_program_under_an_old_name_is_left_alone() {
-        let exe = Path::new(r"C:\Apps\MosaikCapture.exe");
+        let exe = Path::new(r"C:\Apps\NazarCapture.exe");
         let key = FakeRunKey::default();
         let other = r#""C:\Projekte\Mosaiks-Desktop\bin\Mosaiks-Aufnahme.exe" --background"#;
         key.set("Mosaiks Aufnahme", OsStr::new(other)).unwrap();
         apply(&key, true, exe).unwrap();
         assert_eq!(key.0.borrow()["Mosaiks Aufnahme"], other);
         assert!(key.0.borrow().contains_key("Nazar Capture"));
-        assert!(starts_this_app(OsStr::new(r#""C:\X\MosaikCapture.exe" --background"#)));
+        assert!(starts_this_app(OsStr::new(r#""C:\X\NazarCapture.exe" --background"#)));
         assert!(!starts_this_app(OsStr::new(r#""C:\X\Mosaiks-Aufnahme.exe" --background"#)));
-        assert!(!starts_this_app(OsStr::new(r#""C:\X\NotMosaikCapture.exe""#)));
+        assert!(
+            starts_this_app(OsStr::new(r#""C:\X\MosaikCapture.exe" --background"#)),
+            "the old executable"
+        );
+        assert!(!starts_this_app(OsStr::new(r#""C:\X\NotNazarCapture.exe""#)));
     }
 
     #[test]
     fn command_line_quotes_executable() {
-        let exe = Path::new(r"C:\Program Files\Mosaik Capture\MosaikCapture.exe");
+        let exe = Path::new(r"C:\Program Files\Nazar Capture\NazarCapture.exe");
         assert_eq!(
             command_line(exe),
-            r#""C:\Program Files\Mosaik Capture\MosaikCapture.exe" --background"#
+            r#""C:\Program Files\Nazar Capture\NazarCapture.exe" --background"#
         );
     }
 

@@ -49,11 +49,11 @@ fn main() -> Result<(), String> {
             version_part("CARGO_PKG_VERSION_MINOR")?,
             version_part("CARGO_PKG_VERSION_PATCH")?,
         ],
-        // The product name (src/ui/strings.rs `PRODUCT`); the file names stay technical.
+        // The product name (src/ui/strings.rs `PRODUCT`): Task Manager and Explorer show it.
         file_description: "Nazar Capture",
         product_name: "Nazar Capture",
-        original_filename: "MosaikCapture.exe",
-        company_name: "Mazgin Abdulwahed Ahmad",
+        original_filename: "NazarCapture.exe",
+        company_name: "Nazar Capture",
         legal_copyright: "Copyright (c) 2026 Mazgin Abdulwahed Ahmad",
     };
     resources.add(RT_VERSION, VERSION_ID, version.to_resource())?;

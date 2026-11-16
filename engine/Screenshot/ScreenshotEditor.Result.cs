@@ -1,4 +1,4 @@
-namespace MosaikCapture.Engine.Screenshot;
+namespace NazarCapture.Engine.Screenshot;
 
 // Screenshot editor: undo, keyboard and result (fields and construction in ScreenshotEditor.cs).
 internal sealed partial class ScreenshotEditor

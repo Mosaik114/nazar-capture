@@ -1,4 +1,4 @@
-namespace MosaikCapture.Engine.Recording;
+namespace NazarCapture.Engine.Recording;
 
 // Trim window: film strip, selection handles and playhead.
 internal sealed partial class TrimWindow

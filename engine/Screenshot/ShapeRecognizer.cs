@@ -1,4 +1,4 @@
-namespace MosaikCapture.Engine.Screenshot;
+namespace NazarCapture.Engine.Screenshot;
 
 /// <summary>What a freehand stroke was recognized as.</summary>
 internal enum ShapeKind { None, Line, Arrow, Ellipse, Rectangle, Triangle, Rhombus }

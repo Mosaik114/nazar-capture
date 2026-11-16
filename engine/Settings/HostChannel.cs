@@ -1,4 +1,4 @@
-namespace MosaikCapture.Engine.Settings;
+namespace NazarCapture.Engine.Settings;
 
 /// <summary>The host's answer to a settings request (contract.json, host.copydata.replies); 0 = no answer.</summary>
 internal enum HostReply

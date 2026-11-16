@@ -1,4 +1,4 @@
-namespace MosaikCapture.Engine.Diagnostics;
+namespace NazarCapture.Engine.Diagnostics;
 
 /// <summary>
 /// <c>--live-test &lt;dir&gt;</c>: end-to-end check on a real, interactive desktop. Shows an animated test
@@ -65,13 +65,13 @@ internal static class LiveTest
     static (Window Window, DispatcherTimer Animation) CreateTestWindow()
     {
         var canvas = new Canvas { Background = new SolidColorBrush(Color.FromRgb(23, 58, 58)) };
-        canvas.Children.Add(new TextBlock { Text = "Mosaik Capture · live test", Foreground = Brushes.White, FontSize = 30, Margin = new Thickness(30) });
+        canvas.Children.Add(new TextBlock { Text = "Nazar Capture · live test", Foreground = Brushes.White, FontSize = 30, Margin = new Thickness(30) });
         var marker = new Shapes.Rectangle { Width = 100, Height = 100, Fill = new SolidColorBrush(Color.FromRgb(42, 200, 166)) };
         Canvas.SetTop(marker, 150);
         canvas.Children.Add(marker);
         var window = new Window
         {
-            Title = "Mosaik Capture live test",
+            Title = "Nazar Capture live test",
             Content = canvas,
             Width = 640,
             Height = 360,

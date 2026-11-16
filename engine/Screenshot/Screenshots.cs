@@ -1,6 +1,6 @@
 using Microsoft.Win32;
 
-namespace MosaikCapture.Engine.Screenshot;
+namespace NazarCapture.Engine.Screenshot;
 
 /// <summary>
 /// Screenshots, as triggered by the host: freezes the screen and lets the user drag an area (or click

@@ -1,6 +1,6 @@
 using System.ComponentModel;
 
-namespace MosaikCapture.Engine.Recording;
+namespace NazarCapture.Engine.Recording;
 
 /// <summary>
 /// Desktop Duplication delivers the first frame only once something on the monitor changes; until

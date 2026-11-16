@@ -1,6 +1,6 @@
 using System.ComponentModel;
 
-namespace MosaikCapture.Engine.Recording;
+namespace NazarCapture.Engine.Recording;
 
 /// <summary>A finished video or GIF with its key data and a thumbnail.</summary>
 internal sealed class RecordedVideo
@@ -36,20 +36,20 @@ internal sealed class RecordedVideo
             Height = (int)FfmpegOutput.Field(output, "height"),
             Audio = output.Contains("codec_type=audio"),
             Bytes = new FileInfo(path).Length,
-            Thumbnail = await RenderToImageAsync("mosaik-frame-", png => FrameArguments(path, duration / 2, ThumbnailWidth, png), cancellation).ConfigureAwait(false)
+            Thumbnail = await RenderToImageAsync("nazar-frame-", png => FrameArguments(path, duration / 2, ThumbnailWidth, png), cancellation).ConfigureAwait(false)
         };
     }
 
     /// <summary>A single frame from the video, at most <paramref name="maxWidth"/> pixels wide; null if it cannot be made.</summary>
     public static Task<BitmapSource?> FrameAsync(string path, double at, int maxWidth, CancellationToken cancellation = default) =>
-        RenderToImageAsync("mosaik-frame-", png => FrameArguments(path, at, maxWidth, png), cancellation);
+        RenderToImageAsync("nazar-frame-", png => FrameArguments(path, at, maxWidth, png), cancellation);
 
     /// <summary>
     /// Film strip for trimming: <paramref name="count"/> frames side by side, <paramref name="height"/>
     /// pixels high (fast: every frame uses its own seek); null if it cannot be made.
     /// </summary>
     public static Task<BitmapSource?> StripAsync(string path, double duration, int count, int height, CancellationToken cancellation = default) =>
-        RenderToImageAsync("mosaik-strip-", png => StripArguments(path, duration, count, height, png), cancellation);
+        RenderToImageAsync("nazar-strip-", png => StripArguments(path, duration, count, height, png), cancellation);
 
     internal static FfmpegArgs FrameArguments(string path, double at, int maxWidth, string png) =>
         FfmpegArgs.Batch().Add("-ss", FfmpegArgs.Number(Math.Max(0, at)), "-i", path, "-frames:v", "1", "-vf", "scale='min(" + maxWidth + ",iw)':-2", png);

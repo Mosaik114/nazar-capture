@@ -1,6 +1,6 @@
 using System.ComponentModel;
 
-namespace MosaikCapture.Engine.Recording;
+namespace NazarCapture.Engine.Recording;
 
 /// <summary>Everything a <see cref="RecordingSession"/> needs from outside; tests replace parts of it.</summary>
 internal sealed class RecordingSessionServices

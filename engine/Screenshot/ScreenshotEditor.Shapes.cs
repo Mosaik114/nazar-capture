@@ -1,4 +1,4 @@
-namespace MosaikCapture.Engine.Screenshot;
+namespace NazarCapture.Engine.Screenshot;
 
 // Screenshot editor: showing a held pen stroke as a clean shape (the lifecycle is in PenSnap, the geometry in ShapeRecognizer).
 internal sealed partial class ScreenshotEditor

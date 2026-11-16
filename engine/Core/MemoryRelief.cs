@@ -1,6 +1,6 @@
 using System.Runtime;
 
-namespace MosaikCapture.Engine.Core;
+namespace NazarCapture.Engine.Core;
 
 /// <summary>
 /// After an overlay, an editor, a card or a pin let go of a large image, the memory is given back once the engine is

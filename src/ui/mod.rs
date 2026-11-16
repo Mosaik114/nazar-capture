@@ -383,7 +383,7 @@ mod tests {
     #[test]
     fn window_procedure_attaches_and_detaches_the_app() {
         let dir = env::temp_dir();
-        let ini = dir.join(format!("mosaik-capture-msgonly-{}.ini", std::process::id()));
+        let ini = dir.join(format!("nazar-capture-msgonly-{}.ini", std::process::id()));
         let isolation = Isolation::for_test("msgonly", &dir);
         // SAFETY: a null name returns the handle of the executable itself.
         let instance = unsafe { GetModuleHandleW(ptr::null()) };
@@ -394,7 +394,7 @@ mod tests {
             None,
             Some(&isolation),
         ));
-        let class_name = format!("MosaikCapture.Host.MessageOnly.{}", std::process::id());
+        let class_name = format!("NazarCapture.Host.MessageOnly.{}", std::process::id());
         let class = register_class(&app, &class_name).unwrap();
 
         let window = message_only_window(&app, &class, ptr::from_ref(&*app));
@@ -432,7 +432,7 @@ mod tests {
     /// shortly after a burst of changes.
     #[test]
     fn settings_requests_are_applied_and_saved_once() {
-        let dir = env::temp_dir().join(format!("mosaik-capture-copydata-{}", std::process::id()));
+        let dir = env::temp_dir().join(format!("nazar-capture-copydata-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let ini = dir.join("settings.ini");
         let isolation = Isolation::for_test(&format!("copydata-{}", std::process::id()), &dir);
@@ -445,7 +445,7 @@ mod tests {
             env::current_exe().ok(),
             Some(&isolation),
         ));
-        let class_name = format!("MosaikCapture.Host.CopyData.{}", std::process::id());
+        let class_name = format!("NazarCapture.Host.CopyData.{}", std::process::id());
         let class = register_class(&app, &class_name).unwrap();
         let window = message_only_window(&app, &class, ptr::from_ref(&*app));
         let _cleanup = Cleanup { window, dir };
@@ -510,7 +510,7 @@ mod tests {
     #[test]
     #[ignore = "registers global hotkeys and a tray icon; CI runs it with --include-ignored"]
     fn host_window_end_to_end() {
-        let dir = env::temp_dir().join(format!("mosaik-capture-ui-{}", std::process::id()));
+        let dir = env::temp_dir().join(format!("nazar-capture-ui-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let ini = dir.join("settings.ini");
         let mut config = Config::defaults(&folders());
@@ -528,7 +528,7 @@ mod tests {
             env::current_exe().ok(),
             Some(&isolation),
         ));
-        let class = register_class(&app, "MosaikCapture.Host.Test").unwrap();
+        let class = register_class(&app, "NazarCapture.Host.Test").unwrap();
         let window = create_window(&app, &class).unwrap();
         let _cleanup = Cleanup { window, dir };
 

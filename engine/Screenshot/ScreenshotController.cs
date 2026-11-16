@@ -1,4 +1,4 @@
-namespace MosaikCapture.Engine.Screenshot;
+namespace NazarCapture.Engine.Screenshot;
 
 /// <summary>
 /// The screenshot flow: overlay → capture is saved and copied → card (edit, pin, text) → editor →

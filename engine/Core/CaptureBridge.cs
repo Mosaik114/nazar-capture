@@ -1,5 +1,5 @@
 using System.ComponentModel;
-namespace MosaikCapture.Engine.Core;
+namespace NazarCapture.Engine.Core;
 
 /// <summary>
 /// Process entry and IPC with the host (the Rust tray app).
@@ -30,8 +30,8 @@ namespace MosaikCapture.Engine.Core;
 internal static class CaptureBridge
 {
     // Suffixed only under test isolation (see TestIsolation), so a test engine never meets a real one.
-    internal static readonly string Title = TestIsolation.Isolate("MosaikCapture.Engine");
-    internal static readonly string MutexName = TestIsolation.Isolate("Local\\MosaikCapture.Engine");
+    internal static readonly string Title = TestIsolation.Isolate("NazarCapture.Engine");
+    internal static readonly string MutexName = TestIsolation.Isolate("Local\\NazarCapture.Engine");
     internal const int CommandBase = 0x8000;
     internal const int ScreenshotMessage = 0x8001, RecordingMessage = 0x8002, QuitMessage = 0x8003, SettingsMessage = 0x8004, RecordingSettingsMessage = 0x8005, MainMessage = 0x8006, StateMessage = 0x800A;
     internal const string AfterArgument = "--after";

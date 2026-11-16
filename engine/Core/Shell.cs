@@ -1,6 +1,6 @@
 using System.ComponentModel;
 
-namespace MosaikCapture.Engine.Core;
+namespace NazarCapture.Engine.Core;
 
 /// <summary>Small helpers for threads and the Windows shell; failures end up in the error log.</summary>
 internal static class Shell

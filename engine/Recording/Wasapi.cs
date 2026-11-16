@@ -1,4 +1,4 @@
-namespace MosaikCapture.Engine.Recording;
+namespace NazarCapture.Engine.Recording;
 
 // The parts of the Windows Audio Session API (WASAPI) the recorder uses. Methods are declared in
 // vtable order; unused leading methods are placeholders.

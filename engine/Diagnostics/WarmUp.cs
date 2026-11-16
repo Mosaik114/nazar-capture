@@ -1,4 +1,4 @@
-namespace MosaikCapture.Engine.Diagnostics;
+namespace NazarCapture.Engine.Diagnostics;
 
 /// <summary>
 /// The idle start after logon (<c>--idle</c> from the host): builds the overlay, a card and the kit once, invisibly,

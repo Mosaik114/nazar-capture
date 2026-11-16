@@ -97,7 +97,7 @@ mod tests {
         assert!(!same_path(Path::new(r"C:\Grüße"), Path::new(r"C:\GRÜSSE")), "ß is not SS");
         let verbatim = PathBuf::from(format!(r"\\?\{}", exe.display()));
         assert!(same_path(&exe, &verbatim), "verbatim prefix does not matter");
-        assert!(!same_path(&exe, &exe.with_file_name("MosaikCapture.Engine.exe")));
+        assert!(!same_path(&exe, &exe.with_file_name("NazarCapture.Engine.exe")));
         assert!(!same_path(&exe, Path::new("")));
     }
 

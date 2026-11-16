@@ -1,21 +1,21 @@
 {
   "$comment": [
-    "The contract between the Rust host (MosaikCapture.exe) and the C# engine (MosaikCapture.Engine.exe).",
+    "The contract between the Rust host (NazarCapture.exe) and the C# engine (NazarCapture.Engine.exe).",
     "Both test suites load this file and check their constants, defaults and normalisation against it",
-    "(src/contract.rs, tests/MosaikCapture.Engine.Tests/Core/ContractTests.cs), so a change on one side",
+    "(src/contract.rs, tests/NazarCapture.Engine.Tests/Core/ContractTests.cs), so a change on one side",
     "fails a test until the file and the other side agree. Message numbers are offsets from WM_APP."
   ],
 
   "settings": {
     "$comment": "UTF-16LE with BOM, read and written through the Win32 profile API; the host owns writes, the engine only reads.",
-    "app_folder": "MosaikCapture",
-    "legacy_app_folder": "Mosaiks-Aufnahme",
+    "app_folder": "NazarCapture",
+    "legacy_app_folder": "MosaikCapture",
     "file_name": "settings.ini",
     "section": "capture",
     "max_folder_length": 32767,
     "default_folders": {
-      "screenshot_folder": { "known_folder": "Pictures", "name": "Mosaiks-Screenshots" },
-      "recording_folder": { "known_folder": "Videos", "name": "Mosaiks-Aufnahmen" }
+      "screenshot_folder": { "known_folder": "Pictures", "name": "Nazar-Screenshots" },
+      "recording_folder": { "known_folder": "Videos", "name": "Nazar-Aufnahmen" }
     },
     "keys": {
       "screenshot_hotkey": { "kind": "text", "default": "Shift+Alt+4", "engine_reads": false },
@@ -41,9 +41,9 @@
   },
 
   "host": {
-    "executable": "MosaikCapture.exe",
-    "mutex": "Local\\MosaikCapture.Host",
-    "window_class": "MosaikCapture.Host",
+    "executable": "NazarCapture.exe",
+    "mutex": "Local\\NazarCapture.Host",
+    "window_class": "NazarCapture.Host",
     "messages": {
       "show_settings": 1,
       "show_recording_settings": 2,
@@ -81,9 +81,9 @@
   },
 
   "engine": {
-    "executable": "MosaikCapture.Engine.exe",
-    "mutex": "Local\\MosaikCapture.Engine",
-    "window_title": "MosaikCapture.Engine",
+    "executable": "NazarCapture.Engine.exe",
+    "mutex": "Local\\NazarCapture.Engine",
+    "window_title": "NazarCapture.Engine",
     "arguments": { "screenshot": "--screenshot", "recording": "--recording", "idle": "--idle", "settings": "--settings", "recording_settings": "--recording-settings", "main": "--main" },
     "messages": { "screenshot": 1, "recording": 2, "quit": 3, "settings": 4, "recording_settings": 5, "main": 6, "query_state": 10 },
     "state_bits": { "busy": 1, "live": 2 }
@@ -92,20 +92,20 @@
   "test_isolation": {
     "$comment": [
       "Test only. With instance_variable set, both programs append \".Test.<instance>\" to every name above",
-      "(mutexes, window class and title), use <temp>\\MosaikCapture.Test.<instance> instead of %LOCALAPPDATA%,",
+      "(mutexes, window class and title), use <temp>\\NazarCapture.Test.<instance> instead of %LOCALAPPDATA%,",
       "and the host never touches autostart. Characters other than A-Z a-z 0-9 _ - become _. The host also",
       "isolates itself (as instance \"preview\") when only config_variable is set, and passes both variables",
       "to the engine it starts. simulate_busy_message (wParam 1 = busy, 0 = idle) exists only in an isolated engine."
     ],
-    "instance_variable": "MOSAIK_CAPTURE_TEST_INSTANCE",
-    "config_variable": "MOSAIK_CAPTURE_TEST_CONFIG",
+    "instance_variable": "NAZAR_CAPTURE_TEST_INSTANCE",
+    "config_variable": "NAZAR_CAPTURE_TEST_CONFIG",
     "default_instance": "preview",
     "infix": ".Test.",
-    "local_app_data_prefix": "MosaikCapture.Test.",
+    "local_app_data_prefix": "NazarCapture.Test.",
     "simulate_busy_message": 64,
     "examples": [
-      { "instance": "ci-42", "engine_mutex": "Local\\MosaikCapture.Engine.Test.ci-42", "engine_window_title": "MosaikCapture.Engine.Test.ci-42", "host_window_class": "MosaikCapture.Host.Test.ci-42" },
-      { "instance": "a\\b c:ä", "engine_mutex": "Local\\MosaikCapture.Engine.Test.a_b_c__", "engine_window_title": "MosaikCapture.Engine.Test.a_b_c__", "host_window_class": "MosaikCapture.Host.Test.a_b_c__" }
+      { "instance": "ci-42", "engine_mutex": "Local\\NazarCapture.Engine.Test.ci-42", "engine_window_title": "NazarCapture.Engine.Test.ci-42", "host_window_class": "NazarCapture.Host.Test.ci-42" },
+      { "instance": "a\\b c:ä", "engine_mutex": "Local\\NazarCapture.Engine.Test.a_b_c__", "engine_window_title": "NazarCapture.Engine.Test.a_b_c__", "host_window_class": "NazarCapture.Host.Test.a_b_c__" }
     ]
   }
 }

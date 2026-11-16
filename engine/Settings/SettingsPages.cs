@@ -1,4 +1,4 @@
-namespace MosaikCapture.Engine.Settings;
+namespace NazarCapture.Engine.Settings;
 
 // The settings of Nazar Capture as data. The window (SettingsWindow) is the family's, as Hams' settings_window.py: a
 // stage, a tab row, one page per tab, groups on paper plates with rows. What is Nazar's own is only this list: which

@@ -1,6 +1,6 @@
 using WinOcr = Windows.Media.Ocr;
 
-namespace MosaikCapture.Engine.Screenshot;
+namespace NazarCapture.Engine.Screenshot;
 
 internal enum TextRecognitionStatus
 {

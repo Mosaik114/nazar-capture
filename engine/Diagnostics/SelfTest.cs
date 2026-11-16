@@ -1,4 +1,4 @@
-namespace MosaikCapture.Engine.Diagnostics;
+namespace NazarCapture.Engine.Diagnostics;
 
 /// <summary>
 /// <c>--self-test &lt;report&gt;</c>: quick smoke test used by the build. Writes {"passed":n,"failed":0}

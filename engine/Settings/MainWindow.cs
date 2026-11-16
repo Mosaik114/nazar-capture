@@ -1,7 +1,7 @@
 using System.Windows.Controls.Primitives;
 using System.Windows.Shell;
 
-namespace MosaikCapture.Engine.Settings;
+namespace NazarCapture.Engine.Settings;
 
 /// <summary>
 /// The small main window, as Hams' (main_window.py): fixed zones that keep their place in every state, so the window

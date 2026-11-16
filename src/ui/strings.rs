@@ -2,7 +2,7 @@
 
 /// The product name the user sees: tray tooltip, balloon and message-box titles, the
 /// autostart entry, the Start-menu shortcut. Technical names (executables, window
-/// classes, mutexes, folders) stay `MosaikCapture`.
+/// classes, mutexes, folders) stay `NazarCapture`.
 pub const PRODUCT: &str = "Nazar Capture";
 /// Tooltip of the notification-area icon ("… – screenshot and screen recording"); it
 /// starts with [`PRODUCT`].

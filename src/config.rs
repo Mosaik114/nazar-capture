@@ -36,8 +36,8 @@ pub mod keys {
 pub const DEFAULT_SCREENSHOT_HOTKEY: &str = "Shift+Alt+4";
 pub const DEFAULT_RECORDING_HOTKEY: &str = "Shift+Alt+5";
 /// Subfolders of the user's Pictures and Videos folders that hold the captures by default.
-pub const SCREENSHOT_FOLDER_NAME: &str = "Mosaiks-Screenshots";
-pub const RECORDING_FOLDER_NAME: &str = "Mosaiks-Aufnahmen";
+pub const SCREENSHOT_FOLDER_NAME: &str = "Nazar-Screenshots";
+pub const RECORDING_FOLDER_NAME: &str = "Nazar-Aufnahmen";
 
 /// Longest folder path in UTF-16 units: the Windows limit for long paths, and what
 /// the engine reads back.
@@ -353,8 +353,8 @@ mod tests {
     #[test]
     fn default_folders_append_app_subfolders() {
         let folders = folders();
-        assert_eq!(folders.screenshots, Path::new(r"C:\Users\Ada\Pictures\Mosaiks-Screenshots"));
-        assert_eq!(folders.recordings, Path::new(r"C:\Users\Ada\Videos\Mosaiks-Aufnahmen"));
+        assert_eq!(folders.screenshots, Path::new(r"C:\Users\Ada\Pictures\Nazar-Screenshots"));
+        assert_eq!(folders.recordings, Path::new(r"C:\Users\Ada\Videos\Nazar-Aufnahmen"));
     }
 
     #[test]
@@ -439,8 +439,8 @@ mod tests {
         let expected = "\r\n[capture]\r\n\
             screenshot_hotkey=Shift+Alt+4\r\n\
             recording_hotkey=Shift+Alt+5\r\n\
-            screenshot_folder=C:\\Users\\Ada\\Pictures\\Mosaiks-Screenshots\r\n\
-            recording_folder=C:\\Users\\Ada\\Videos\\Mosaiks-Aufnahmen\r\n\
+            screenshot_folder=C:\\Users\\Ada\\Pictures\\Nazar-Screenshots\r\n\
+            recording_folder=C:\\Users\\Ada\\Videos\\Nazar-Aufnahmen\r\n\
             microphone=0\r\n\
             system_audio=1\r\n\
             show_clicks=1\r\n\

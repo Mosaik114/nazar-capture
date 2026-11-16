@@ -1,4 +1,4 @@
-namespace MosaikCapture.Engine.Recording;
+namespace NazarCapture.Engine.Recording;
 
 // Trim window: video playback and keyboard.
 internal sealed partial class TrimWindow

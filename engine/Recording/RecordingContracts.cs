@@ -1,4 +1,4 @@
-namespace MosaikCapture.Engine.Recording;
+namespace NazarCapture.Engine.Recording;
 
 /// <summary>Audio choices of the user; kept between recordings and persisted by the host.</summary>
 internal readonly struct AudioSettings

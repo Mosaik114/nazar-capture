@@ -9,10 +9,13 @@ All notable changes to this project are documented here. The format follows
 ## [1.1.3] - 2026-11-16
 
 ### Changed
-- The app is called **Nazar Capture** (tray, windows, autostart entry, Start menu, installer, About);
-  the executables, `%LOCALAPPDATA%\MosaikCapture` and the default folders keep their names, so an
-  update loses nothing. New logo "Fokus" in cobalt, ink and watercolour.
-- One design language with Hams: every window is built from one kit (`engine/MosaikUi`) — tokens,
+- The app is called **Nazar Capture** everywhere, also technically: `NazarCapture.exe` and
+  `NazarCapture.Engine.exe` (Task Manager shows "Nazar Capture" and "Nazar Capture Engine"),
+  installed to `%LOCALAPPDATA%\Programs\NazarCapture`, settings in `%LOCALAPPDATA%\NazarCapture`
+  (copied once from `%LOCALAPPDATA%\MosaikCapture`), new default folders `Nazar-Screenshots` and
+  `Nazar-Aufnahmen` (folders stored in the settings stay). Autostart entry and Start-menu shortcut
+  point to the new executable. New logo "Fokus" in cobalt, ink and watercolour.
+- One design language with Hams: every window is built from one kit (`engine/NazarUi`) — tokens,
   the stone painter with ink edge and side, real buttons with roles, Nunito.
 - The settings window is built like Hams': a painted head (mark, title, a viewfinder banner in cobalt,
   round close stone), tabs (Screenshot, Aufnahme, Allgemein, Info & Hilfe), one page per tab with a
@@ -33,7 +36,7 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 - Update check once a day with a calm notice; updating checks the SHA-256 of the download and
-  installs only after your click (`MosaikCapture.exe --install`).
+  installs only after your click (`NazarCapture.exe --install`).
 - NVENC that fails in the first seconds falls back to the software encoder; recordings need at
   least 2 GB of free space.
 

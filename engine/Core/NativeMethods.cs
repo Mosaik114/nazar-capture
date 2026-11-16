@@ -2,7 +2,7 @@ using System.ComponentModel;
 #pragma warning disable CA1707 // Win32 names are kept as documented (SWP_NOSIZE, ...) so they can be looked up
 #pragma warning disable IDE1006
 
-namespace MosaikCapture.Engine.Core;
+namespace NazarCapture.Engine.Core;
 
 /// <summary>All Win32 functions, structures and constants the engine uses.</summary>
 internal static partial class NativeMethods

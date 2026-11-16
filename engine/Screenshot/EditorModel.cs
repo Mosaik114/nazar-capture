@@ -1,4 +1,4 @@
-namespace MosaikCapture.Engine.Screenshot;
+namespace NazarCapture.Engine.Screenshot;
 
 /// <summary>
 /// Undo and redo of the screenshot editor: every change is a pair of actions. Plain model, no UI;

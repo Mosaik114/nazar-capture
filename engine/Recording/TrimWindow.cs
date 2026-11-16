@@ -1,13 +1,13 @@
-namespace MosaikCapture.Engine.Recording;
+namespace NazarCapture.Engine.Recording;
 
 /// <summary>
-/// Trim window: video preview, film strip with in/out handles, save as MP4 or GIF. A <see cref="MosaikWindow"/> (own
+/// Trim window: video preview, film strip with in/out handles, save as MP4 or GIF. A <see cref="NazarWindow"/> (own
 /// frame on paper, head with mark and title, close cross) built from the kit.
 /// Keys: Space play/pause, I/O set in/out to the playhead, arrows 0.1 s (1 s with Shift),
 /// Home/End jump, Enter saves, Esc closes (or cancels a running export). Tab reaches every button.
 /// </summary>
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1001", Justification = "The export cancellation is disposed when the export ends or the window is dismissed; the window lives as long as the engine.")]
-internal sealed partial class TrimWindow : MosaikWindow
+internal sealed partial class TrimWindow : NazarWindow
 {
     const double ContentWidth = 880, HandleWidth = 14, TrackHeight = 64, StripTop = 4, StripHeight = 56;
     const double MinSelection = 0.3;   // seconds

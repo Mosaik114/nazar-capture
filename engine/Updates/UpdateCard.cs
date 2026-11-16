@@ -1,4 +1,4 @@
-namespace MosaikCapture.Engine.Updates;
+namespace NazarCapture.Engine.Updates;
 
 /// <summary>
 /// The calm update notice (a card in the bottom right, never a pop-up in the middle of work): once per version, with

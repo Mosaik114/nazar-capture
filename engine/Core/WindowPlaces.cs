@@ -1,4 +1,4 @@
-namespace MosaikCapture.Engine.Core;
+namespace NazarCapture.Engine.Core;
 
 /// <summary>
 /// Where the engine's own windows were last (Hams keeps the main window's position and the settings window's size in
@@ -14,7 +14,7 @@ internal sealed class WindowPlaces
 
     public WindowPlaces(string path) => this.path = path;
 
-    /// <summary>The user's file in %LOCALAPPDATA%\MosaikCapture (or its stand-in under test isolation).</summary>
+    /// <summary>The user's file in %LOCALAPPDATA%\NazarCapture (or its stand-in under test isolation).</summary>
     public static WindowPlaces User() => new(Path.Combine(CaptureSettings.Home, FileName));
 
     /// <summary>The two numbers stored under <paramref name="key"/>, or null.</summary>

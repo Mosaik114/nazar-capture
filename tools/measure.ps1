@@ -4,13 +4,13 @@
     after 25 screenshots. Writes the medians of several engine starts as JSON.
 
 .DESCRIPTION
-    Starts MosaikCapture.Engine.exe --measure <dir> several times under test isolation (its own mutex,
+    Starts NazarCapture.Engine.exe --measure <dir> several times under test isolation (its own mutex,
     window title and data folder, never those of an installed copy), reads each measure-report.json and
     reports the median of every value plus its spread between the runs. The engine opens the real
     overlay, so run it on a desktop where that is fine (an invisible desktop or a test machine).
 
 .PARAMETER Engine
-    Path of MosaikCapture.Engine.exe (default: bin\ next to this repository).
+    Path of NazarCapture.Engine.exe (default: bin\ next to this repository).
 
 .PARAMETER Runs
     Engine starts; the first overlay of each start is the cold value.
@@ -26,20 +26,20 @@ param(
     [string]$Engine,
     [int]$Runs = 5,
     [string]$Baseline,
-    [string]$Report = (Join-Path ([IO.Path]::GetTempPath()) 'mosaik-capture-measure-report.json')
+    [string]$Report = (Join-Path ([IO.Path]::GetTempPath()) 'nazar-capture-measure-report.json')
 )
 
 $ErrorActionPreference = 'Stop'
 # Windows PowerShell 5.1 has no $PSScriptRoot in parameter defaults.
-if (-not $Engine) { $Engine = Join-Path (Split-Path -Parent $MyInvocation.MyCommand.Path) '..\bin\MosaikCapture.Engine.exe' }
+if (-not $Engine) { $Engine = Join-Path (Split-Path -Parent $MyInvocation.MyCommand.Path) '..\bin\NazarCapture.Engine.exe' }
 # Windows PowerShell 5.1 has no $PSScriptRoot in parameter defaults.
-if (-not $Engine) { $Engine = Join-Path (Split-Path -Parent $MyInvocation.MyCommand.Path) '..in\MosaikCapture.Engine.exe' }
+if (-not $Engine) { $Engine = Join-Path (Split-Path -Parent $MyInvocation.MyCommand.Path) '..in\NazarCapture.Engine.exe' }
 Set-StrictMode -Version Latest
 
 $keys = 'coldMs', 'warmMs', 'warmMaxMs', 'privateIdleMb', 'privateAfterMb', 'privateAfterGcMb'
-$work = Join-Path ([IO.Path]::GetTempPath()) ('mosaik-capture-measure-' + [Guid]::NewGuid().ToString('N').Substring(0, 8))
-$isolated = $env:MOSAIK_CAPTURE_TEST_INSTANCE
-$env:MOSAIK_CAPTURE_TEST_INSTANCE = 'measure'
+$work = Join-Path ([IO.Path]::GetTempPath()) ('nazar-capture-measure-' + [Guid]::NewGuid().ToString('N').Substring(0, 8))
+$isolated = $env:NAZAR_CAPTURE_TEST_INSTANCE
+$env:NAZAR_CAPTURE_TEST_INSTANCE = 'measure'
 $results = @()
 try {
     for ($i = 1; $i -le $Runs; $i++) {
@@ -56,7 +56,7 @@ try {
     }
 }
 finally {
-    $env:MOSAIK_CAPTURE_TEST_INSTANCE = $isolated
+    $env:NAZAR_CAPTURE_TEST_INSTANCE = $isolated
 }
 
 function Median([double[]]$values) {
