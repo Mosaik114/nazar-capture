@@ -31,6 +31,8 @@ internal sealed partial class ScreenshotEditor
             if (key == Key.Escape || (key == Key.Enter && !shift)) { CommitText(); e.Handled = true; }
             return;
         }
+        // A focused button of the toolbar or menu takes Space and Enter itself (pressed like any button).
+        if (key is Key.Enter or Key.Space && Keyboard.FocusedElement is System.Windows.Controls.Primitives.ButtonBase) return;
         e.Handled = true;
         if (key == Key.Escape && openMenuGroup != null) { CloseMenu(); return; }
         if (control && key == Key.Z && !shift) Undo();

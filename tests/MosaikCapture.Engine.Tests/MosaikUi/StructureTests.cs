@@ -75,4 +75,48 @@ public sealed class StructureTests
             Assert.True(glyph.Length == 1 && glyph[0] >= '' && glyph[0] <= '', field.Name);
         }
     }
+    static readonly Regex OwnCorners = new(@"new\s+CornerRadius\s*\(", RegexOptions.CultureInvariant);
+    static readonly Regex OwnShadow = new(@"DropShadowEffect|ToolWindows\.Shadow|Metrics\.\w*Shadow", RegexOptions.CultureInvariant);
+    static readonly Regex BorderVariable = new(@"(?:var\s+|\b)(\w+)\s*=\s*new\s+Border\b", RegexOptions.CultureInvariant);
+
+    static bool OutsideTheKit(string file) => !file.StartsWith("MosaikUi/", StringComparison.Ordinal) && !file.StartsWith("Diagnostics/", StringComparison.Ordinal);
+
+    /// <summary>Phase 5: no window paints for itself. Radii and shadows come from the kit (StoneChrome, Elevation, MarkupLook).</summary>
+    [Fact]
+    public void NoOwnCornerRadiiOrShadowsOutsideTheKit()
+    {
+        var found = SourceLines(OutsideTheKit)
+            .Where(line => OwnCorners.IsMatch(line.Text) || OwnShadow.IsMatch(line.Text))
+            .Select(line => line.File + ":" + line.Line + "  " + line.Text.Trim())
+            .ToList();
+        Assert.True(found.Count == 0, "own corner radii or shadows outside engine/MosaikUi (use StoneChrome / Elevation):\n" + string.Join("\n", found));
+    }
+
+    /// <summary>Phase 5: no hand-made button (a Border with mouse handlers); buttons are kit controls.</summary>
+    [Fact]
+    public void NoBorderWithMouseHandlersOutsideTheKit()
+    {
+        var found = new List<string>();
+        foreach (var group in SourceLines(OutsideTheKit).GroupBy(line => line.File))
+        {
+            var lines = group.ToList();
+            var borders = lines.SelectMany(line => BorderVariable.Matches(line.Text).Cast<Match>().Select(m => m.Groups[1].Value)).Distinct().ToList();
+            foreach (string name in borders)
+            {
+                var handler = new Regex(@"\b" + Regex.Escape(name) + @"\.(?:Preview)?(?:Mouse|Touch|Stylus)\w*\s*\+=", RegexOptions.CultureInvariant);
+                found.AddRange(lines.Where(line => handler.IsMatch(line.Text)).Select(line => line.File + ":" + line.Line + "  " + line.Text.Trim()));
+            }
+        }
+        Assert.True(found.Count == 0, "a Border used as a button outside engine/MosaikUi (use a kit control):\n" + string.Join("\n", found));
+    }
+
+    [Fact]
+    public void TheWindowRulesRecognizeTheirPatterns()
+    {
+        Assert.Matches(OwnCorners, "CornerRadius = new CornerRadius(8),");
+        Assert.Matches(OwnShadow, "Effect = new System.Windows.Media.Effects.DropShadowEffect { BlurRadius = 7 }");
+        Assert.Matches(OwnShadow, "Effect = Metrics.CardShadow()");
+        Assert.Equal("button", BorderVariable.Match("var button = new Border { Width = 36 };").Groups[1].Value);
+        Assert.DoesNotMatch(OwnCorners, "chip.Radius = UiTokens.Radius.Pill(24);");
+    }
 }

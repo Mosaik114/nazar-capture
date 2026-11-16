@@ -15,7 +15,7 @@ internal sealed partial class TrimWindow
         ShowProgressRow(true);
         string label = gif ? UiText.Recording.CreatingGif : UiText.Common.Saving;
         progressText.Text = label;
-        progressText.SetResourceReference(TextBlock.ForegroundProperty, Palette.Text);
+        progressText.SetResourceReference(TextBlock.ForegroundProperty, UiTokens.Keys.TextPrimary);
         progressScale.ScaleX = 0;
         var work = workArea;
         exportCancellation = new CancellationTokenSource();
@@ -52,7 +52,7 @@ internal sealed partial class TrimWindow
     void ShowExportError(string error)
     {
         progressText.Text = UiText.Trim.NotSaved(error);
-        progressText.SetResourceReference(TextBlock.ForegroundProperty, Palette.RecordingRed);
+        progressText.SetResourceReference(TextBlock.ForegroundProperty, UiTokens.Keys.Error);
         ShowProgressRow(true);
         var timer = new DispatcherTimer { Interval = Motion.ErrorShown };
         timer.Tick += delegate { timer.Stop(); ShowProgressRow(false); };

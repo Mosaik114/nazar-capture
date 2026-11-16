@@ -1,7 +1,7 @@
 namespace MosaikCapture.Engine.Recording;
 
 /// <summary>Frame around the recorded area (click-through, invisible in the video).</summary>
-internal sealed class RecordingFrame : Window
+internal sealed class RecordingFrame : ToolWindowBase
 {
     // device pixels
     const int LineWidth = 2, FrameMargin = 6, CornerArm = 22, CornerThickness = 4;
@@ -9,20 +9,19 @@ internal sealed class RecordingFrame : Window
     readonly Canvas canvas;
     readonly List<Shapes.Rectangle> parts = new();
 
-    public RecordingFrame()
+    public RecordingFrame() : base(UiText.Titles.RecordingFrame)
     {
-        ToolWindows.Setup(this, UiText.Titles.RecordingFrame);
         IsHitTestVisible = false;
         canvas = new Canvas { SnapsToDevicePixels = true };
         Content = canvas;
-        hwnd = ToolWindows.Handle(this, NativeMethods.WS_EX_NOACTIVATE | NativeMethods.WS_EX_TOOLWINDOW | NativeMethods.WS_EX_TRANSPARENT);
+        hwnd = CreateHandle(NativeMethods.WS_EX_NOACTIVATE | NativeMethods.WS_EX_TOOLWINDOW | NativeMethods.WS_EX_TRANSPARENT);
         ToolWindows.ExcludeFromCapture(hwnd);
     }
 
     /// <summary>A line right outside the area plus bold corners; folded inwards at the monitor edge (full screen).</summary>
     public void Present(Int32Rect area, RECT monitor)
     {
-        Int32Rect bounds = Build(area, monitor, ToolWindows.Scale(hwnd));
+        Int32Rect bounds = Build(area, monitor, NativeMethods.ScaleOfMonitor(monitor));   // the scale of the target monitor, not of where the frame was
         if (!IsVisible) Show();
         NativeMethods.PlaceTopmost(hwnd, bounds.X, bounds.Y, bounds.Width, bounds.Height);
     }
@@ -78,6 +77,6 @@ internal sealed class RecordingFrame : Window
     /// <summary>Paused: the frame in a muted color.</summary>
     public void SetPaused(bool paused)
     {
-        foreach (var part in parts) part.SetResourceReference(Shapes.Shape.FillProperty, paused ? Palette.Muted : Palette.Accent);
+        foreach (var part in parts) part.SetResourceReference(Shapes.Shape.FillProperty, paused ? UiTokens.Keys.TextSecondary : UiTokens.Keys.AccentTint);
     }
 }

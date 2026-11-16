@@ -145,7 +145,7 @@ internal sealed class ClickHighlighter
     }
 
     /// <summary>One expanding circle; a few are reused round robin.</summary>
-    sealed class Ripple : Window
+    sealed class Ripple : ToolWindowBase
     {
         const double Diameter = 64, Inset = 2, RingThickness = 3, StartScale = 0.3;
         static readonly Duration AnimationLength = new(TimeSpan.FromMilliseconds(480));
@@ -154,20 +154,19 @@ internal sealed class ClickHighlighter
         readonly Shapes.Ellipse ring;
         readonly ScaleTransform grow = new(1, 1, Diameter / 2, Diameter / 2);
 
-        public Ripple()
+        public Ripple() : base(UiText.Titles.Click)
         {
-            ToolWindows.Setup(this, UiText.Titles.Click);
             IsHitTestVisible = false;
             Width = Height = Diameter;
             ring = new Shapes.Ellipse { Width = Diameter - 2 * Inset, Height = Diameter - 2 * Inset, StrokeThickness = RingThickness, RenderTransform = grow };
             Canvas.SetLeft(ring, Inset);
             Canvas.SetTop(ring, Inset);
-            ring.SetResourceReference(Shapes.Shape.StrokeProperty, Palette.Accent);
+            ring.SetResourceReference(Shapes.Shape.StrokeProperty, UiTokens.Keys.AccentTint);
             var canvas = new Canvas();
             canvas.Children.Add(ring);
             Content = canvas;
             grow.CenterX = grow.CenterY = (Diameter - 2 * Inset) / 2;
-            hwnd = ToolWindows.Handle(this, NativeMethods.WS_EX_NOACTIVATE | NativeMethods.WS_EX_TOOLWINDOW | NativeMethods.WS_EX_TRANSPARENT);
+            hwnd = CreateHandle(NativeMethods.WS_EX_NOACTIVATE | NativeMethods.WS_EX_TOOLWINDOW | NativeMethods.WS_EX_TRANSPARENT);
         }
 
         // Left: solid circle with a light fill; right: dashed.

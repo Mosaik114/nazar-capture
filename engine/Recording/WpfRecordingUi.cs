@@ -44,7 +44,7 @@ internal sealed class WpfRecordingUi : IRecordingUi
     public void StartClickHighlights(Int32Rect area, bool enabled)
     {
         Clicks.Enabled = enabled;
-        Clicks.Start(area, Toolbar.Handle);
+        Clicks.Start(area, Toolbar.Hwnd);
     }
 
     public void SetClickHighlights(bool enabled) => Clicks.Enabled = enabled;

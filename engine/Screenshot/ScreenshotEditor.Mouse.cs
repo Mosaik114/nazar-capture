@@ -14,7 +14,7 @@ internal sealed partial class ScreenshotEditor
         Height = root.Height;
         Show();
         NativeMethods.SetWindowPos(hwnd, NativeMethods.HWND_TOPMOST, screenshot.VirtualLeft, screenshot.VirtualTop, screenshot.VirtualWidth, screenshot.VirtualHeight, NativeMethods.SWP_SHOWWINDOW);
-        ToolWindows.TakeFocus(this, hwnd);
+        ToolWindowBase.TakeFocus(this, hwnd);
         UpdateLayout();
         LayoutCrop();
         var reveal = new DispatcherTimer(DispatcherPriority.Render) { Interval = Motion.RevealDelay };

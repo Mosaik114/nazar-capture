@@ -5,6 +5,8 @@ namespace MosaikCapture.Engine.Screenshot;
 /// recording area: drag = area, click = window below, Space = whole monitor, C = copy color.
 /// It is not a transparent window (too sluggish at 5120 x 1440 pixels); instead it is only shown
 /// once it has been rendered (DWM cloak), then only the dimming fades in.
+/// Without a mouse: the arrow keys move the pointer (1 px, 10 px with Shift), Enter sets the start and then the end.
+/// The scale is read anew at every opening and follows a DPI change while open; all positions are device pixels.
 /// </summary>
 internal sealed class SelectionOverlay : Window
 {
@@ -16,14 +18,15 @@ internal sealed class SelectionOverlay : Window
 
     readonly Action<ScreenCapture>? captured;
     readonly IntPtr hwnd;
-    readonly double scale;                   // device pixels per WPF unit
+    double scale = 1;                        // device pixels per WPF unit; read at every opening, follows DPI changes
     readonly Canvas root, decorations, loupe;
     readonly Image frozenScreen, loupeImage;
     readonly Shapes.Path dimming;
     readonly Shapes.Rectangle frame, loupeCenter, swatch;
     readonly Shapes.Line horizontalGuide, verticalGuide;
-    readonly Border sizeChip, colorChip, hint;
-    readonly TextBlock sizeText, colorText, positionText, hintText;
+    readonly FloatingLabel sizeChip, colorChip, hint;
+    readonly TextBlock sizeText, colorText, positionText;
+    readonly StackPanel hintRow = new() { Orientation = Orientation.Horizontal };
     readonly List<Rect> windows = new();     // visible windows from top to bottom, relative to the virtual screen
     readonly List<RECT> monitors = new(), workAreas = new();
     readonly EngineWork shown = new();       // counts as busy while open: the engine must not quit under the user
@@ -32,6 +35,8 @@ internal sealed class SelectionOverlay : Window
     Int32Rect virtualScreen;                 // in device pixels
     Point pressedAt;
     bool pressed, dragging;
+    Point? keyboardPointer;                  // the pointer moved with the arrow keys (device pixels), null while the mouse leads
+    bool keyboardDrag;                       // Enter set a start with the keyboard
     Rect selection = Rect.Empty;
     string color = "";
     bool forRecording;                       // picking an area for a screen recording instead of a screenshot
@@ -57,23 +62,26 @@ internal sealed class SelectionOverlay : Window
         horizontalGuide = BuildGuide();
         verticalGuide = BuildGuide();
         frame = new Shapes.Rectangle { StrokeThickness = 2 };
-        frame.SetResourceReference(Shapes.Shape.StrokeProperty, Palette.Accent);
-        sizeText = new TextBlock { FontSize = 12, FontWeight = FontWeights.SemiBold, FontFamily = Palette.UiFont };
-        sizeText.SetResourceReference(TextBlock.ForegroundProperty, Palette.Text);
-        sizeChip = ToolWindows.Chip(sizeText);
+        frame.SetResourceReference(Shapes.Shape.StrokeProperty, UiTokens.Keys.AccentTint);
+        sizeChip = FloatingLabel.ForText(out sizeText, shadow: false);
+        sizeText.FontWeight = FontWeights.SemiBold;
         loupeImage = new Image { Width = LoupeSize, Height = LoupeSize, Stretch = Stretch.Fill };
         loupeCenter = new Shapes.Rectangle { Width = LoupeCell + 2, Height = LoupeCell + 2, StrokeThickness = 2 };
         loupe = BuildLoupe();
         swatch = new Shapes.Rectangle { Width = 11, Height = 11, RadiusX = 3, RadiusY = 3, Margin = new Thickness(0, 0, 7, 0), VerticalAlignment = VerticalAlignment.Center };
-        colorText = new TextBlock { FontSize = 12, FontWeight = FontWeights.SemiBold, FontFamily = Palette.UiFont };
-        positionText = new TextBlock { FontSize = 12, Margin = new Thickness(10, 0, 0, 0), FontFamily = Palette.UiFont };
+        colorText = TextStyle.Text("", TextRole.Description);
+        colorText.FontWeight = FontWeights.SemiBold;
+        positionText = TextStyle.Text("", TextRole.Description, UiTokens.Keys.TextSecondary);
+        positionText.Margin = new Thickness(10, 0, 0, 0);
         colorChip = BuildColorChip();
-        hintText = new TextBlock { FontSize = 12.5, FontFamily = Palette.UiFont, Text = UiText.Overlay.ScreenshotHint };
-        hint = BuildHint();
+        hint = new FloatingLabel(hintRow) { Padding = new Thickness(14, 8, 14, 8) };
+        ShowHint(recording: false);
         ComposeLayers();
 
-        hwnd = ToolWindows.Handle(this, NativeMethods.WS_EX_TOOLWINDOW);   // not in Alt+Tab
+        hwnd = new WindowInteropHelper(this).EnsureHandle();
+        NativeMethods.AddExtendedStyle(hwnd, NativeMethods.WS_EX_TOOLWINDOW);   // not in Alt+Tab
         scale = ToolWindows.Scale(hwnd);
+        InputModality.Install();
         HookUpInput();
     }
 
@@ -93,13 +101,10 @@ internal sealed class SelectionOverlay : Window
     Canvas BuildLoupe()
     {
         var container = new Canvas { Width = LoupeSize + 6, Height = LoupeSize + 6 };
-        var background = new Shapes.Ellipse
-        {
-            Width = LoupeSize + 6,
-            Height = LoupeSize + 6,
-            Effect = Metrics.ToolbarShadow()
-        };
-        background.SetResourceReference(Shapes.Shape.FillProperty, Palette.Background);
+        var background = StoneChrome.FloatingPlate((LoupeSize + 6) / 2);
+        background.IsSquircle = false;
+        background.Depth = 0;
+        background.Width = background.Height = LoupeSize + 6;
         container.Children.Add(background);
 
         var cells = new Canvas { Width = LoupeSize, Height = LoupeSize, Clip = new EllipseGeometry(new Point(LoupeSize / 2, LoupeSize / 2), LoupeSize / 2, LoupeSize / 2) };
@@ -111,14 +116,14 @@ internal sealed class SelectionOverlay : Window
             cells.Children.Add(new Shapes.Line { X1 = i * LoupeCell, X2 = i * LoupeCell, Y1 = 0, Y2 = LoupeSize, Stroke = grid, StrokeThickness = 1 });
             cells.Children.Add(new Shapes.Line { Y1 = i * LoupeCell, Y2 = i * LoupeCell, X1 = 0, X2 = LoupeSize, Stroke = grid, StrokeThickness = 1 });
         }
-        loupeCenter.SetResourceReference(Shapes.Shape.StrokeProperty, Palette.Accent);
+        loupeCenter.SetResourceReference(Shapes.Shape.StrokeProperty, UiTokens.Keys.AccentTint);
         cells.Children.Add(loupeCenter);
         Canvas.SetLeft(cells, 3);
         Canvas.SetTop(cells, 3);
         container.Children.Add(cells);
 
         var rim = new Shapes.Ellipse { Width = LoupeSize + 2, Height = LoupeSize + 2, StrokeThickness = 1 };
-        rim.SetResourceReference(Shapes.Shape.StrokeProperty, Palette.Line);
+        rim.SetResourceReference(Shapes.Shape.StrokeProperty, UiTokens.Keys.Hairline);
         Canvas.SetLeft(rim, 2);
         Canvas.SetTop(rim, 2);
         container.Children.Add(rim);
@@ -126,32 +131,41 @@ internal sealed class SelectionOverlay : Window
     }
 
     // Color under the pointer (swatch and hex) and the screen position.
-    Border BuildColorChip()
+    FloatingLabel BuildColorChip()
     {
-        swatch.SetResourceReference(Shapes.Shape.StrokeProperty, Palette.Line);
-        colorText.SetResourceReference(TextBlock.ForegroundProperty, Palette.Text);
-        positionText.SetResourceReference(TextBlock.ForegroundProperty, Palette.Muted);
+        swatch.SetResourceReference(Shapes.Shape.StrokeProperty, UiTokens.Keys.Ink);
         var row = new StackPanel { Orientation = Orientation.Horizontal };
         row.Children.Add(swatch);
         row.Children.Add(colorText);
         row.Children.Add(positionText);
-        return ToolWindows.Chip(row);
+        return new FloatingLabel(row);
     }
 
-    Border BuildHint()
+    /// <summary>The hint at the bottom: what mouse and keys do, the keys as key caps.</summary>
+    void ShowHint(bool recording)
     {
-        hintText.SetResourceReference(TextBlock.ForegroundProperty, Palette.Muted);
-        var chip = ToolWindows.Chip(hintText);
-        chip.CornerRadius = new CornerRadius(10);
-        chip.Padding = new Thickness(14, 8, 14, 8);
-        chip.Effect = Metrics.ChipShadow();
-        return chip;
+        hintRow.Children.Clear();
+        foreach (var (keys, text) in recording ? UiText.Overlay.RecordingHints : UiText.Overlay.ScreenshotHints)
+        {
+            if (hintRow.Children.Count > 0)
+            {
+                var dot = TextStyle.Text("·", TextRole.Description, UiTokens.Keys.TextTertiary);
+                dot.Margin = new Thickness(UiTokens.Space.Md + UiTokens.Space.Xs, 0, UiTokens.Space.Md + UiTokens.Space.Xs, 0);
+                dot.VerticalAlignment = VerticalAlignment.Center;
+                hintRow.Children.Add(dot);
+            }
+            if (keys.Length > 0) hintRow.Children.Add(new KeyCombo(keys) { Margin = new Thickness(0, 0, UiTokens.Space.Sm + UiTokens.Space.Xs, 0) });
+            var label = TextStyle.Text(text, TextRole.Description, UiTokens.Keys.TextSecondary);
+            label.VerticalAlignment = VerticalAlignment.Center;
+            hintRow.Children.Add(label);
+        }
+        System.Windows.Automation.AutomationProperties.SetName(hint, recording ? UiText.Overlay.RecordingHint : UiText.Overlay.ScreenshotHint);
     }
 
     void HookUpInput()
     {
-        MouseMove += (_, e) => PointerMoved(DevicePosition(e));
-        MouseLeftButtonDown += (_, e) => { pressedAt = DevicePosition(e); pressed = true; dragging = false; CaptureMouse(); };
+        MouseMove += (_, e) => { keyboardPointer = null; PointerMoved(DevicePosition(e)); };
+        MouseLeftButtonDown += (_, e) => { keyboardPointer = null; keyboardDrag = false; pressedAt = DevicePosition(e); pressed = true; dragging = false; CaptureMouse(); };
         MouseLeftButtonUp += (_, e) => Released(DevicePosition(e));
         MouseRightButtonDown += (_, e) =>
         {
@@ -161,7 +175,9 @@ internal sealed class SelectionOverlay : Window
             PointerMoved(DevicePosition(e));
         };
         PreviewKeyDown += (_, e) => { OnKey(e.Key); e.Handled = true; };
-        Deactivated += delegate { if (IsVisible) Cancel(); };
+        // Another window took the focus (a notification, a program starting): while a drag is running the overlay stays
+        // and takes the focus back on release; otherwise it cancels, as before.
+        Deactivated += delegate { if (IsVisible && !pressed && !keyboardDrag) Cancel(); };
     }
 
     // Pointer position in whole device pixels relative to the virtual screen.
@@ -173,8 +189,35 @@ internal sealed class SelectionOverlay : Window
 
     Point CursorPosition()
     {
+        if (keyboardPointer is { } moved) return moved;
         NativeMethods.GetCursorPos(out var cursor);
         return new Point(cursor.x - virtualScreen.X, cursor.y - virtualScreen.Y);
+    }
+
+    /// <summary>Device pixels per WPF unit while open (tests).</summary>
+    internal double Scale => scale;
+
+    /// <summary>
+    /// A new scale (DPI change while open, or a test): every WPF size is recomputed from the device pixels, so the
+    /// frozen screen still lies pixel-exactly under the selection and chips and loupe keep their size on screen.
+    /// </summary>
+    internal void UseScale(double newScale)
+    {
+        if (newScale <= 0 || Math.Abs(newScale - scale) < 1e-9) return;
+        scale = newScale;
+        frozenScreen.Width = root.Width = virtualScreen.Width / scale;
+        frozenScreen.Height = root.Height = virtualScreen.Height / scale;
+        if (IsVisible) { Width = virtualScreen.Width / scale; Height = virtualScreen.Height / scale; }
+        if (screen == null) return;
+        Point cursor = CursorPosition();
+        PlaceHint(MonitorAt(cursor, monitors));
+        PointerMoved(cursor);
+    }
+
+    protected override void OnDpiChanged(DpiScale oldDpi, DpiScale newDpi)
+    {
+        base.OnDpiChanged(oldDpi, newDpi);
+        UseScale(newDpi.DpiScaleX);
     }
 
     // ---------- Opening ----------
@@ -214,9 +257,14 @@ internal sealed class SelectionOverlay : Window
     {
         if (IsVisible) return;
         forRecording = recording;
-        hintText.Text = recording ? UiText.Overlay.RecordingHint : UiText.Overlay.ScreenshotHint;
+        ShowHint(recording);
         Palette.Apply(Resources);
         virtualScreen = ScreenGrabber.VirtualScreen();
+        // The window will take the scale of the monitor holding most of the virtual screen; read it at every opening
+        // (it may have changed since the last one), OnDpiChanged corrects it should Windows decide otherwise.
+        scale = NativeMethods.ScaleOfMonitor(new RECT { left = virtualScreen.X, top = virtualScreen.Y, right = virtualScreen.X + virtualScreen.Width, bottom = virtualScreen.Y + virtualScreen.Height });
+        keyboardPointer = null;
+        keyboardDrag = false;
         screen = ScreenGrabber.Capture(virtualScreen.X, virtualScreen.Y, virtualScreen.Width, virtualScreen.Height, 96 * scale);   // before showing anything so none of our windows are captured
         ScreenGrabber.VisibleWindows(virtualScreen, windows);
         ScreenGrabber.Monitors(monitors, workAreas);
@@ -253,7 +301,7 @@ internal sealed class SelectionOverlay : Window
         Height = virtualScreen.Height / scale;
         Show();
         NativeMethods.SetWindowPos(hwnd, NativeMethods.HWND_TOPMOST, virtualScreen.X, virtualScreen.Y, virtualScreen.Width, virtualScreen.Height, NativeMethods.SWP_SHOWWINDOW);
-        ToolWindows.TakeFocus(this, hwnd);
+        ToolWindowBase.TakeFocus(this, hwnd);
         var reveal = new DispatcherTimer(DispatcherPriority.Render) { Interval = Motion.RevealDelay };
         reveal.Tick += delegate
         {
@@ -371,6 +419,7 @@ internal sealed class SelectionOverlay : Window
         if (!pressed) return;
         pressed = false;
         ReleaseMouseCapture();
+        if (!IsActive && IsVisible) ToolWindowBase.TakeFocus(this, hwnd);   // a window had taken the focus during the drag
         if (dragging)
         {
             dragging = false;
@@ -385,6 +434,7 @@ internal sealed class SelectionOverlay : Window
     void OnKey(Key key)
     {
         Point cursor = CursorPosition();
+        bool shift = (Keyboard.Modifiers & ModifierKeys.Shift) != 0;
         switch (key)
         {
             case Key.Escape:
@@ -392,6 +442,18 @@ internal sealed class SelectionOverlay : Window
                 break;
             case Key.Space:
                 Finish(MonitorArea(MonitorAt(cursor, monitors)));
+                break;
+            case Key.Left or Key.Right or Key.Up or Key.Down:
+                MoveKeyboardPointer(cursor, key, shift ? 10 : 1);
+                break;
+            case Key.Enter when keyboardDrag:
+                keyboardDrag = pressed = dragging = false;   // the second Enter: the end
+                if (selection.Width >= 1 && selection.Height >= 1) Finish(selection);
+                break;
+            case Key.Enter when keyboardPointer != null:
+                pressedAt = cursor;                        // the first Enter after moving with the keys: the start
+                keyboardDrag = pressed = dragging = true;
+                PointerMoved(cursor);
                 break;
             case Key.Enter when !selection.IsEmpty && !dragging:
                 Finish(selection);
@@ -405,6 +467,47 @@ internal sealed class SelectionOverlay : Window
                 break;
         }
     }
+
+    /// <summary>Moves the keyboard pointer by <paramref name="step"/> device pixels, kept on the virtual screen.</summary>
+    void MoveKeyboardPointer(Point from, Key key, int step)
+    {
+        double x = from.X + (key == Key.Left ? -step : key == Key.Right ? step : 0);
+        double y = from.Y + (key == Key.Up ? -step : key == Key.Down ? step : 0);
+        var moved = new Point(Math.Max(0, Math.Min(virtualScreen.Width - 1, x)), Math.Max(0, Math.Min(virtualScreen.Height - 1, y)));
+        keyboardPointer = moved;
+        PointerMoved(moved);
+    }
+
+    /// <summary>Tests: where the pointer is now (device pixels relative to the virtual screen) and the selection.</summary>
+    internal Point Pointer => CursorPosition();
+
+    internal Rect Selection => selection;
+
+    /// <summary>Tests: opens the overlay over a given screen image instead of the real screen (never shown).</summary>
+    internal void OpenOffscreen(BitmapSource image, Int32Rect virtualArea, IEnumerable<RECT> monitorRects, double atScale, bool recording = false)
+    {
+        forRecording = recording;
+        virtualScreen = virtualArea;
+        screen = image;
+        monitors.Clear();
+        workAreas.Clear();
+        foreach (var monitor in monitorRects) { monitors.Add(monitor); workAreas.Add(monitor); }
+        windows.Clear();
+        scale = atScale;
+        frozenScreen.Source = screen;
+        frozenScreen.Width = root.Width = virtualScreen.Width / scale;
+        frozenScreen.Height = root.Height = virtualScreen.Height / scale;
+        keyboardPointer = new Point(virtualScreen.Width / 2, virtualScreen.Height / 2);
+        keyboardDrag = pressed = dragging = false;
+        PlaceHint(MonitorAt(keyboardPointer.Value, monitors));
+        PointerMoved(keyboardPointer.Value);
+    }
+
+    /// <summary>Tests: where the frame of the selection lies (WPF units on the overlay).</summary>
+    internal Rect FrameBounds => new(Canvas.GetLeft(frame), Canvas.GetTop(frame), frame.Width, frame.Height);
+
+    /// <summary>The monitor that contains the point (relative to the virtual screen), as an absolute rectangle.</summary>
+    internal RECT MonitorAt(Point position) => MonitorAt(position, monitors);
 
     // ---------- Result ----------
 

@@ -13,6 +13,12 @@ internal sealed class CaptureSettingsSnapshot
     public int Countdown { get; init; } = 3;
     /// <summary>Light, dark or like Windows (the windows follow it from the next time they open).</summary>
     public Appearance Appearance { get; init; } = Appearance.System;
+    /// <summary>The screenshot hotkey as the host reads it (the card's keyboard way adds Ctrl to it).</summary>
+    public string ScreenshotHotkey { get; init; } = DefaultScreenshotHotkey;
+    public const string DefaultScreenshotHotkey = "Shift+Alt+4";
+    /// <summary>The recording hotkey (the recording bar's keyboard way adds Ctrl to it).</summary>
+    public string RecordingHotkey { get; init; } = DefaultRecordingHotkey;
+    public const string DefaultRecordingHotkey = "Shift+Alt+5";
 
     public AudioSettings Audio => new(Microphone, SystemAudio, Clicks);
 }
@@ -76,6 +82,8 @@ internal static class CaptureSettings
     internal static CaptureSettingsSnapshot Load(string file) => new()
     {
         ScreenshotFolder = Read(file, "screenshot_folder", Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyPictures), UiText.Files.ScreenshotFolder)),
+        ScreenshotHotkey = Read(file, "screenshot_hotkey", CaptureSettingsSnapshot.DefaultScreenshotHotkey),
+        RecordingHotkey = Read(file, "recording_hotkey", CaptureSettingsSnapshot.DefaultRecordingHotkey),
         RecordingFolder = Read(file, "recording_folder", Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyVideos), UiText.Files.RecordingFolder)),
         Microphone = Number(file, "microphone", 0) != 0,
         SystemAudio = Number(file, "system_audio", 1) != 0,

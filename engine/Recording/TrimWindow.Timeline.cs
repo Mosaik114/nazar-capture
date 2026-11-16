@@ -66,8 +66,8 @@ internal sealed partial class TrimWindow
         playGlyph.Margin = new Thickness(playing ? 0 : 2, 0, 0, 0);
         bigPlayButton.Visibility = playing ? Visibility.Hidden : Visibility.Visible;
         soundGlyph.Text = withSound ? IconGlyphs.Volume : IconGlyphs.Mute;
-        if (withSound) soundGlyph.SetResourceReference(TextBlock.ForegroundProperty, Palette.Text);
-        else soundGlyph.SetResourceReference(TextBlock.ForegroundProperty, Palette.RecordingRed);
+        if (withSound) soundGlyph.SetResourceReference(TextBlock.ForegroundProperty, UiTokens.Keys.TextPrimary);
+        else soundGlyph.SetResourceReference(TextBlock.ForegroundProperty, UiTokens.Keys.Error);
     }
 
     void TrackDown(double x)

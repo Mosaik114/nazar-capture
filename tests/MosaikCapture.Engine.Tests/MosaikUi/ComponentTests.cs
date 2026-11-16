@@ -295,7 +295,7 @@ public sealed class ComponentTests : IDisposable
         }
         var covered = new HashSet<Type>(samples.Select(s => s.GetType())) { typeof(KitMenu), typeof(KitSeparator) };
         var kit = typeof(StoneChrome).Assembly.GetTypes()
-            .Where(t => t.Namespace == typeof(StoneChrome).Namespace && typeof(Control).IsAssignableFrom(t) && !t.IsAbstract && !t.IsNested);
+            .Where(t => t.Namespace == typeof(StoneChrome).Namespace && typeof(Control).IsAssignableFrom(t) && !typeof(Window).IsAssignableFrom(t) && !t.IsAbstract && !t.IsNested);
         Assert.DoesNotContain(kit, t => !covered.Contains(t));
         Assert.False(string.IsNullOrEmpty(AutomationProperties.GetName(new KeyCombo("Shift+Alt+4"))));
         Assert.Equal("Umschalt+Alt+4", AutomationProperties.GetName(new KeyCombo("Shift+Alt+4")));

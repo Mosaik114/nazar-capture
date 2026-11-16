@@ -1,32 +1,8 @@
 namespace MosaikCapture.Engine.Core;
 
-/// <summary>Shared setup and building blocks of the borderless tool windows (cards, toolbar, frame, countdown).</summary>
+/// <summary>Helpers of the tool windows that are no part of the look (handles, scale, capture exclusion, images).</summary>
 internal static class ToolWindows
 {
-    /// <summary>Borderless, transparent, topmost, never activated, themed.</summary>
-    public static void Setup(Window window, string title)
-    {
-        window.Title = title;
-        window.WindowStyle = WindowStyle.None;
-        window.AllowsTransparency = true;
-        window.Background = Brushes.Transparent;
-        window.Topmost = true;
-        window.ShowInTaskbar = false;
-        window.ShowActivated = false;
-        window.ResizeMode = ResizeMode.NoResize;
-        window.UseLayoutRounding = true;
-        TextOptions.SetTextFormattingMode(window, TextFormattingMode.Display);
-        Palette.Apply(window.Resources);
-    }
-
-    /// <summary>Creates the (hidden) window handle and adds extended styles (WS_EX_*).</summary>
-    public static IntPtr Handle(Window window, int extendedStyles)
-    {
-        IntPtr hwnd = new WindowInteropHelper(window).EnsureHandle();
-        if (extendedStyles != 0) NativeMethods.AddExtendedStyle(hwnd, extendedStyles);
-        return hwnd;
-    }
-
     /// <summary>Invisible in the video (and in screenshots of other apps), visible on screen as usual.</summary>
     public static void ExcludeFromCapture(IntPtr hwnd) => NativeMethods.SetWindowDisplayAffinity(hwnd, NativeMethods.WDA_EXCLUDEFROMCAPTURE);
 
@@ -50,51 +26,6 @@ internal static class ToolWindows
         image.Freeze();
         return image;
     }
-
-    public static TextBlock Glyph(string glyph, double size) => new()
-    {
-        Text = glyph,
-        FontSize = size,
-        FontFamily = Palette.IconFont,
-        HorizontalAlignment = HorizontalAlignment.Center,
-        VerticalAlignment = VerticalAlignment.Center
-    };
-
-    public static TextBlock Text(double size, string brushKey)
-    {
-        var text = new TextBlock { FontSize = size, FontFamily = Palette.UiFont, VerticalAlignment = VerticalAlignment.Center };
-        text.SetResourceReference(TextBlock.ForegroundProperty, brushKey);
-        return text;
-    }
-
-    /// <summary>A small rounded label in the theme colors (sizes, hints, feedback).</summary>
-    public static Border Chip(UIElement content)
-    {
-        var chip = new Border { CornerRadius = new CornerRadius(7), Padding = new Thickness(9, 4, 9, 4), BorderThickness = new Thickness(1), Child = content };
-        chip.SetResourceReference(Border.BackgroundProperty, Palette.Background);
-        chip.SetResourceReference(Border.BorderBrushProperty, Palette.Line);
-        return chip;
-    }
-
-    /// <summary>Activates the window even if Windows would refuse to hand over the focus.</summary>
-    public static void TakeFocus(Window window, IntPtr hwnd)
-    {
-        window.Activate();
-        if (NativeMethods.GetForegroundWindow() != hwnd)
-        {
-            // briefly attach to the input thread of the active window
-            uint foregroundThread = NativeMethods.GetWindowThreadProcessId(NativeMethods.GetForegroundWindow(), IntPtr.Zero);
-            uint ownThread = NativeMethods.GetCurrentThreadId();
-            NativeMethods.AttachThreadInput(ownThread, foregroundThread, true);
-            NativeMethods.SetForegroundWindow(hwnd);
-            NativeMethods.AttachThreadInput(ownThread, foregroundThread, false);
-        }
-        window.Focus();
-        Keyboard.Focus(window);
-    }
-
-    public static System.Windows.Media.Effects.DropShadowEffect Shadow(double blur, double depth, double opacity) =>
-        new() { BlurRadius = blur, ShadowDepth = depth, Direction = 270, Opacity = opacity, Color = UiTokens.Fixed.Shadow };
 }
 
 /// <summary>How times and sizes are shown to the user (German number format).</summary>

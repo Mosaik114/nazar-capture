@@ -44,8 +44,8 @@ public sealed class LiveWindowTests
         var frame = new RecordingFrame();
         frame.Build(new Int32Rect(40, 40, 600, 340), Monitor, 1);
         var canvas = (System.Windows.Controls.Canvas)frame.Content;
-        var muted = (Brush)frame.Resources["Muted"];
-        var accent = (Brush)frame.Resources["Accent"];
+        var muted = (Brush)frame.Resources[UiTokens.Keys.TextSecondary];
+        var accent = (Brush)frame.Resources[UiTokens.Keys.AccentTint];
 
         Assert.All(canvas.Children.Cast<System.Windows.Shapes.Rectangle>(), r => Assert.Same(accent, r.Fill));
         frame.SetPaused(true);

@@ -1,12 +1,13 @@
 namespace MosaikCapture.Engine.Recording;
 
 /// <summary>
-/// Trim window: video preview, film strip with in/out handles, save as MP4 or GIF.
+/// Trim window: video preview, film strip with in/out handles, save as MP4 or GIF. A <see cref="MosaikWindow"/> (own
+/// frame on paper, head with mark and title, close cross) built from the kit.
 /// Keys: Space play/pause, I/O set in/out to the playhead, arrows 0.1 s (1 s with Shift),
-/// Home/End jump, Enter saves, Esc closes.
+/// Home/End jump, Enter saves, Esc closes (or cancels a running export). Tab reaches every button.
 /// </summary>
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1001", Justification = "The export cancellation is disposed when the export ends or the window is dismissed; the window lives as long as the engine.")]
-internal sealed partial class TrimWindow : Window
+internal sealed partial class TrimWindow : MosaikWindow
 {
     const double ContentWidth = 880, HandleWidth = 14, TrackHeight = 64, StripTop = 4, StripHeight = 56;
     const double MinSelection = 0.3;   // seconds
@@ -15,14 +16,19 @@ internal sealed partial class TrimWindow : Window
     enum DragTarget { None, Start, End, Playhead }
 
     readonly IntPtr hwnd;
-    readonly Border videoBox, bigPlayButton, playButton, soundButton, actionsRow, progressRow;
-    readonly Border startHandle, endHandle, selectionTop, selectionBottom, playheadKnob;
+    readonly StoneChrome videoBox, bigPlayButton, startHandle, endHandle;
+    readonly IconButton playButton;
+    readonly SecondaryButton soundButton;
+    readonly FrameworkElement actionsRow, progressRow;
+    readonly Shapes.Rectangle selectionTop, selectionBottom;
+    readonly Shapes.Ellipse playheadKnob;
     readonly MediaElement media;
     readonly Image poster, strip;
     readonly TextBlock subtitle, timeText, selectionText, playGlyph, soundGlyph, progressText;
     readonly Canvas track;
     readonly Shapes.Rectangle dimBefore, dimAfter, playheadLine;
-    readonly ScaleTransform progressScale = new(0, 1);
+    readonly ProgressLine progressLine = new();
+    readonly ScaleTransform progressScale;
     /// <summary>How often the playhead follows the playing video.</summary>
     static readonly TimeSpan PlaybackTick = TimeSpan.FromMilliseconds(30);
     /// <summary>Darkens the film strip outside the selection.</summary>
@@ -38,20 +44,27 @@ internal sealed partial class TrimWindow : Window
     DragTarget dragging;
     int generation;
 
-    public TrimWindow()
+    public TrimWindow() : base(UiText.Titles.Trim)
     {
-        ConfigureWindow();
+        // A normal window (taskbar, activation) unlike the other recording windows: the user works in it.
+        ShowInTaskbar = true;
+        ResizeMode = ResizeMode.NoResize;
+        SizeToContent = SizeToContent.WidthAndHeight;
+        CloseOnEscape = false;   // Esc first cancels a running export (OnKey)
 
-        subtitle = ToolWindows.Text(12, Palette.Muted);
+        subtitle = TextStyle.Text("", TextRole.Description, UiTokens.Keys.TextSecondary);
         poster = new Image { Stretch = Stretch.Uniform };
         media = new MediaElement { LoadedBehavior = MediaState.Manual, UnloadedBehavior = MediaState.Manual, ScrubbingEnabled = true, Stretch = Stretch.Uniform };
         bigPlayButton = BuildBigPlayButton();
         videoBox = BuildVideo();
 
-        playGlyph = ToolWindows.Glyph(IconGlyphs.PlaySolid, 14);
-        playButton = PlainButton(playGlyph, 36, 18);
-        timeText = ToolWindows.Text(13, Palette.Text);
-        selectionText = ToolWindows.Text(13, Palette.Muted);
+        playButton = new IconButton(IconGlyphs.PlaySolid, UiText.Trim.Play, () => TogglePlay(), size: 36, role: MuiRole.Secondary);
+        playGlyph = (TextBlock)playButton.Content;
+        playGlyph.FontSize = 14;
+        timeText = TextStyle.Text("", TextRole.RowTitle);
+        timeText.VerticalAlignment = VerticalAlignment.Center;
+        selectionText = TextStyle.Text("", TextRole.RowTitle, UiTokens.Keys.TextSecondary);
+        selectionText.VerticalAlignment = VerticalAlignment.Center;
 
         track = new Canvas { Width = ContentWidth, Height = TrackHeight, Margin = new Thickness(0, 16, 0, 0), Background = Brushes.Transparent, Cursor = Cursors.Hand };
         strip = new Image { Width = StripWidth, Height = StripHeight, Stretch = Stretch.UniformToFill, ClipToBounds = true };   // do not squash, crop the overflow
@@ -59,54 +72,38 @@ internal sealed partial class TrimWindow : Window
         dimAfter = new Shapes.Rectangle { Height = StripHeight, Fill = StripShade };
         selectionTop = SelectionEdge(0);
         selectionBottom = SelectionEdge(TrackHeight - StripTop);
-        startHandle = TrimHandle(new CornerRadius(5, 0, 0, 5));
-        endHandle = TrimHandle(new CornerRadius(0, 5, 5, 0));
+        startHandle = TrimHandle();
+        endHandle = TrimHandle();
         playheadLine = new Shapes.Rectangle { Width = 2, Height = TrackHeight + 12, IsHitTestVisible = false };
-        playheadKnob = new Border { Width = 12, Height = 12, CornerRadius = new CornerRadius(6), IsHitTestVisible = false, BorderThickness = new Thickness(2) };
+        playheadKnob = new Shapes.Ellipse { Width = 12, Height = 12, IsHitTestVisible = false, StrokeThickness = 2 };
         BuildTimeline();
 
-        soundGlyph = ToolWindows.Glyph("", 14);
-        soundButton = PillButton(soundGlyph, UiText.Trim.Sound, false);
+        soundGlyph = TextStyle.Icon(IconGlyphs.Volume, 15);
+        soundButton = BuildSoundButton();
         actionsRow = BuildActions();
-        progressText = ToolWindows.Text(12.5, Palette.Text);
+        progressText = TextStyle.Text("", TextRole.RowTitle);
+        progressScale = progressLine.Scale;
+        progressScale.ScaleX = 0;
         progressRow = BuildProgress();
 
-        Content = BuildCard();
+        Body = BuildBody();
         PreviewKeyDown += (_, e) => OnKey(e);
-        hwnd = ToolWindows.Handle(this, 0);
+        Closing += (_, e) => { e.Cancel = true; Dismiss(); };   // the window is kept for the next recording
+        hwnd = new WindowInteropHelper(this).EnsureHandle();
         playbackTimer.Tick += delegate { FollowPlayback(); };
     }
 
-    // A normal window (taskbar, activation) unlike the other recording windows: the user works in it.
-    void ConfigureWindow()
-    {
-        ToolWindows.Setup(this, UiText.Titles.Trim);
-        ShowActivated = true;
-        Topmost = false;
-        ShowInTaskbar = true;
-        SizeToContent = SizeToContent.WidthAndHeight;
-    }
+    protected override void RequestClose() => Dismiss();
 
-    Border BuildCard()
+    StackPanel BuildBody()
     {
-        var layout = new StackPanel { Width = ContentWidth };
-        layout.Children.Add(BuildHeader());
+        var layout = new StackPanel { Width = ContentWidth, Margin = new Thickness(UiTokens.Space.Window, 0, UiTokens.Space.Window, UiTokens.Space.Window) };
+        layout.Children.Add(subtitle);
         layout.Children.Add(videoBox);
         layout.Children.Add(BuildTransport());
         layout.Children.Add(track);
         layout.Children.Add(BuildFooter());
-        var card = new Border
-        {
-            Margin = new Thickness(24),
-            Padding = new Thickness(16),
-            CornerRadius = new CornerRadius(14),
-            BorderThickness = new Thickness(1),
-            Child = layout,
-            Effect = ToolWindows.Shadow(32, 10, 0.4)
-        };
-        card.SetResourceReference(Border.BackgroundProperty, Palette.Background);
-        card.SetResourceReference(Border.BorderBrushProperty, Palette.Line);
-        return card;
+        return layout;
     }
 
     /// <summary>Tests: build the content but never show the window.</summary>
@@ -157,10 +154,10 @@ internal sealed partial class TrimWindow : Window
         Left = -10000;
         Show();
         UpdateLayout();
-        double scale = ToolWindows.Scale(hwnd);
+        double scale = NativeMethods.ScaleOfMonitor(work);   // the target monitor's scale, not the one the window was measured on
         int width = (int)Math.Round(ActualWidth * scale), height = (int)Math.Round(ActualHeight * scale);
         NativeMethods.SetWindowPos(hwnd, NativeMethods.HWND_TOP, (work.left + work.right - width) / 2, Math.Max(work.top, (work.top + work.bottom - height) / 2), 0, 0, NativeMethods.SWP_NOSIZE);
-        ToolWindows.TakeFocus(this, hwnd);
+        ToolWindowBase.TakeFocus(this, hwnd);
     }
 
     void Dismiss()

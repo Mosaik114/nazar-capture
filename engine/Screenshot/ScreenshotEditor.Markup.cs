@@ -201,12 +201,12 @@ internal sealed partial class ScreenshotEditor
             Width = w,
             Height = h,
             RenderTransform = new TranslateTransform(),
-            Effect = new System.Windows.Media.Effects.DropShadowEffect { BlurRadius = 7, ShadowDepth = 1.5, Direction = 270, Opacity = 0.38 }
+            Effect = MarkupLook.BadgeShadow()
         };
         g.Children.Add(new Border
         {
             Background = new SolidColorBrush(col),
-            CornerRadius = new CornerRadius(h / 2),
+            CornerRadius = MarkupLook.Corners(h / 2),
             BorderBrush = UiTokens.Fixed.LabelRimBrush,
             BorderThickness = new Thickness(bright ? 1 : 0)   // light colors need an outline on white
         });
@@ -257,14 +257,14 @@ internal sealed partial class ScreenshotEditor
 
     static System.Windows.Media.Effects.Effect TextShadow()
     {
-        return new System.Windows.Media.Effects.DropShadowEffect { BlurRadius = 6, ShadowDepth = 0, Opacity = 0.6, Color = UiTokens.Fixed.Shadow };
+        return MarkupLook.TextHalo();
     }
 
     static bool Bright(Color c) { return (0.299 * c.R + 0.587 * c.G + 0.114 * c.B) / 255 > 0.7; }
 
     static System.Windows.Media.Effects.Effect PlateShadow()
     {
-        return new System.Windows.Media.Effects.DropShadowEffect { BlurRadius = 8, ShadowDepth = 1.5, Direction = 270, Opacity = 0.35 };
+        return MarkupLook.PlateShadow();
     }
 
     // Plate around the text: corner radius and padding grow with the font size.
@@ -275,7 +275,7 @@ internal sealed partial class ScreenshotEditor
         double fs = style.TextSize;
         var tb = new TextBox
         {
-            FontFamily = Palette.UiFont,
+            FontFamily = MuiTheme.BodyFont,
             FontWeight = FontWeights.SemiBold,
             FontSize = fs,
             Background = Brushes.Transparent,
@@ -319,7 +319,7 @@ internal sealed partial class ScreenshotEditor
         {
             Color c = style.Ink;
             host.Background = new SolidColorBrush(c);
-            host.CornerRadius = new CornerRadius(Math.Round(fs * 0.3));
+            host.CornerRadius = MarkupLook.Corners(Math.Round(fs * 0.3));
             host.Padding = PlatePad(fs);
             tb.Foreground = tb.CaretBrush = Bright(c) ? UiTokens.Fixed.MarkupTextDarkBrush : UiTokens.Fixed.OnImageBrush;
         }

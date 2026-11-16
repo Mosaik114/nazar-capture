@@ -46,6 +46,9 @@ static class UiText
     public static class Common
     {
         public const string Folder = "Ordner";
+        public const string Close = "Schließen (Esc)";
+        public const string DeleteFailed = "Löschen nicht möglich";
+        public const string NotYetSaved = "Wird noch gespeichert …";
         public const string Delete = "Löschen";
         public const string Deleted = "Gelöscht";
         public const string InRecycleBin = "Liegt im Papierkorb";
@@ -71,6 +74,26 @@ static class UiText
         public const string ScreenshotHint = "Ziehen = Bereich   ·   Klick = Fenster   ·   Leertaste = ganzer Bildschirm   ·   C = Farbe kopieren   ·   Esc = abbrechen";
         public const string RecordingHint = "Aufnahme:   Ziehen = Bereich   ·   Klick = Fenster   ·   Leertaste = ganzer Bildschirm   ·   Esc = abbrechen";
         public const string ColorCopiedSuffix = "  kopiert";
+
+        /// <summary>The hint as pairs of keys (shown as key caps, may be empty) and what they do.</summary>
+        public static readonly (string Keys, string Text)[] ScreenshotHints =
+        {
+            ("", "Ziehen = Bereich"),
+            ("", "Klick = Fenster"),
+            ("Leertaste", "ganzer Bildschirm"),
+            ("C", "Farbe kopieren"),
+            ("Pfeiltasten", "Zeiger, Enter = Start und Ende"),
+            ("Esc", "abbrechen"),
+        };
+
+        public static readonly (string Keys, string Text)[] RecordingHints =
+        {
+            ("", "Aufnahme: Ziehen = Bereich"),
+            ("", "Klick = Fenster"),
+            ("Leertaste", "ganzer Bildschirm"),
+            ("Pfeiltasten", "Zeiger, Enter = Start und Ende"),
+            ("Esc", "abbrechen"),
+        };
     }
 
     public static class ScreenshotCard
@@ -154,6 +177,7 @@ static class UiText
         public const string TrimmedAndCopied = "Gekürzt und kopiert";
         public const string Trim = "Kürzen";
         public const string Gif = "GIF";
+        public const string CountdownCancels = "bricht ab";
         public const string CountdownHint = "Esc = abbrechen";
 
         public static string Recorded(string duration) => duration + " aufgenommen";
@@ -175,12 +199,14 @@ static class UiText
         public const string Stop = "Beenden und speichern";
         public const string Discard = "Verwerfen";
         public const string ConfirmDiscard = "Nochmal klicken = verwerfen";
+        public const string ConfirmDiscardShort = "Wirklich verwerfen?";
     }
 
     public static class Trim
     {
         public const string KeyHint = "Leertaste abspielen  ·  I / O Anfang / Ende  ·  ← → Schritt  ·  Enter speichern";
         public const string Sound = "Ton";
+        public const string Play = "Abspielen oder anhalten (Leertaste)";
         public const string AsGif = "Als GIF";
         public const string Save = "Speichern";
 

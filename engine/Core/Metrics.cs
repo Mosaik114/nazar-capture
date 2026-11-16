@@ -1,9 +1,7 @@
-using System.Windows.Media.Effects;
-
 namespace MosaikCapture.Engine.Core;
 
 /// <summary>
-/// Shared sizes, radii and shadows of the floating windows (in WPF units), so toolbars, menus, chips and
+/// Sizes of the editor and overlay parts (in WPF units); shadows come from the kit (Elevation) (in WPF units), so toolbars, menus, chips and
 /// cards look alike everywhere and the numbers have names.
 /// </summary>
 internal static class Metrics
@@ -40,18 +38,4 @@ internal static class Metrics
     public const double HandleSize = 11, HandleHitSize = 19, HandleStroke = 2;
     /// <summary>Corner radius of the spotlight hole and the invisible edge that moves it.</summary>
     public const double SpotlightRadius = 8, SpotlightGrabWidth = 12;
-
-    // ---------- Shadows (all fall straight down) ----------
-
-    /// <summary>Cards and the countdown: large and soft.</summary>
-    public static DropShadowEffect CardShadow() => ToolWindows.Shadow(28, 8, 0.35);
-
-    /// <summary>The editor toolbar and the overlay hint.</summary>
-    public static DropShadowEffect ToolbarShadow() => ToolWindows.Shadow(18, 3, 0.5);
-
-    /// <summary>Tool menus.</summary>
-    public static DropShadowEffect MenuShadow() => ToolWindows.Shadow(16, 3, 0.4);
-
-    /// <summary>Tooltips, notices and info chips.</summary>
-    public static DropShadowEffect ChipShadow() => ToolWindows.Shadow(18, 3, 0.4);
 }

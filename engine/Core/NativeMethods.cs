@@ -53,6 +53,11 @@ internal static partial class NativeMethods
     public const uint PM_REMOVE = 0x0001;
 
     public const int VK_ESCAPE = 0x1B;
+    public const int WM_HOTKEY = 0x0312;
+    public const uint MOD_NOREPEAT = 0x4000;
+    public const int MDT_EFFECTIVE_DPI = 0;
+    public const int DWMWA_WINDOW_CORNER_PREFERENCE = 33;
+    public const int DWMWCP_ROUND = 2;
 
     public const uint LWA_ALPHA = 0x00000002;
 
@@ -188,6 +193,12 @@ internal static partial class NativeMethods
     [DllImport("user32.dll")] public static extern short GetAsyncKeyState(int virtualKey);
     [DllImport("user32.dll")] public static extern int GetSystemMetrics(int index);
     [DllImport("user32.dll")] public static extern IntPtr MonitorFromPoint(POINT point, uint flags);
+    [DllImport("user32.dll")] public static extern IntPtr MonitorFromRect(ref RECT rect, uint flags);
+    [DllImport("shcore.dll")] public static extern int GetDpiForMonitor(IntPtr monitor, int dpiType, out uint dpiX, out uint dpiY);
+    [DllImport("user32.dll")][return: MarshalAs(UnmanagedType.Bool)] public static extern bool IsHungAppWindow(IntPtr hwnd);
+    [DllImport("user32.dll")] public static extern IntPtr GetShellWindow();
+    [DllImport("user32.dll", SetLastError = true)][return: MarshalAs(UnmanagedType.Bool)] public static extern bool RegisterHotKey(IntPtr hwnd, int id, uint modifiers, uint key);
+    [DllImport("user32.dll")][return: MarshalAs(UnmanagedType.Bool)] public static extern bool UnregisterHotKey(IntPtr hwnd, int id);
     [DllImport("user32.dll")] public static extern IntPtr MonitorFromWindow(IntPtr hwnd, uint flags);
     [DllImport("user32.dll")][return: MarshalAs(UnmanagedType.Bool)] public static extern bool GetMonitorInfo(IntPtr monitor, ref MONITORINFO info);
     [DllImport("user32.dll")][return: MarshalAs(UnmanagedType.Bool)] public static extern bool EnumDisplayMonitors(IntPtr hdc, IntPtr clip, MonitorEnumProc callback, IntPtr data);
@@ -265,6 +276,18 @@ internal static partial class NativeMethods
     {
         int value = cloaked ? 1 : 0;
         _ = DwmSetWindowAttribute(hwnd, DWMWA_CLOAK, ref value, sizeof(int));
+    }
+
+    /// <summary>Device pixels per WPF unit of the monitor that holds most of <paramref name="area"/> (1 if unknown).</summary>
+    public static double ScaleOfMonitor(RECT area)
+    {
+        try
+        {
+            IntPtr monitor = MonitorFromRect(ref area, MONITOR_DEFAULTTONEAREST);
+            return GetDpiForMonitor(monitor, MDT_EFFECTIVE_DPI, out uint dpi, out _) == 0 && dpi > 0 ? dpi / 96.0 : 1;
+        }
+        catch (DllNotFoundException) { return 1; }
+        catch (EntryPointNotFoundException) { return 1; }
     }
 
     /// <summary>Work area of the monitor under the mouse pointer.</summary>

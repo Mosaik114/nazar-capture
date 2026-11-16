@@ -1,29 +1,29 @@
-using System.Windows.Controls.Primitives;
-
 namespace MosaikCapture.Engine.Screenshot;
 
 /// <summary>
 /// A pinned screenshot: floats above everything, exactly where it was captured.
 /// Drag = move, mouse wheel = zoom, Ctrl+wheel = opacity, double click / Esc = close,
-/// right click = menu (copy, save as, original size, close).
+/// right click, Shift+F10 or the menu key = menu (copy, save as, original size, close), all with the keyboard, too.
 /// </summary>
-internal sealed class PinnedScreenshot : Window
+internal sealed class PinnedScreenshot : ToolWindowBase
 {
-    const double ShadowRoom = 14;
+    const double ShadowRoom = Elevation.Margin;
     const double MinZoom = 0.1, MaxZoom = 5, ZoomStep = 1.1;
     const uint MoveFlags = NativeMethods.SWP_NOSIZE | NativeMethods.SWP_NOZORDER | NativeMethods.SWP_NOACTIVATE;
     static readonly List<PinnedScreenshot> open = new();
-    static readonly SolidColorBrush CloseButtonBackground = UiTokens.Fixed.PinCloseBrush;
 
     readonly BitmapSource image;
     readonly string fileName;
     readonly IntPtr hwnd;
     readonly Image view;
-    readonly Border frame, closeButton, chip;
+    readonly Grid frame;
+    readonly IconButton closeButton;
+    readonly FloatingLabel chip;
     readonly TextBlock chipText;
-    readonly Popup menu;
+    readonly KitMenu menu;
     readonly DispatcherTimer chipTimer;
     double scale = 1, zoom = 1;
+    bool placed;
 
     public static void Open(BitmapSource image, int x, int y, string fileName)
     {
@@ -37,139 +37,86 @@ internal sealed class PinnedScreenshot : Window
         foreach (var pin in open.ToArray()) pin.Close();
     }
 
-    PinnedScreenshot(BitmapSource pinnedImage, string file)
+    internal PinnedScreenshot(BitmapSource pinnedImage, string file) : base(UiText.Titles.Pin)
     {
         image = pinnedImage;
         fileName = file;
-        ToolWindows.Setup(this, UiText.Titles.Pin);
         SizeToContent = SizeToContent.WidthAndHeight;
 
         view = new Image { Source = image, Stretch = Stretch.Fill };
         RenderOptions.SetBitmapScalingMode(view, BitmapScalingMode.HighQuality);
         closeButton = BuildCloseButton();
-        chipText = new TextBlock { FontSize = 11.5, FontFamily = Palette.UiFont, FontWeight = FontWeights.SemiBold };
-        chip = BuildChip();
+        chip = BuildChip(out chipText);
         chipTimer = new DispatcherTimer { Interval = Motion.FeedbackChip };
         chipTimer.Tick += delegate { chipTimer.Stop(); chip.Visibility = Visibility.Collapsed; };
 
-        var layers = new Grid();
-        layers.Children.Add(view);
-        // the border lies on top of the image instead of around it so the image sits pixel-exactly where it was
-        var outline = new Border { BorderThickness = new Thickness(1), IsHitTestVisible = false };
-        outline.SetResourceReference(Border.BorderBrushProperty, Palette.Line);
-        layers.Children.Add(outline);
-        layers.Children.Add(closeButton);
-        layers.Children.Add(chip);
-        frame = new Border
+        // The ink edge lies on top of the image instead of around it so the image sits pixel-exactly where it was.
+        var edge = new StoneChrome { Radius = 0, IsSquircle = false, Depth = 0, IsHitTestVisible = false, InkWidth = 2 };
+        edge.SetResourceReference(StoneChrome.InkProperty, UiTokens.Keys.Ink);
+        frame = new Grid
         {
             Margin = new Thickness(ShadowRoom),
-            Child = layers,
             Cursor = Cursors.SizeAll,
-            Effect = ToolWindows.Shadow(16, 3, 0.45)
+            Effect = Elevation.Floating(),
+            Focusable = true,
+            FocusVisualStyle = null,
         };
+        frame.Children.Add(view);
+        frame.Children.Add(edge);
+        frame.Children.Add(closeButton);
+        frame.Children.Add(chip);
+        System.Windows.Automation.AutomationProperties.SetName(frame, UiText.Titles.Pin);
         Content = frame;
         menu = BuildMenu();
+        frame.ContextMenu = menu;
 
         HookUpInput();
         Closed += delegate { open.Remove(this); view.Source = null; };
-        hwnd = ToolWindows.Handle(this, NativeMethods.WS_EX_TOOLWINDOW);   // not in Alt+Tab
+        hwnd = CreateHandle(NativeMethods.WS_EX_TOOLWINDOW);   // not in Alt+Tab
     }
+
+    /// <summary>The menu (tests: every entry is reachable with the keyboard and named).</summary>
+    internal KitMenu Menu => menu;
 
     // ---------- Building ----------
 
-    Border BuildCloseButton()
+    IconButton BuildCloseButton()
     {
-        var cross = new TextBlock { Text = IconGlyphs.Cancel, FontSize = 10, FontFamily = Palette.IconFont, Foreground = UiTokens.Fixed.OnImageBrush, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
-        var button = new Border
+        // A paper stone on the image: readable on any picture, appears with the pointer or the keyboard focus.
+        var button = new IconButton(IconGlyphs.Cancel, UiText.Pin.CloseTip, Close, size: 24, role: MuiRole.Secondary)
         {
-            Width = 24,
-            Height = 24,
-            CornerRadius = new CornerRadius(12),
-            Margin = new Thickness(6),
-            Child = cross,
-            Cursor = Cursors.Hand,
+            Margin = new Thickness(UiTokens.Space.Sm + UiTokens.Space.Xs),
             Opacity = 0,
             HorizontalAlignment = HorizontalAlignment.Right,
             VerticalAlignment = VerticalAlignment.Top,
-            Background = new SolidColorBrush(CloseButtonBackground.Color),
-            ToolTip = UiText.Pin.CloseTip
+            Cursor = Cursors.Hand,
         };
-        button.MouseEnter += delegate { button.SetResourceReference(Border.BackgroundProperty, Palette.AccentFill); };
-        button.MouseLeave += delegate { button.Background = new SolidColorBrush(CloseButtonBackground.Color); };
-        button.MouseLeftButtonDown += (_, e) => e.Handled = true;
-        button.MouseLeftButtonUp += (_, e) => { e.Handled = true; Close(); };
+        ((TextBlock)button.Content).FontSize = 10;
+        button.GotKeyboardFocus += delegate { FadeCloseButton(1); };
         return button;
     }
 
     // Short feedback in the bottom left: zoom, opacity, "copied".
-    Border BuildChip()
+    static FloatingLabel BuildChip(out TextBlock text)
     {
-        chipText.SetResourceReference(TextBlock.ForegroundProperty, Palette.Text);
-        var feedback = ToolWindows.Chip(chipText);
-        feedback.Margin = new Thickness(8);
+        var feedback = FloatingLabel.ForText(out text, shadow: false);
+        feedback.Margin = new Thickness(UiTokens.Space.Md);
         feedback.HorizontalAlignment = HorizontalAlignment.Left;
         feedback.VerticalAlignment = VerticalAlignment.Bottom;
-        feedback.IsHitTestVisible = false;
         feedback.Visibility = Visibility.Collapsed;
         return feedback;
     }
 
-    Popup BuildMenu()
+    KitMenu BuildMenu()
     {
-        var items = new StackPanel();
-        items.Children.Add(MenuItem(IconGlyphs.Copy, UiText.Pin.Copy, UiText.Pin.CopyShortcut, Copy));
-        items.Children.Add(MenuItem(IconGlyphs.Save, UiText.Pin.SaveAs, UiText.Pin.SaveAsShortcut, SaveAs));
-        items.Children.Add(MenuItem(IconGlyphs.ZoomOriginal, UiText.Pin.OriginalSize, "0", delegate { ZoomTo(1, atPointer: false); }));
-        items.Children.Add(MenuSeparator());
-        items.Children.Add(MenuItem(IconGlyphs.Cancel, UiText.Pin.Close, "Esc", Close));
-        items.Children.Add(MenuItem(IconGlyphs.ChromeClose, UiText.Pin.CloseAll, "", CloseAll));
-        var box = new Border
-        {
-            CornerRadius = new CornerRadius(10),
-            Padding = new Thickness(4),
-            BorderThickness = new Thickness(1),
-            Child = items,
-            Margin = new Thickness(0, 0, 12, 12),
-            Effect = Metrics.MenuShadow()
-        };
-        box.SetResourceReference(Border.BackgroundProperty, Palette.Background);
-        box.SetResourceReference(Border.BorderBrushProperty, Palette.Line);
-        return new Popup
-        {
-            AllowsTransparency = true,
-            StaysOpen = false,
-            Placement = PlacementMode.MousePoint,
-            PopupAnimation = PopupAnimation.Fade,
-            Child = box
-        };
-    }
-
-    Border MenuItem(string glyph, string label, string shortcut, Action click)
-    {
-        var icon = new TextBlock { Text = glyph, FontSize = 13, FontFamily = Palette.IconFont, Width = 26, VerticalAlignment = VerticalAlignment.Center };
-        icon.SetResourceReference(TextBlock.ForegroundProperty, Palette.Text);
-        var key = new TextBlock { Text = shortcut, FontSize = 11.5, FontFamily = Palette.UiFont, Margin = new Thickness(24, 0, 0, 0), VerticalAlignment = VerticalAlignment.Center };
-        key.SetResourceReference(TextBlock.ForegroundProperty, Palette.Muted);
-        DockPanel.SetDock(icon, Dock.Left);
-        DockPanel.SetDock(key, Dock.Right);
-        var text = new TextBlock { Text = label, FontSize = 12.5, FontFamily = Palette.UiFont, VerticalAlignment = VerticalAlignment.Center };
-        text.SetResourceReference(TextBlock.ForegroundProperty, Palette.Text);
-        var row = new DockPanel { LastChildFill = true };
-        row.Children.Add(icon);
-        row.Children.Add(key);
-        row.Children.Add(text);
-        var item = new Border { CornerRadius = new CornerRadius(6), Padding = new Thickness(10, 7, 12, 7), Child = row, Background = Brushes.Transparent, Cursor = Cursors.Hand };
-        item.MouseEnter += delegate { item.SetResourceReference(Border.BackgroundProperty, Palette.Hover); };
-        item.MouseLeave += delegate { item.Background = Brushes.Transparent; };
-        item.MouseLeftButtonUp += delegate { menu.IsOpen = false; click(); };
-        return item;
-    }
-
-    static Shapes.Rectangle MenuSeparator()
-    {
-        var line = new Shapes.Rectangle { Height = 1, Margin = new Thickness(8, 4, 8, 4) };
-        line.SetResourceReference(Shapes.Shape.FillProperty, Palette.Line);
-        return line;
+        var items = new KitMenu();
+        items.Add(UiText.Pin.Copy, Copy, IconGlyphs.Copy, UiText.Pin.CopyShortcut);
+        items.Add(UiText.Pin.SaveAs, SaveAs, IconGlyphs.Save, UiText.Pin.SaveAsShortcut);
+        items.Add(UiText.Pin.OriginalSize, delegate { ZoomTo(1, atPointer: false); }, IconGlyphs.ZoomOriginal, "0");
+        items.AddSeparator();
+        items.Add(UiText.Pin.Close, Close, IconGlyphs.Cancel, "Esc");
+        items.Add(UiText.Pin.CloseAll, CloseAll, IconGlyphs.ChromeClose);
+        return items;
     }
 
     void HookUpInput()
@@ -180,11 +127,14 @@ internal sealed class PinnedScreenshot : Window
         {
             if (e.ClickCount == 2) { Close(); return; }
             Activate();
+            frame.Focus();
             try { DragMove(); }
             catch (InvalidOperationException) { }   // mouse button already released
         };
-        frame.MouseRightButtonUp += (_, e) => { e.Handled = true; Activate(); menu.IsOpen = true; };
+        frame.MouseRightButtonDown += delegate { Activate(); frame.Focus(); };
+        menu.Opened += delegate { FadeCloseButton(1); };
         menu.Closed += delegate { if (!frame.IsMouseOver) FadeCloseButton(0); };
+        Activated += delegate { if (!frame.IsKeyboardFocusWithin) frame.Focus(); };
         MouseWheel += (_, e) =>
         {
             if ((Keyboard.Modifiers & ModifierKeys.Control) != 0) ChangeOpacity(e.Delta > 0 ? 0.1 : -0.1);
@@ -221,11 +171,21 @@ internal sealed class PinnedScreenshot : Window
         NativeMethods.SetWindowPos(hwnd, NativeMethods.HWND_TOP, x, y, 0, 0, MoveFlags);   // move to the target monitor first so the scale is right
         scale = ToolWindows.Scale(hwnd);
         ApplyZoom();
+        placed = true;
         UpdateLayout();
         int shadow = (int)Math.Round(ShadowRoom * scale);
         NativeMethods.MoveTopmost(hwnd, x - shadow, y - shadow);
         frame.Opacity = 0;
         frame.BeginAnimation(OpacityProperty, new DoubleAnimation(0, 1, Motion.FadeIn));
+    }
+
+    /// <summary>Moved to a monitor with another scale (or the scale changed): one image pixel stays one screen pixel.</summary>
+    protected override void OnDpiChanged(DpiScale oldDpi, DpiScale newDpi)
+    {
+        base.OnDpiChanged(oldDpi, newDpi);
+        if (!placed) return;
+        scale = newDpi.DpiScaleX;
+        ApplyZoom();
     }
 
     // 100 % = one image pixel per screen pixel, as captured.

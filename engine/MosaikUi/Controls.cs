@@ -634,3 +634,73 @@ internal sealed class KitMenuItem : MenuItem
         return t;
     }
 }
+
+/// <summary>
+/// A small floating label on a plate (sizes, captions, hints, short feedback): popover paper, ink edge, radius 10, the
+/// desktop shadow when it floats over someone else's screen.
+/// </summary>
+internal sealed class FloatingLabel : StoneChrome
+{
+    public FloatingLabel(UIElement content, bool shadow = true)
+    {
+        Radius = UiTokens.Radius.Button;
+        Depth = 0;
+        Padding = new Thickness(10, 5, 10, 6);
+        SetResourceReference(FillProperty, UiTokens.Keys.PopoverSurface);
+        SetResourceReference(InkProperty, UiTokens.Keys.Ink);
+        if (shadow) Effect = Elevation.Floating();
+        Child = content;
+        IsHitTestVisible = false;
+    }
+
+    /// <summary>A label with one text in the description role.</summary>
+    public static FloatingLabel ForText(out TextBlock text, bool shadow = true, string colorKey = UiTokens.Keys.TextPrimary)
+    {
+        text = TextStyle.Text("", TextRole.Description, colorKey);
+        text.VerticalAlignment = VerticalAlignment.Center;
+        return new FloatingLabel(text, shadow);
+    }
+}
+
+/// <summary>
+/// A handle that moves its window (the grip of the recording bar): it reports the start, each move and the end of a drag
+/// in screen pixels; the window moves itself.
+/// </summary>
+internal sealed class DragHandle : Decorator
+{
+    readonly Action begin;
+    readonly Action move;
+    bool dragging;
+
+    public DragHandle(UIElement content, Action begin, Action move)
+    {
+        this.begin = begin;
+        this.move = move;
+        Child = content;
+        Cursor = Cursors.SizeAll;
+        System.Windows.Automation.AutomationProperties.SetName(this, UiText.Toolbar.Move);
+    }
+
+    protected override void OnRender(DrawingContext dc) => dc.DrawRectangle(Brushes.Transparent, null, new Rect(RenderSize));   // the whole handle is hit-testable
+
+    protected override void OnMouseLeftButtonDown(MouseButtonEventArgs e)
+    {
+        dragging = true;
+        begin();
+        CaptureMouse();
+        e.Handled = true;
+    }
+
+    protected override void OnMouseMove(MouseEventArgs e)
+    {
+        if (dragging) move();
+    }
+
+    protected override void OnMouseLeftButtonUp(MouseButtonEventArgs e)
+    {
+        dragging = false;
+        ReleaseMouseCapture();
+    }
+
+    protected override void OnLostMouseCapture(MouseEventArgs e) => dragging = false;
+}

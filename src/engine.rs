@@ -20,7 +20,7 @@ use std::time::{Duration, Instant};
 use windows_sys::Win32::Foundation::HWND;
 use windows_sys::Win32::System::Threading::CREATE_NO_WINDOW;
 use windows_sys::Win32::UI::WindowsAndMessaging::{
-    FindWindowExW, PostMessageW, SMTO_ABORTIFHUNG, SendMessageTimeoutW, WM_APP,
+    AllowSetForegroundWindow, FindWindowExW, GetWindowThreadProcessId, PostMessageW, SMTO_ABORTIFHUNG, SendMessageTimeoutW, WM_APP,
 };
 
 use crate::isolation::{Isolation, isolated};
@@ -122,6 +122,19 @@ const fn busy_from_reply(reply: Option<usize>) -> bool {
 }
 
 /// Sends `message` and waits at most [`QUERY_TIMEOUT_MS`] for the reply.
+/// Lets the engine that owns `window` take the foreground for the overlay it is about to open: the host has just
+/// received the hotkey and may pass that right on. Without it the engine would have to force the foreground
+/// (attaching to the input of whatever program is active, which can block on a hung one).
+fn allow_foreground(window: HWND) {
+    let mut pid = 0u32;
+    // SAFETY: `pid` outlives the call; a stale window handle only yields 0.
+    unsafe { GetWindowThreadProcessId(window, &mut pid) };
+    if pid != 0 {
+        // SAFETY: no pointers; failure (we are not in the foreground) only means the engine falls back to its own way.
+        unsafe { AllowSetForegroundWindow(pid) };
+    }
+}
+
 fn send(window: HWND, message: u32, wparam: usize) -> Option<usize> {
     let mut reply = 0usize;
     // SAFETY: `reply` outlives the call; a stale handle just makes the call fail.
@@ -222,6 +235,7 @@ impl Engine {
         let starting_for = launched.as_ref().map(|(_, since)| since.elapsed());
         let delivery = match next_step(window, starting_for) {
             Step::Post(window) => {
+                allow_foreground(window);
                 // SAFETY: posting to a window handle has no memory-safety preconditions.
                 let posted = unsafe { PostMessageW(window, mode.message(), 0, 0) } != 0;
                 if posted { Delivery::Posted } else { Delivery::Failed }

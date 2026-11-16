@@ -1,48 +1,46 @@
 namespace MosaikCapture.Engine.Recording;
 
-/// <summary>3-2-1 countdown before the recording starts (Esc cancels).</summary>
-internal sealed class CountdownWindow : Window
+/// <summary>
+/// 3-2-1 countdown before the recording starts. Esc cancels: the window registers Esc as a hotkey while it is shown
+/// (WM_HOTKEY), so the keyboard is never polled; the hint shows Esc as a key cap.
+/// </summary>
+internal sealed class CountdownWindow : ToolWindowBase
 {
-    const double CircleSize = 132, RingWidth = 3, ShadowRoom = 24;
+    const double CircleSize = 132, RingWidth = 3;
     const double LaunchLead = 0.25;   // seconds before zero at which ffmpeg is started
-    readonly IntPtr hwnd;
     readonly TextBlock number;
     readonly Shapes.Path arc;
     readonly ScaleTransform pop = new(1, 1);
     readonly DispatcherTimer timer;
     Action? launch, finished, cancelled;
+    WindowHotkey? escape;
     long startTimestamp;
     int shownNumber;
     bool launched;
     int duration = 3;
 
-    public CountdownWindow()
+    public CountdownWindow() : base(UiText.Titles.Countdown)
     {
-        ToolWindows.Setup(this, UiText.Titles.Countdown);
         IsHitTestVisible = false;
         SizeToContent = SizeToContent.WidthAndHeight;
 
-        number = new TextBlock
-        {
-            FontFamily = Palette.TitleFont,
-            FontSize = 60,
-            HorizontalAlignment = HorizontalAlignment.Center,
-            VerticalAlignment = VerticalAlignment.Center,
-            Margin = new Thickness(0, 0, 0, 6),
-            RenderTransform = pop,
-            RenderTransformOrigin = new Point(0.5, 0.5)
-        };
-        number.SetResourceReference(TextBlock.ForegroundProperty, Palette.Text);
+        number = TextStyle.Text("", TextRole.WindowTitle);
+        number.FontSize = 60;
+        number.HorizontalAlignment = HorizontalAlignment.Center;
+        number.VerticalAlignment = VerticalAlignment.Center;
+        number.Margin = new Thickness(0, 0, 0, 6);
+        number.RenderTransform = pop;
+        number.RenderTransformOrigin = new Point(0.5, 0.5);
         arc = new Shapes.Path { StrokeThickness = RingWidth, StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round };
-        arc.SetResourceReference(Shapes.Shape.StrokeProperty, Palette.Accent);
+        arc.SetResourceReference(Shapes.Shape.StrokeProperty, UiTokens.Keys.AccentTint);
 
-        var layout = new StackPanel { Margin = new Thickness(ShadowRoom) };
+        var layout = new StackPanel { Margin = new Thickness(Elevation.Margin) };
         layout.Children.Add(BuildCircle());
         layout.Children.Add(BuildHint());
         Content = layout;
 
-        hwnd = ToolWindows.Handle(this, NativeMethods.WS_EX_NOACTIVATE | NativeMethods.WS_EX_TOOLWINDOW | NativeMethods.WS_EX_TRANSPARENT);
-        ToolWindows.ExcludeFromCapture(hwnd);
+        CreateHandle(NativeMethods.WS_EX_NOACTIVATE | NativeMethods.WS_EX_TOOLWINDOW | NativeMethods.WS_EX_TRANSPARENT);
+        ToolWindows.ExcludeFromCapture(Hwnd);
         timer = new DispatcherTimer(DispatcherPriority.Render) { Interval = Motion.CountdownFrame };
         timer.Tick += delegate { OnTick(); };
     }
@@ -50,27 +48,26 @@ internal sealed class CountdownWindow : Window
     Grid BuildCircle()
     {
         var circle = new Grid { Width = CircleSize, Height = CircleSize };
-        var background = new Shapes.Ellipse { StrokeThickness = 1, Effect = Metrics.CardShadow() };
-        background.SetResourceReference(Shapes.Shape.FillProperty, Palette.Background);
-        background.SetResourceReference(Shapes.Shape.StrokeProperty, Palette.Line);
-        circle.Children.Add(background);
+        var plate = StoneChrome.FloatingPlate(CircleSize / 2);
+        plate.IsSquircle = false;
+        plate.Depth = 0;
+        circle.Children.Add(plate);
         var rail = new Shapes.Ellipse { Margin = new Thickness(10 - RingWidth / 2), StrokeThickness = RingWidth };
-        rail.SetResourceReference(Shapes.Shape.StrokeProperty, Palette.Line);
+        rail.SetResourceReference(Shapes.Shape.StrokeProperty, UiTokens.Keys.Hairline);
         circle.Children.Add(rail);
         circle.Children.Add(arc);
         circle.Children.Add(number);
         return circle;
     }
 
-    static Border BuildHint()
+    static FloatingLabel BuildHint()
     {
-        var hint = ToolWindows.Text(12, Palette.Muted);
-        hint.Text = UiText.Recording.CountdownHint;
-        var chip = ToolWindows.Chip(hint);
-        chip.HorizontalAlignment = HorizontalAlignment.Center;
-        chip.Margin = new Thickness(0, 12, 0, 0);
-        chip.Effect = ToolWindows.Shadow(14, 3, 0.3);
-        return chip;
+        var row = new StackPanel { Orientation = Orientation.Horizontal };
+        row.Children.Add(new KeyCombo("Esc") { Margin = new Thickness(0, 0, UiTokens.Space.Sm + UiTokens.Space.Xs, 0) });
+        var text = TextStyle.Text(UiText.Recording.CountdownCancels, TextRole.Description, UiTokens.Keys.TextSecondary);
+        text.VerticalAlignment = VerticalAlignment.Center;
+        row.Children.Add(text);
+        return new FloatingLabel(row) { HorizontalAlignment = HorizontalAlignment.Center, Margin = new Thickness(0, 12, 0, 0) };
     }
 
     /// <summary>
@@ -88,36 +85,43 @@ internal sealed class CountdownWindow : Window
         duration = seconds;
         if (duration == 0) { onLaunch(); onFinished(); return; }
         ShowFrame(duration, 0);
-        Left = -10000;
-        Show();
-        UpdateLayout();
-        PlaceOver(area, monitor);
+        PlaceWith(device => PlaceOver(area, monitor, device), NativeMethods.ScaleOfMonitor(monitor));
+        escape ??= WindowHotkey.Register(Hwnd, 0, NativeMethods.VK_ESCAPE, Cancel);
         startTimestamp = Stopwatch.GetTimestamp();
         timer.Start();
     }
 
     // Centered on the area, kept on the monitor (the shadow room may hang over the edge).
-    void PlaceOver(Int32Rect area, RECT monitor)
+    (int X, int Y)? PlaceOver(Int32Rect area, RECT monitor, Size device)
     {
-        double scale = ToolWindows.Scale(hwnd);
-        int shadow = (int)Math.Round(ShadowRoom * scale), circle = (int)Math.Round(CircleSize * scale);
-        int width = (int)Math.Round(ActualWidth * scale), height = (int)Math.Round(ActualHeight * scale);
+        double scale = ActualWidth > 0 ? device.Width / ActualWidth : 1;
+        int shadow = (int)Math.Round(Elevation.Margin * scale), circle = (int)Math.Round(CircleSize * scale);
+        int width = (int)device.Width, height = (int)device.Height;
         int centerX = area.X + area.Width / 2, centerY = area.Y + area.Height / 2;
         int x = Math.Max(monitor.left - shadow, Math.Min(monitor.right - width + shadow, centerX - width / 2));
         int y = Math.Max(monitor.top - shadow, Math.Min(monitor.bottom - height + shadow, centerY - shadow - circle / 2));
-        NativeMethods.MoveTopmost(hwnd, x, y);
+        return (x, y);
     }
 
     public void Stop()
     {
         timer.Stop();
+        escape?.Dispose();
+        escape = null;
         Hide();
+    }
+
+    /// <summary>Esc while counting: stop and report the cancellation.</summary>
+    internal void Cancel()
+    {
+        if (!timer.IsEnabled) return;
+        Stop();
+        cancelled!();
     }
 
     void OnTick()
     {
         double elapsed = (Stopwatch.GetTimestamp() - startTimestamp) / (double)Stopwatch.Frequency;
-        if (ToolWindows.IsKeyDown(NativeMethods.VK_ESCAPE)) { Stop(); cancelled!(); return; }
         if (!launched && elapsed >= duration - LaunchLead) { launched = true; launch!(); }
         if (elapsed >= duration) { Stop(); finished!(); return; }
         ShowFrame(duration - (int)elapsed, 1 - (elapsed - Math.Floor(elapsed)));
