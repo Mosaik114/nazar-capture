@@ -347,7 +347,8 @@ internal sealed class SwitchChrome : RoleChrome
 
 /// <summary>
 /// A choice from a list (Hams' Select): a secondary stone with the chosen value and a chevron; the list opens on a
-/// floating plate with a check at the chosen entry. Keyboard as any ComboBox: arrows choose, Alt+Down or F4 open.
+/// floating plate with a check at the chosen entry. A press on the face opens and closes the list. Keyboard as any
+/// ComboBox (arrows choose, Alt+Down or F4 open), and Space opens the list and takes the highlighted entry.
 /// </summary>
 internal sealed class Select : ComboBox
 {
@@ -380,16 +381,51 @@ internal sealed class Select : ComboBox
 
     protected override bool IsItemItsOwnContainerOverride(object item) => item is SelectItem;
 
-    protected override void OnMouseLeftButtonDown(MouseButtonEventArgs e)
+    /// <summary>
+    /// A press on the face opens the list, a second one closes it (Hams' toggle_popover). It has to happen on the way
+    /// down: the template has no toggle button, and ComboBox's own class handler for Mouse.MouseDown marks every press
+    /// on the box handled before MouseLeftButtonDown is raised, so OnMouseLeftButtonDown never ran and the list never
+    /// opened. Presses in the open list (its own popup) go on to the entries as before.
+    /// </summary>
+    protected override void OnPreviewMouseLeftButtonDown(MouseButtonEventArgs e)
     {
-        if (!IsDropDownOpen && IsEnabled)
+        if (IsEnabled && OnFace(e.OriginalSource as DependencyObject))
         {
-            Focus();
-            IsDropDownOpen = true;
+            if (!IsKeyboardFocusWithin) Focus();
+            IsDropDownOpen = !IsDropDownOpen;
             e.Handled = true;
             return;
         }
-        base.OnMouseLeftButtonDown(e);
+        base.OnPreviewMouseLeftButtonDown(e);
+    }
+
+    /// <summary>
+    /// Space opens the list (as a press does) and, while it is open, takes the highlighted entry like Enter; arrows,
+    /// Enter, Esc, Alt+Down and F4 stay ComboBox's.
+    /// </summary>
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        if (e.Key == Key.Space && IsEnabled && Keyboard.Modifiers == ModifierKeys.None)
+        {
+            if (!IsDropDownOpen) IsDropDownOpen = true;
+            else
+            {
+                if (Keyboard.FocusedElement is SelectItem item && Items.Contains(item)) SelectedItem = item;
+                IsDropDownOpen = false;
+                Focus();
+            }
+            e.Handled = true;
+            return;
+        }
+        base.OnKeyDown(e);
+    }
+
+    /// <summary>Whether <paramref name="source"/> is part of the closed face (the open list lies in its own popup window).</summary>
+    bool OnFace(DependencyObject? source)
+    {
+        for (var node = source; node != null; node = node is Visual ? VisualTreeHelper.GetParent(node) : LogicalTreeHelper.GetParent(node))
+            if (ReferenceEquals(node, this)) return true;
+        return false;
     }
 
     static ControlTemplate Build()
