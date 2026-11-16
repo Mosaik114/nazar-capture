@@ -15,8 +15,15 @@
     25 screenshots, compared with tests\Measurementsaseline-1.1.2.json. It opens the real overlay.
 
 .PARAMETER Package
-    Also zip bin\ into dist\nazar-capture-<version>-win-x64.zip (the installer: unpack, run NazarCapture.exe --install)
+    Also zip bin\ into dist\nazar-capture-<version>-win-x64.zip (the in-app update installs it; by hand: unpack, run NazarCapture.exe --install)
     and write its SHA-256 next to it (.sha256), which the in-app update checks.
+
+.PARAMETER Installer
+    Also build the installer dist\Nazar-Capture-Setup-<version>.exe from bin\ with Inno Setup 6
+    (packaging\nazar.iss): double-click, per user, no admin rights.
+
+.PARAMETER InnoCompiler
+    Path to ISCC.exe; by default it is looked up on PATH and in the usual Inno Setup 6 folders.
 
 .PARAMETER RustToolchain
     Optional rustup toolchain, e.g. stable-x86_64-pc-windows-gnu on machines without the
@@ -24,12 +31,17 @@
 
 .EXAMPLE
     ./build.ps1 -Test
+
+.EXAMPLE
+    ./build.ps1 -Package -Installer
 #>
 [CmdletBinding()]
 param(
     [switch]$Test,
     [switch]$Measure,
     [switch]$Package,
+    [switch]$Installer,
+    [string]$InnoCompiler,
     [string]$RustToolchain
 )
 
@@ -40,11 +52,28 @@ $root = $PSScriptRoot
 $bin = Join-Path $root 'bin'
 $engineProject = Join-Path $root 'engine/NazarCapture.Engine.csproj'
 $solution = Join-Path $root 'NazarCapture.sln'
+$version = (Select-String -Path (Join-Path $root 'Cargo.toml') -Pattern '^version = "(.+)"').Matches[0].Groups[1].Value
+$dist = Join-Path $root 'dist'
 
 function Invoke-Step([string]$Name, [scriptblock]$Command) {
     Write-Host "==> $Name" -ForegroundColor Cyan
     & $Command
     if ($LASTEXITCODE -ne 0) { throw "$Name failed with exit code $LASTEXITCODE" }
+}
+
+function Find-InnoCompiler {
+    if ($InnoCompiler) { return $InnoCompiler }
+    $command = Get-Command ISCC.exe -ErrorAction SilentlyContinue
+    if ($command) { return $command.Source }
+    $candidates = @(
+        "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
+        "$env:ProgramFiles\Inno Setup 6\ISCC.exe",
+        "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe"
+    )
+    foreach ($candidate in $candidates) {
+        if ($candidate -and (Test-Path $candidate)) { return $candidate }
+    }
+    throw "Inno Setup 6 (ISCC.exe) not found. Install it (winget install JRSoftware.InnoSetup) or pass -InnoCompiler."
 }
 
 # Without Visual Studio there is no link.exe; the GNU toolchain links on its own.
@@ -93,16 +122,23 @@ if ($Measure) {
 }
 
 if ($Package) {
-    $version = (Select-String -Path (Join-Path $root 'Cargo.toml') -Pattern '^version = "(.+)"').Matches[0].Groups[1].Value
-    $dist = Join-Path $root 'dist'
     New-Item -ItemType Directory -Force $dist | Out-Null
-    # The ZIP is also the installer: unpack it and run NazarCapture.exe --install (the in-app update does exactly that).
+    # The ZIP installs too: unpack it and run NazarCapture.exe --install (the in-app update does exactly that).
     $zip = Join-Path $dist "nazar-capture-$version-win-x64.zip"
     Compress-Archive -Path (Join-Path $bin '*.exe') -DestinationPath $zip -Force
     # The update checks the download against this SHA-256 (and GitHub's asset digest) before it installs anything.
     $hash = (Get-FileHash -Algorithm SHA256 $zip).Hash.ToLowerInvariant()
     Set-Content -Path "$zip.sha256" -Value "$hash  $(Split-Path -Leaf $zip)" -Encoding ascii
     Write-Host "Package: $zip ($hash)"
+}
+
+if ($Installer) {
+    $iscc = Find-InnoCompiler
+    Write-Host "==> Installer (Inno Setup: $iscc)" -ForegroundColor Cyan
+    & $iscc /Qp "/DAppVersion=$version" "/DSourceDir=$bin" "/DOutputDir=$dist" (Join-Path $root 'packaging/nazar.iss')
+    if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed with exit code $LASTEXITCODE" }
+    $setup = Join-Path $dist "Nazar-Capture-Setup-$version.exe"
+    Write-Host ("Installer: {0} ({1:N1} MB)" -f $setup, ((Get-Item $setup).Length / 1MB))
 }
 
 Write-Host "Built: $bin" -ForegroundColor Green

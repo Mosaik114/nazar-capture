@@ -26,7 +26,7 @@
 
 <p align="center">
   <b><a href="https://github.com/Mosaik114/nazar-capture/releases/latest">Download Nazar Capture for Windows</a></b>
-  (ZIP, no runtime to install) · <a href="#install">Install</a> · <a href="docs/architecture.md">Architecture</a>
+  (installer, no admin rights, no runtime to install) · <a href="#install">Install</a> · <a href="docs/architecture.md">Architecture</a>
 </p>
 
 > **Use it**
@@ -64,22 +64,27 @@ If you have five minutes, this is what the project shows:
 | **Hard problems:** audio in sync across pauses, no black flash on a 5120 × 1440 overlay, joining segments from different encoders | [Three problems](docs/architecture.md#three-problems-worth-describing) |
 | **Testing:** Rust and xUnit suites with pixel comparisons of every window (light and dark, 100 and 150 %), an end-to-end test of the real settings window, real ffmpeg runs; all in CI on Windows | [Testing strategy](docs/architecture.md#testing-strategy), [CI runs](https://github.com/Mosaik114/nazar-capture/actions/workflows/ci.yml) |
 | **Measured, not guessed:** a measuring run against the 1.1.2 baseline; the first capture after logon opens in about 70 ms instead of about 650 ms | [`tools/measure.ps1`](tools/measure.ps1), [baseline](tests/Measurements/baseline-1.1.2.json) |
-| **Shipping:** release ZIP with SHA-256 built in CI, an in-app update that installs only a matching checksum | [Releases](https://github.com/Mosaik114/nazar-capture/releases), [changelog](CHANGELOG.md) |
+| **Shipping:** an Inno Setup installer and a ZIP with SHA-256, built and smoke-tested in CI; an in-app update that installs only a matching checksum | [Releases](https://github.com/Mosaik114/nazar-capture/releases), [changelog](CHANGELOG.md) |
 
 Built by **Mazgin A. Ahmad**, business informatics student at Kiel University (CAU) ·
 [GitHub profile](https://github.com/Mosaik114) · sister project: [Hams Dictate](https://github.com/Mosaik114/hams-bachelorprojekt)
 
 ## Install
 
-**Windows 10/11 (x64):** download `nazar-capture-<version>-win-x64.zip` from the
-[latest release](https://github.com/Mosaik114/nazar-capture/releases/latest), unzip it and run
-`NazarCapture.exe --install`. It installs per user into `%LOCALAPPDATA%\Programs\NazarCapture` (no admin rights) and
-adds a Start-menu entry, the tray icon and autostart. It needs .NET Framework 4.8, which is part of current Windows.
-The programs are not code-signed, so SmartScreen may warn (**More info → Run anyway**); with *Smart App Control*
-switched on, Windows refuses to run them.
+**Windows 10/11 (x64):** download `Nazar-Capture-Setup-1.1.5.exe` from the
+[latest release](https://github.com/Mosaik114/nazar-capture/releases/latest) and double-click it. It installs per user
+into `%LOCALAPPDATA%\Programs\NazarCapture` (no admin rights), adds a Start-menu entry, autostart (optional) and an
+uninstaller in Windows *Apps*, and starts Nazar Capture silently in the tray. An installed earlier version is closed
+and updated; settings stay. It needs .NET Framework 4.8, which is part of current Windows. The programs are not
+code-signed, so SmartScreen may warn (**More info → Run anyway**); with *Smart App Control* switched on, Windows
+refuses to run them.
+
+**Alternative without the installer:** download `nazar-capture-<version>-win-x64.zip`, unzip it and run
+`NazarCapture.exe --install`; it installs into the same folder.
 
 **Verify the download:** each release lists `nazar-capture-<version>-win-x64.zip.sha256`; compare it with
-`Get-FileHash nazar-capture-<version>-win-x64.zip`. The in-app update does the same check before it installs.
+`Get-FileHash nazar-capture-<version>-win-x64.zip`. The in-app update does the same check before it installs. For the
+installer, compare `Get-FileHash Nazar-Capture-Setup-<version>.exe` with the SHA-256 the release page shows next to it.
 
 **For screen recording**, install ffmpeg once: `winget install Gyan.FFmpeg.Essentials`.
 

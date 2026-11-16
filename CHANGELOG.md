@@ -6,6 +6,24 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.1.5] - 2026-11-17
+
+A Windows installer: download `Nazar-Capture-Setup-1.1.5.exe` and double-click it, as with Hams Dictate.
+
+### Added
+- **Installer** `Nazar-Capture-Setup-<version>.exe` (Inno Setup, German and English): per user without admin
+  rights into `%LOCALAPPDATA%\Programs\NazarCapture`, the same folder, Start-menu entry and autostart entry as
+  `NazarCapture.exe --install`, so it updates an existing installation in place. It closes a running Nazar Capture
+  first (through the app's own quit, so a running recording is never cut off), offers autostart (preset from the
+  app's setting, and stored there) and a desktop icon, and starts the app silently in the tray. Windows *Apps*
+  lists an uninstaller that removes the programs, the shortcuts and the autostart entry and offers, never forces,
+  to delete the settings.
+- CI builds the installer next to the ZIP and smoke-tests it (silent install, both self-tests, reinstall
+  without autostart, silent uninstall); a tag release attaches it.
+
+### Changed
+- The ZIP and its `.sha256` stay release assets: the in-app update installs from them, unchanged.
+
 ## [1.1.4] - 2026-11-16
 
 A lighter look: the light mode becomes "Kalkweiß", as in Hams Dictate.
@@ -188,7 +206,8 @@ First public release as a standalone project.
   repository on 2026-11-12 (tag [`original-import`](https://github.com/Mosaik114/nazar-capture/tree/original-import)),
   so the whole 1.0.0 restructuring can be read as a before/after diff.
 
-[Unreleased]: https://github.com/Mosaik114/nazar-capture/compare/v1.1.4...HEAD
+[Unreleased]: https://github.com/Mosaik114/nazar-capture/compare/v1.1.5...HEAD
+[1.1.5]: https://github.com/Mosaik114/nazar-capture/releases/tag/v1.1.5
 [1.1.4]: https://github.com/Mosaik114/nazar-capture/releases/tag/v1.1.4
 [1.1.3]: https://github.com/Mosaik114/nazar-capture/releases/tag/v1.1.3
 [1.1.2]: https://github.com/Mosaik114/nazar-capture/releases/tag/v1.1.2

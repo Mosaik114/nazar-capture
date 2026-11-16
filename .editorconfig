@@ -10,6 +10,10 @@ indent_size = 4
 [*.{csproj,props,targets,xml,manifest,json}]
 indent_size = 2
 
+# Inno Setup reads a script as UTF-8 only with a BOM (German texts in [CustomMessages])
+[*.iss]
+charset = utf-8-bom
+
 [*.{sln,slnx}]
 end_of_line = crlf
 indent_style = tab
