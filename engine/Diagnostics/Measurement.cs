@@ -15,7 +15,25 @@ namespace MosaikCapture.Engine.Diagnostics;
 /// </summary>
 internal static class Measurement
 {
-    internal const int Captures = 25;
+    internal const int Captures = 25, Pins = 5;
+
+    /// <summary>
+    /// Captures of this run: 25 by default (comparable with the 1.1.2 baseline), more with <c>--captures n</c>;
+    /// <c>--prestarted</c> first warms up like an engine pre-started after logon and measures the first overlay from the
+    /// hotkey command instead of from the process start.
+    /// </summary>
+    static int captures = Captures;
+    static bool prestarted;
+    static int pins = Pins;
+
+    internal static void Options(string[] args)
+    {
+        int index = Array.IndexOf(args, "--captures");
+        if (index >= 0 && index + 1 < args.Length && int.TryParse(args[index + 1], NumberStyles.None, CultureInfo.InvariantCulture, out int count) && count >= 2) captures = count;
+        prestarted = Array.IndexOf(args, "--prestarted") >= 0;
+        int pinIndex = Array.IndexOf(args, "--pins");
+        if (pinIndex >= 0 && pinIndex + 1 < args.Length && int.TryParse(args[pinIndex + 1], NumberStyles.None, CultureInfo.InvariantCulture, out int pinCount)) pins = pinCount;
+    }
     static readonly TimeSpan StepTimeout = TimeSpan.FromSeconds(20);
 
     public static void Run(string directory)
@@ -43,35 +61,49 @@ internal static class Measurement
         {
             try
             {
+                if (prestarted)
+                {
+                    WarmUp.Run();
+                    await Task.Delay(TimeSpan.FromSeconds(3));
+                    MemoryRelief.CollectNow();
+                }
                 double idle = PrivateMegabytes();
                 var warm = new List<double>();
                 double cold = 0;
-                for (int i = 0; i < Captures; i++)
+                BitmapSource? lastImage = null;
+                for (int i = 0; i < captures; i++)
                 {
                     var watch = Stopwatch.StartNew();
                     var overlay = await Reveal();
                     double milliseconds = watch.Elapsed.TotalMilliseconds;
-                    if (i == 0) cold = (DateTime.Now - ProcessStart()).TotalMilliseconds;
+                    if (i == 0) cold = prestarted ? milliseconds : (DateTime.Now - ProcessStart()).TotalMilliseconds;
                     else warm.Add(milliseconds);
                     var saved = store.NextDelivery();
                     overlay.Press(Key.Space);   // whole monitor, as with the Space key
                     await WithTimeout(saved, "the screenshot was not saved");
+                    lastImage = store.LastImage;
                     await Task.Delay(50);
+                }
+                // Pins of a typical size (a dialog, a chart): each holds its own copy, never the frozen desktop.
+                for (int i = 0; i < pins && lastImage != null; i++)
+                {
+                    var crop = new Int32Rect(0, 0, Math.Min(800, lastImage.PixelWidth), Math.Min(500, lastImage.PixelHeight));
+                    PinnedScreenshot.Open(Screenshots.CopyOf(lastImage, crop), 40 * i, 40 * i, "pin.png");
                 }
                 await Task.Delay(TimeSpan.FromSeconds(2));   // let the card and the encoder settle
                 double after = PrivateMegabytes();
-                GC.Collect();
-                GC.WaitForPendingFinalizers();
-                GC.Collect();
+                MemoryRelief.CollectNow();
                 double afterGc = PrivateMegabytes();
+                PinnedScreenshot.CloseAll();
                 warm.Sort();
-                Write(directory, "{\"passed\":true,\"captures\":" + Captures +
+                Write(directory, "{\"passed\":true,\"captures\":" + captures + ",\"pins\":" + pins + ",\"prestarted\":" + (prestarted ? "true" : "false") +
                     ",\"coldMs\":" + Number(cold) +
                     ",\"warmMs\":" + Number(warm[warm.Count / 2]) +
                     ",\"warmMaxMs\":" + Number(warm[warm.Count - 1]) +
                     ",\"privateIdleMb\":" + Number(idle) +
                     ",\"privateAfterMb\":" + Number(after) +
                     ",\"privateAfterGcMb\":" + Number(afterGc) +
+                    ",\"managedMb\":" + Number(GC.GetTotalMemory(true) / 1048576.0) +
                     ",\"screenCopy\":\"" + (substitute ? "substitute" : "gdi") + "\"" +
                     ",\"screen\":\"" + ScreenGrabber.VirtualScreen().Width + "x" + ScreenGrabber.VirtualScreen().Height + "\"}");
                 app.Shutdown();
@@ -117,7 +149,7 @@ internal static class Measurement
         void Handler(SelectionOverlay overlay) => revealed.TrySetResult(overlay);
         SelectionOverlay.Revealed += Handler;
         _ = revealed.Task.ContinueWith(_ => SelectionOverlay.Revealed -= Handler, TaskScheduler.FromCurrentSynchronizationContext());
-        Screenshots.StartSoon();
+        Screenshots.Start();   // like the hotkey: no pause (the pause is only for the tray menu)
         return WithTimeout(revealed.Task, "the overlay did not appear");
     }
 
@@ -166,8 +198,12 @@ internal static class Measurement
             return png;
         }
 
+        /// <summary>The image of the latest capture (the pins of the run show it).</summary>
+        public BitmapSource? LastImage { get; private set; }
+
         public Task<bool> CopyAsync(BitmapSource image, byte[] png)
         {
+            LastImage = image;
             delivered.TrySetResult(true);
             return Task.FromResult(true);
         }

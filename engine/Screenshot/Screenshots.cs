@@ -44,6 +44,24 @@ internal static class Screenshots
         timer.Start();
     }
 
+    /// <summary>
+    /// An own, frozen copy of <paramref name="crop"/>: a card or a pin keeps this small image, not the whole frozen
+    /// desktop a CroppedBitmap would hold on to.
+    /// </summary>
+    public static BitmapSource CopyOf(BitmapSource source, Int32Rect crop)
+    {
+        var copy = new WriteableBitmap(crop.Width, crop.Height, source.DpiX, source.DpiY, source.Format, source.Palette);
+        copy.Lock();
+        try
+        {
+            source.CopyPixels(crop, copy.BackBuffer, copy.BackBufferStride * crop.Height, copy.BackBufferStride);
+            copy.AddDirtyRect(new Int32Rect(0, 0, crop.Width, crop.Height));
+        }
+        finally { copy.Unlock(); }
+        copy.Freeze();
+        return copy;
+    }
+
     public static byte[] Encode(BitmapSource image, bool jpeg)
     {
         BitmapEncoder encoder = jpeg ? new JpegBitmapEncoder { QualityLevel = 92 } : new PngBitmapEncoder();

@@ -108,7 +108,9 @@ internal sealed class RecordingBackend : IRecordingBackend
 
     // Leftovers of crashed recordings, also in the folder older versions used. Raw data kept after a failed
     // save is the user's to rescue and never removed here (see RecordingSession.RawDataFolder).
-    public void RemoveLeftovers()
+    public void RemoveLeftovers() => Task.Run(RemoveLeftoversNow).LogFailures("Removing old recording work folders");   // file system work, never on the UI thread
+
+    static void RemoveLeftoversNow()
     {
         RemoveOldWorkFolders(CaptureSettings.RecordingWorkRoot);
         RemoveOldWorkFolders(CaptureSettings.LegacyRecordingWorkRoot);

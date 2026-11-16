@@ -20,7 +20,7 @@ use std::ptr;
 use std::time::{Duration, Instant};
 
 use windows_sys::Win32::Foundation::HWND;
-use windows_sys::Win32::System::Threading::CREATE_NO_WINDOW;
+use windows_sys::Win32::System::Threading::{BELOW_NORMAL_PRIORITY_CLASS, CREATE_NO_WINDOW};
 use windows_sys::Win32::UI::WindowsAndMessaging::{
     AllowSetForegroundWindow, FindWindowExW, GetWindowThreadProcessId, PostMessageW,
     SMTO_ABORTIFHUNG, SendMessageTimeoutW, WM_APP,
@@ -237,6 +237,12 @@ impl Engine {
     /// Hands a request to the engine: posts it to the running engine or launches a new
     /// one, unless an engine we launched is still starting.
     pub fn deliver(&self, request: EngineRequest) -> Delivery {
+        self.deliver_with(request, false)
+    }
+
+    /// Like [`Engine::deliver`]; `from_menu` (wParam 1) tells the engine to wait briefly until the tray menu has
+    /// left the screen. A hotkey needs no such pause, so the overlay opens at once.
+    pub fn deliver_with(&self, request: EngineRequest, from_menu: bool) -> Delivery {
         // A relative (or empty) folder would make CreateProcess search the working
         // directory and PATH; only ever start the engine next to this executable.
         if !self.exe_dir.is_absolute() {
@@ -256,7 +262,8 @@ impl Engine {
             Step::Post(window) => {
                 allow_foreground(window);
                 // SAFETY: posting to a window handle has no memory-safety preconditions.
-                let posted = unsafe { PostMessageW(window, request.message(), 0, 0) } != 0;
+                let posted =
+                    unsafe { PostMessageW(window, request.message(), usize::from(from_menu), 0) } != 0;
                 if posted { Delivery::Posted } else { Delivery::Failed }
             }
             Step::Wait => Delivery::AlreadyStarting,
@@ -273,6 +280,27 @@ impl Engine {
         };
         self.launched.replace(launched);
         delivery
+    }
+
+    /// Starts an idle engine ahead of the first capture (a few seconds after logon), at below-normal priority so it
+    /// does not compete with the rest of the logon; it prepares its windows in the background and raises its own
+    /// priority with the first command. Does nothing if an engine runs or is starting.
+    pub fn prestart(&self) -> bool {
+        if !self.exe_dir.is_absolute() || self.find_window().is_some() {
+            return false;
+        }
+        let starting = self.launched.take();
+        let busy = starting.is_some();
+        self.launched.replace(starting);
+        if busy {
+            return false;
+        }
+        let mut command = self.command("--idle");
+        command.creation_flags(CREATE_NO_WINDOW | BELOW_NORMAL_PRIORITY_CLASS);
+        let launched = command.spawn().ok().map(|child| (child, Instant::now()));
+        let started = launched.is_some();
+        self.launched.replace(launched);
+        started
     }
 
     /// `<exe_dir>\MosaikCapture.Engine.exe <argument>`, without a console window.

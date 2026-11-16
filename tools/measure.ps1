@@ -30,6 +30,8 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+# Windows PowerShell 5.1 has no $PSScriptRoot in parameter defaults.
+if (-not $Engine) { $Engine = Join-Path (Split-Path -Parent $MyInvocation.MyCommand.Path) '..in\MosaikCapture.Engine.exe' }
 Set-StrictMode -Version Latest
 
 $keys = 'coldMs', 'warmMs', 'warmMaxMs', 'privateIdleMb', 'privateAfterMb', 'privateAfterGcMb'

@@ -34,6 +34,9 @@ internal static class ClipboardWriter
     /// <summary>As a file: pasting into chat, mail or Explorer attaches it.</summary>
     public static Task<bool> SetFileAsync(string path) => SetAsync("file", () => Clipboard.SetFileDropList(new StringCollection { path }));
 
+    /// <summary>A copy reported as failed (timeout) arrived after all; the argument says what was copied ("image", "text" ...).</summary>
+    public static event Action<string>? LateSuccess;
+
     /// <summary>Runs <paramref name="write"/> on an STA thread; false (and logged) if it failed or took too long.</summary>
     internal static async Task<bool> SetAsync(string what, Action write)
     {
@@ -56,6 +59,13 @@ internal static class ClipboardWriter
         thread.Start();
         if (await Task.WhenAny(result.Task, Task.Delay(Timeout)).ConfigureAwait(false) == result.Task) return await result.Task.ConfigureAwait(false);
         ErrorLog.Write("Copying the " + what + " to the clipboard took too long", null);
+        // The thread keeps trying; if it gets there after all, say so (the card already said "not copied").
+        _ = result.Task.ContinueWith(late =>
+        {
+            if (!late.Result) return;
+            ErrorLog.Write("Copying the " + what + " to the clipboard succeeded late", null);
+            LateSuccess?.Invoke(what);
+        }, TaskScheduler.Default);
         return false;
     }
 }

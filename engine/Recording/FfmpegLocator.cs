@@ -17,10 +17,19 @@ internal interface IFfmpegLocator
 /// </summary>
 internal sealed class FfmpegLocator : IFfmpegLocator
 {
-    readonly Func<IEnumerable<string?>> locations;
-    volatile string? ffmpeg, probe;
+    /// <summary>"Not installed" is remembered this long, so a long PATH is not searched on every click.</summary>
+    internal static readonly TimeSpan MissingFor = TimeSpan.FromSeconds(30);
 
-    public FfmpegLocator(Func<IEnumerable<string?>> locations) => this.locations = locations;
+    readonly Func<IEnumerable<string?>> locations;
+    readonly Func<long> now;
+    volatile string? ffmpeg, probe;
+    long missingSince = long.MinValue;
+
+    public FfmpegLocator(Func<IEnumerable<string?>> locations, Func<long>? clock = null)
+    {
+        this.locations = locations;
+        now = clock ?? Stopwatch.GetTimestamp;
+    }
 
     public string? Ffmpeg
     {
@@ -28,7 +37,11 @@ internal sealed class FfmpegLocator : IFfmpegLocator
         {
             string? known = ffmpeg;
             if (known != null && File.Exists(known)) return known;
-            return ffmpeg = Recording.Ffmpeg.Find("ffmpeg.exe", locations());
+            long since = Interlocked.Read(ref missingSince), at = now();
+            if (since != long.MinValue && at - since < MissingFor.TotalSeconds * Stopwatch.Frequency) return null;
+            string? found = Recording.Ffmpeg.Find("ffmpeg.exe", locations());
+            Interlocked.Exchange(ref missingSince, found == null ? at : long.MinValue);
+            return ffmpeg = found;
         }
     }
 

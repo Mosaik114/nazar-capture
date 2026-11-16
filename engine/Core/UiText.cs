@@ -157,6 +157,8 @@ static class UiText
     public static class Recording
     {
         public const string FfmpegMissing = "ffmpeg fehlt";
+        public const string DiskFull = "Zu wenig Speicherplatz";
+        public static string DiskFullDetail(string free) => "Nur noch " + free + " frei; eine Aufnahme braucht mindestens 2 GB.";
         public const string FfmpegInstallHint = "Für Aufnahmen: winget install ffmpeg";
         public const string NotPossible = "Aufnahme nicht möglich";
         public const string MonitorUnreachable = "Dieser Monitor ist für die Aufnahme nicht erreichbar";

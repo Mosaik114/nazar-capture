@@ -20,7 +20,7 @@ internal sealed class SelectionOverlay : Window
     readonly IntPtr hwnd;
     double scale = 1;                        // device pixels per WPF unit; read at every opening, follows DPI changes
     readonly Canvas root, decorations, loupe;
-    readonly Image frozenScreen, loupeImage;
+    readonly Image frozenScreen;
     readonly Shapes.Path dimming;
     readonly Shapes.Rectangle frame, loupeCenter, swatch;
     readonly Shapes.Line horizontalGuide, verticalGuide;
@@ -32,6 +32,11 @@ internal sealed class SelectionOverlay : Window
     readonly EngineWork shown = new();       // counts as busy while open: the engine must not quit under the user
 
     BitmapSource? screen;
+    readonly byte[] pixel = new byte[4];                       // the pixel under the pointer, reused for every move
+    readonly SolidColorBrush swatchBrush = new();              // its colour, reused
+    readonly ImageBrush loupeBrush = new() { ViewboxUnits = BrushMappingMode.Absolute, Stretch = Stretch.Fill };
+    readonly RectangleGeometry everythingArea = new(), holeArea = new();
+    readonly GeometryGroup holes = new() { FillRule = FillRule.EvenOdd };
     Int32Rect virtualScreen;                 // in device pixels
     Point pressedAt;
     bool pressed, dragging;
@@ -65,7 +70,6 @@ internal sealed class SelectionOverlay : Window
         frame.SetResourceReference(Shapes.Shape.StrokeProperty, UiTokens.Keys.AccentTint);
         sizeChip = FloatingLabel.ForText(out sizeText, shadow: false);
         sizeText.FontWeight = FontWeights.SemiBold;
-        loupeImage = new Image { Width = LoupeSize, Height = LoupeSize, Stretch = Stretch.Fill };
         loupeCenter = new Shapes.Rectangle { Width = LoupeCell + 2, Height = LoupeCell + 2, StrokeThickness = 2 };
         loupe = BuildLoupe();
         swatch = new Shapes.Rectangle { Width = 11, Height = 11, RadiusX = 3, RadiusY = 3, Margin = new Thickness(0, 0, 7, 0), VerticalAlignment = VerticalAlignment.Center };
@@ -108,8 +112,11 @@ internal sealed class SelectionOverlay : Window
         container.Children.Add(background);
 
         var cells = new Canvas { Width = LoupeSize, Height = LoupeSize, Clip = new EllipseGeometry(new Point(LoupeSize / 2, LoupeSize / 2), LoupeSize / 2, LoupeSize / 2) };
-        RenderOptions.SetBitmapScalingMode(loupeImage, BitmapScalingMode.NearestNeighbor);
-        cells.Children.Add(loupeImage);
+        holes.Children.Add(everythingArea);
+        holes.Children.Add(holeArea);
+        RenderOptions.SetBitmapScalingMode(loupeBrush, BitmapScalingMode.NearestNeighbor);
+        var magnified = new Shapes.Rectangle { Width = LoupeSize, Height = LoupeSize, Fill = loupeBrush };
+        cells.Children.Add(magnified);
         var grid = UiTokens.Fixed.LoupeGridBrush;
         for (int i = 1; i < LoupePixels; i++)
         {
@@ -134,6 +141,7 @@ internal sealed class SelectionOverlay : Window
     FloatingLabel BuildColorChip()
     {
         swatch.SetResourceReference(Shapes.Shape.StrokeProperty, UiTokens.Keys.Ink);
+        swatch.Fill = swatchBrush;
         var row = new StackPanel { Orientation = Orientation.Horizontal };
         row.Children.Add(swatch);
         row.Children.Add(colorText);
@@ -249,6 +257,20 @@ internal sealed class SelectionOverlay : Window
         Content = root;
     }
 
+    /// <summary>Shows the window once, cloaked and tiny, so its first real opening finds everything rendered.</summary>
+    internal void Prepare()
+    {
+        if (IsVisible) return;
+        bool activated = ShowActivated;
+        ShowActivated = false;   // never take the focus from what the user is doing
+        NativeMethods.Cloak(hwnd, true);
+        Width = Height = 1;
+        Show();
+        UpdateLayout();
+        Hide();
+        ShowActivated = activated;
+    }
+
     public void Open() => Begin(recording: false);
 
     public void OpenForRecording() => Begin(recording: true);
@@ -269,7 +291,7 @@ internal sealed class SelectionOverlay : Window
         ScreenGrabber.VisibleWindows(virtualScreen, windows);
         ScreenGrabber.Monitors(monitors, workAreas);
 
-        frozenScreen.Source = screen;
+        frozenScreen.Source = loupeBrush.ImageSource = screen;
         frozenScreen.Width = root.Width = virtualScreen.Width / scale;
         frozenScreen.Height = root.Height = virtualScreen.Height / scale;
         dimming.Data = null;
@@ -356,17 +378,17 @@ internal sealed class SelectionOverlay : Window
     // Dimming with a hole, frame and size chip for an area (device pixels).
     void ShowSelection(Rect area)
     {
-        var everything = new RectangleGeometry(new Rect(0, 0, virtualScreen.Width / scale, virtualScreen.Height / scale));
+        // The geometries are made once and only get new rectangles: no garbage for every mouse move.
+        everythingArea.Rect = new Rect(0, 0, virtualScreen.Width / scale, virtualScreen.Height / scale);
         if (area.IsEmpty)
         {
-            dimming.Data = everything;
+            holeArea.Rect = Rect.Empty;
+            dimming.Data = holes;
             frame.Visibility = sizeChip.Visibility = Visibility.Hidden;
             return;
         }
         var shown = new Rect(area.X / scale, area.Y / scale, area.Width / scale, area.Height / scale);
-        var holes = new GeometryGroup { FillRule = FillRule.EvenOdd };
-        holes.Children.Add(everything);
-        holes.Children.Add(new RectangleGeometry(shown));
+        holeArea.Rect = shown;
         dimming.Data = holes;
         frame.Width = shown.Width + 2;
         frame.Height = shown.Height + 2;
@@ -384,14 +406,13 @@ internal sealed class SelectionOverlay : Window
         int x = (int)position.X, y = (int)position.Y, half = LoupePixels / 2;
         int left = Math.Max(0, Math.Min(image.PixelWidth - LoupePixels, x - half));
         int top = Math.Max(0, Math.Min(image.PixelHeight - LoupePixels, y - half));
-        loupeImage.Source = new CroppedBitmap(image, new Int32Rect(left, top, LoupePixels, LoupePixels));
+        loupeBrush.Viewbox = new Rect(left, top, LoupePixels, LoupePixels);   // one brush on the frozen screen, no new bitmap per move
         Canvas.SetLeft(loupeCenter, (x - left) * LoupeCell - 1);
         Canvas.SetTop(loupeCenter, (y - top) * LoupeCell - 1);
 
-        var pixel = new byte[4];
         image.CopyPixels(new Int32Rect(Math.Min(x, image.PixelWidth - 1), Math.Min(y, image.PixelHeight - 1), 1, 1), pixel, 4, 0);
         color = HexColor(pixel[2], pixel[1], pixel[0]);
-        swatch.Fill = new SolidColorBrush(Color.FromRgb(pixel[2], pixel[1], pixel[0]));
+        swatchBrush.Color = Color.FromRgb(pixel[2], pixel[1], pixel[0]);
         colorText.Text = color;
         positionText.Text = (x + virtualScreen.X) + ", " + (y + virtualScreen.Y);
         PlaceLoupe(position);
@@ -494,7 +515,7 @@ internal sealed class SelectionOverlay : Window
         foreach (var monitor in monitorRects) { monitors.Add(monitor); workAreas.Add(monitor); }
         windows.Clear();
         scale = atScale;
-        frozenScreen.Source = screen;
+        frozenScreen.Source = loupeBrush.ImageSource = screen;
         frozenScreen.Width = root.Width = virtualScreen.Width / scale;
         frozenScreen.Height = root.Height = virtualScreen.Height / scale;
         keyboardPointer = new Point(virtualScreen.Width / 2, virtualScreen.Height / 2);
@@ -526,8 +547,7 @@ internal sealed class SelectionOverlay : Window
             Recorded?.Invoke(new Int32Rect(crop.X + virtualScreen.X, crop.Y + virtualScreen.Y, crop.Width, crop.Height), monitor, workArea);
             return;
         }
-        var image = new CroppedBitmap(screen!, crop);
-        image.Freeze();
+        var image = Screenshots.CopyOf(screen!, crop);
         var capture = new ScreenCapture
         {
             FullScreen = screen!,
@@ -567,8 +587,12 @@ internal sealed class SelectionOverlay : Window
         pressed = dragging = false;
         if (IsMouseCaptured) ReleaseMouseCapture();
         Hide();
-        frozenScreen.Source = loupeImage.Source = null;
+        frozenScreen.Source = loupeBrush.ImageSource = null;
         screen = null;   // release the large image
+        // A hidden window keeps the render buffers of its last size (the whole desktop, tens of MB each): shrink it.
+        frozenScreen.Width = frozenScreen.Height = root.Width = root.Height = Width = Height = 1;
+        NativeMethods.SetWindowPos(hwnd, NativeMethods.HWND_TOP, virtualScreen.X, virtualScreen.Y, 1, 1, NativeMethods.SWP_NOZORDER | NativeMethods.SWP_NOACTIVATE);
+        MemoryRelief.Soon();
     }
 
     // The entry of `list` for the monitor containing the point; the first monitor if none does.

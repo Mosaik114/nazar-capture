@@ -260,10 +260,33 @@ internal sealed class RecordingSession : IRecordingSession
             .Add("-f", "matroska", file);
     }
 
+    /// <summary>NVENC that ends the first segment within this time (e.g. on a laptop with two GPUs) is replaced by libx264.</summary>
+    internal static readonly TimeSpan HardwareGrace = TimeSpan.FromSeconds(3);
+
     void OnSegmentExited(Segment segment)
     {
-        bool stillCurrent;
-        lock (gate) stillCurrent = current == segment;
+        bool stillCurrent, fallBack = false;
+        int pausesBefore;
+        lock (gate)
+        {
+            stillCurrent = current == segment;
+            pausesBefore = pauseCount;
+            if (stillCurrent && encoder == VideoEncoder.Nvenc && segments.Count == 1
+                && Stopwatch.GetTimestamp() - segment.StopwatchStart < HardwareGrace.TotalSeconds * Stopwatch.Frequency)
+            {
+                fallBack = true;
+                segments.Remove(segment);
+                current = null;
+            }
+        }
+        if (fallBack)
+        {
+            ErrorLog.Write("NVENC stopped in the first seconds (" + FfmpegOutput.LastLine(segment.Errors.ToString()) + "); recording with libx264", null);
+            segment.StopSignal.TrySetResult(true);
+            encoder = VideoEncoder.Software;
+            StartSegment(VideoEncoder.Software, pausesBefore);
+            return;
+        }
         if (!stillCurrent) return;   // stopped on purpose, or an older segment
         reason = segment.Errors.IsEmpty ? UiText.Recording.StoppedUnexpectedly : FfmpegOutput.LastLine(segment.Errors.ToString());
         Broke?.Invoke();

@@ -52,6 +52,26 @@ public sealed class RecordingSessionTests : IDisposable
     }
 
     [Fact]
+    public async Task NvencThatStopsInTheFirstSecondsIsReplacedByLibx264()
+    {
+        encoder = () => Task.FromResult(VideoEncoder.Nvenc);
+        var session = NewSession();
+        bool broke = false;
+        session.Broke += () => broke = true;
+        await Within(session.ResumeAsync());
+        Assert.Contains("h264_nvenc", runner.Started.Single().Arguments);
+
+        runner.Processes.Single().Exit("Cannot load nvcuda.dll");   // like a laptop whose screen hangs on the other GPU
+
+        Assert.False(broke);
+        Assert.Equal(2, runner.Started.Count);
+        Assert.Contains("libx264", runner.Started[1].Arguments);
+        Assert.Equal(1, session.SegmentCount);
+        runner.Processes[1].Exit("later");   // the software encoder failing is a real failure
+        Assert.True(broke);
+    }
+
+    [Fact]
     public async Task PauseAsksFfmpegToQuitAndTheNextSegmentWaitsForIt()
     {
         var session = NewSession();

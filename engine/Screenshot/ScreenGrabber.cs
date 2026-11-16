@@ -7,6 +7,9 @@ internal static class ScreenGrabber
 {
     const int MinWindowSize = 20;
 
+    /// <summary>Copying the screen should stay below this; slower copies are logged (a hint for HDR, huge desktops).</summary>
+    internal const long SlowCopyMs = 100;
+
     /// <summary>The bounding box of all monitors in device pixels.</summary>
     public static Int32Rect VirtualScreen() => new(
         NativeMethods.GetSystemMetrics(NativeMethods.SM_XVIRTUALSCREEN), NativeMethods.GetSystemMetrics(NativeMethods.SM_YVIRTUALSCREEN),
@@ -25,6 +28,7 @@ internal static class ScreenGrabber
     public static BitmapSource Capture(int x, int y, int width, int height, double dpi)
     {
         if (Substitute != null) return Substitute(x, y, width, height, dpi);
+        long started = Stopwatch.GetTimestamp();
         if (width <= 0 || height <= 0) throw new Win32Exception(NativeMethods.ERROR_INVALID_PARAMETER, "Invalid screen area " + width + " x " + height);
         IntPtr screen = IntPtr.Zero, memory = IntPtr.Zero, bitmap = IntPtr.Zero;
         try
@@ -39,12 +43,21 @@ internal static class ScreenGrabber
             int copyError = Marshal.GetLastWin32Error();
             NativeMethods.SelectObject(memory, previous);
             if (!copied) throw new Win32Exception(copyError, "Copying the screen failed");
+            // The pixels go straight into the WPF bitmap's own (unmanaged) buffer: no managed byte[] of the whole desktop
+            // on the large object heap, one copy instead of three.
             var header = new NativeMethods.BITMAPINFOHEADER { biSize = 40, biWidth = width, biHeight = -height, biPlanes = 1, biBitCount = 32 };
-            var pixels = new byte[width * height * 4];
-            if (NativeMethods.GetDIBits(memory, bitmap, 0, (uint)height, pixels, ref header, NativeMethods.DIB_RGB_COLORS) == 0)
-                throw new Win32Exception(NativeMethods.ERROR_INVALID_PARAMETER, "Reading the screen bitmap failed");
-            var image = BitmapSource.Create(width, height, dpi, dpi, PixelFormats.Bgr32, null, pixels, width * 4);
+            var image = new WriteableBitmap(width, height, dpi, dpi, PixelFormats.Bgr32, null);
+            image.Lock();
+            try
+            {
+                if (NativeMethods.GetDIBits(memory, bitmap, 0, (uint)height, image.BackBuffer, ref header, NativeMethods.DIB_RGB_COLORS) == 0)
+                    throw new Win32Exception(NativeMethods.ERROR_INVALID_PARAMETER, "Reading the screen bitmap failed");
+                image.AddDirtyRect(new Int32Rect(0, 0, width, height));
+            }
+            finally { image.Unlock(); }
             image.Freeze();
+            long elapsed = (Stopwatch.GetTimestamp() - started) * 1000 / Stopwatch.Frequency;
+            if (elapsed > SlowCopyMs) ErrorLog.Write("Copying the screen took " + elapsed + " ms (" + width + " x " + height + ")", null);
             return image;
         }
         finally

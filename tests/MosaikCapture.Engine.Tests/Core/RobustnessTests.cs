@@ -173,7 +173,8 @@ public sealed class RobustnessTests
         string first = Directory.CreateDirectory(root.File("first")).FullName, second = Directory.CreateDirectory(root.File("second")).FullName;
         File.WriteAllText(Path.Combine(first, "ffmpeg.exe"), "");
         File.WriteAllText(Path.Combine(first, "ffprobe.exe"), "");
-        var locator = new FfmpegLocator(() => new[] { first, second });
+        long now = 0;
+        var locator = new FfmpegLocator(() => new[] { first, second }, () => now);
 
         Assert.Equal(Path.Combine(first, "ffmpeg.exe"), locator.Ffmpeg);
         Assert.Equal(Path.Combine(first, "ffprobe.exe"), locator.Probe);
@@ -185,6 +186,7 @@ public sealed class RobustnessTests
 
         File.WriteAllText(Path.Combine(second, "ffmpeg.exe"), "");
         File.WriteAllText(Path.Combine(second, "ffprobe.exe"), "");
+        now += (long)(FfmpegLocator.MissingFor.TotalSeconds + 1) * Stopwatch.Frequency;   // "missing" is remembered half a minute
         Assert.Equal(Path.Combine(second, "ffmpeg.exe"), locator.Ffmpeg);
         Assert.Equal(Path.Combine(second, "ffprobe.exe"), locator.Probe);
     }

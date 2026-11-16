@@ -71,7 +71,7 @@ internal sealed class PinnedScreenshot : ToolWindowBase
         frame.ContextMenu = menu;
 
         HookUpInput();
-        Closed += delegate { open.Remove(this); view.Source = null; };
+        Closed += delegate { open.Remove(this); view.Source = null; MemoryRelief.Soon(); };
         hwnd = CreateHandle(NativeMethods.WS_EX_TOOLWINDOW);   // not in Alt+Tab
     }
 

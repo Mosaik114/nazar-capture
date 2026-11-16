@@ -106,6 +106,13 @@ internal sealed class RecordingController
     void StartCounting(Int32Rect area, RECT monitor, RECT work)
     {
         workArea = work;
+        long? free = DiskSpace.Free(CaptureSettings.RecordingWorkRoot);
+        if (!DiskSpace.Enough(free))
+        {
+            Phase = RecordingPhase.Idle;
+            ui.ShowProblem(UiText.Recording.DiskFull, UiText.Recording.DiskFullDetail(DiskSpace.Gigabytes(free!.Value)), work);
+            return;
+        }
         area = RecordingArea.Fit(area, monitor);
         var lookup = backend.FindOutput(monitor, out int output, out RECT desktop);
         if (lookup != OutputLookup.Found)

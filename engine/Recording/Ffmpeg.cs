@@ -132,6 +132,17 @@ internal static class Ffmpeg
         return (directory == null ? null : Find("ffprobe.exe", new[] { directory })) ?? Find("ffprobe.exe", locations);
     }
 
+    /// <summary>A directory on a network drive: File.Exists there can hang for seconds when the drive is gone.</summary>
+    internal static Func<string, bool> IsNetworkPath = path =>
+    {
+        try
+        {
+            string? root = Path.GetPathRoot(path);
+            return root != null && NativeMethods.GetDriveType(root) == NativeMethods.DRIVE_REMOTE;
+        }
+        catch (ArgumentException) { return false; }
+    };
+
     internal static IEnumerable<string> SearchLocations()
     {
         yield return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Microsoft", "WinGet", "Links");
@@ -146,7 +157,7 @@ internal static class Ffmpeg
         foreach (string? entry in directories)
         {
             string directory = (entry ?? "").Trim().Trim('"');
-            if (!IsLocalPath(directory)) continue;
+            if (!IsLocalPath(directory) || IsNetworkPath(directory)) continue;
             try
             {
                 string candidate = Path.Combine(directory, name);

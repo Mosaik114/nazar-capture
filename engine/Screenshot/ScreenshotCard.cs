@@ -114,6 +114,12 @@ internal sealed class ScreenshotCard : CardWindow
 
     public void Saved() => ShowSaved(true);
 
+    /// <summary>The clipboard took longer than allowed, but the image got there in the end.</summary>
+    public void CopiedAfterAll()
+    {
+        if (IsVisible && card.Title.Text == UiText.ScreenshotCard.SavedNotCopied) card.Title.Text = UiText.Common.CopiedToClipboard;
+    }
+
     /// <summary>Saved, but the clipboard was busy: the heading must not claim it was copied.</summary>
     public void SavedNotCopied()
     {
@@ -212,6 +218,7 @@ internal sealed class ScreenshotCard : CardWindow
             Hide();
             thumbnail.Source = null;
             closed();
+            MemoryRelief.Soon();
         });
     }
 }

@@ -53,7 +53,7 @@ internal static class CaptureBridge
         EngineComposition.Compose();
         if (args.Length > 0 && args[0] == "--self-test") { Diagnostics.SelfTest.Run(args.Length > 1 ? args[1] : "capture-test.json"); return; }
         if (args.Length > 1 && args[0] == "--live-test") { Diagnostics.LiveTest.Run(args[1]); return; }
-        if (args.Length > 1 && args[0] == "--measure") { Diagnostics.Measurement.Run(args[1]); return; }
+        if (args.Length > 1 && args[0] == "--measure") { Diagnostics.Measurement.Options(args); Diagnostics.Measurement.Run(args[1]); return; }
         if (args.Length > 0 && args[0] == "--kit-demo") { KitSamples.ShowDemo(); return; }
         int command = ParseCommand(args);
         if (ParseParent(args) is int parent) WaitForExit(parent, ParentExitTimeout);
@@ -128,9 +128,26 @@ internal static class CaptureBridge
         ErrorLog.Write("The running engine's window did not appear; the command was dropped", null);
     }
 
+    /// <summary>
+    /// Multicore JIT: the methods compiled during the last run are compiled again on a background core while this one
+    /// starts, so the first overlay after logon is not slowed down by the JIT.
+    /// </summary>
+    static void StartJitProfile()
+    {
+        try
+        {
+            Directory.CreateDirectory(CaptureSettings.Home);
+            System.Runtime.ProfileOptimization.SetProfileRoot(CaptureSettings.Home);
+            System.Runtime.ProfileOptimization.StartProfile("engine.jitprofile");
+        }
+        catch (IOException) { }
+        catch (UnauthorizedAccessException) { }
+    }
+
     static void RunMessageLoop(int command)
     {
         NativeMethods.SetProcessDpiAwarenessContext(NativeMethods.DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+        StartJitProfile();
         var app = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
         Program.Protect(app);
         var parameters = new HwndSourceParameters(Title) { Width = 0, Height = 0, WindowStyle = unchecked((int)NativeMethods.WS_POPUP) };   // never shown
@@ -162,6 +179,18 @@ internal static class CaptureBridge
         }
     }
 
+    /// <summary>A pre-started engine runs below normal priority until the user wants something from it.</summary>
+    static void RaisePriority()
+    {
+        try
+        {
+            using var self = Process.GetCurrentProcess();
+            if (self.PriorityClass == ProcessPriorityClass.BelowNormal) self.PriorityClass = ProcessPriorityClass.Normal;
+        }
+        catch (Win32Exception) { }
+        catch (InvalidOperationException) { }
+    }
+
     /// <summary>Reply to <see cref="StateMessage"/>.</summary>
     internal static int StateFlags(bool busy, bool live) => (busy ? 1 : 0) | (live ? 2 : 0);
 
@@ -179,10 +208,13 @@ internal static class CaptureBridge
         return true;
     }
 
-    static void Execute(int command)
+    static void Execute(int command, bool fromMenu = false)
     {
-        if (command == (int)Command.Screenshot) Screenshots.StartSoon();
-        else if (command == (int)Command.Recording) ScreenRecorder.ToggleSoon();
+        if (command != (int)Command.Idle) RaisePriority();
+        // A hotkey opens the overlay at once; after the tray menu a short pause lets the menu leave the screen first.
+        if (command == (int)Command.Screenshot) { if (fromMenu) Screenshots.StartSoon(); else Screenshots.Start(); }
+        else if (command == (int)Command.Recording) { if (fromMenu) ScreenRecorder.ToggleSoon(); else ScreenRecorder.Toggle(); }
+        else if (command == (int)Command.Idle) Diagnostics.WarmUp.Soon();
         else if (command is (int)Command.Settings or (int)Command.RecordingSettings) Settings.SettingsWindow.ShowShared(command == (int)Command.RecordingSettings);
     }
 
@@ -194,7 +226,7 @@ internal static class CaptureBridge
             case RecordingMessage:
                 handled = true;
                 long now = Stopwatch.GetTimestamp();
-                if (commandLimit.Allow(now)) Execute(message - CommandBase);
+                if (commandLimit.Allow(now)) Execute(message - CommandBase, wParam != IntPtr.Zero);
                 else if (rejectionLog.Allow(now, out int skipped)) ErrorLog.Write(RejectionMessage(skipped), null);
                 break;
             case SettingsMessage:

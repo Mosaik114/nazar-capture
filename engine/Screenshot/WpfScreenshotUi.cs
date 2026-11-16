@@ -12,7 +12,28 @@ internal sealed class WpfScreenshotUi : IScreenshotUi
     ScreenshotCard Card => card ??= new ScreenshotCard(() => Flow.Edit(), () => Flow.Pin(), () => Flow.CardClosed());
     ScreenshotEditor Editor => editor ??= new ScreenshotEditor((c, i) => Flow.Edited(c, i), c => Flow.EditCancelled(c), (c, i) => Flow.EditedAndPinned(c, i));
 
-    public void Bind(IScreenshotFlow screenshotFlow) => flow = screenshotFlow;
+    public WpfScreenshotUi() => Current = this;
+
+    /// <summary>The screenshot windows of this engine (the warm-up prepares them).</summary>
+    internal static WpfScreenshotUi? Current { get; private set; }
+
+    /// <summary>Creates the overlay and the card and renders them once, invisibly, ahead of the first hotkey.</summary>
+    internal void Prepare()
+    {
+        overlay ??= new SelectionOverlay(c => Flow.Captured(c));
+        overlay.Prepare();
+        _ = Card;
+    }
+
+    public void Bind(IScreenshotFlow screenshotFlow)
+    {
+        flow = screenshotFlow;
+        var dispatcher = Dispatcher.CurrentDispatcher;
+        ClipboardWriter.LateSuccess += what =>
+        {
+            if (what == "image") dispatcher.BeginInvoke(new Action(() => card?.CopiedAfterAll()));
+        };
+    }
 
     public bool EditorOpen => editor != null && editor.IsVisible;
 

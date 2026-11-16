@@ -155,5 +155,9 @@ internal sealed partial class ScreenshotEditor
         frozenImage.Source = null;
         notice.Visibility = tooltip.Visibility = Visibility.Hidden;
         capture = null!;
+        // Drop the render buffers of the full-screen size while hidden (Open sizes the window again).
+        Width = Height = 1;
+        NativeMethods.SetWindowPos(hwnd, NativeMethods.HWND_TOP, 0, 0, 1, 1, NativeMethods.SWP_NOZORDER | NativeMethods.SWP_NOACTIVATE);
+        MemoryRelief.Soon();
     }
 }

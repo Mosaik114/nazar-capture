@@ -66,6 +66,10 @@ const TRAY_RETRIES: u32 = 30;
 pub(super) const SAVE_TIMER: usize = 2;
 /// Timer that retries registering hotkeys another program had taken.
 pub(super) const HOTKEY_RETRY_TIMER: usize = 3;
+/// One-shot timer that starts an idle engine a few seconds after the host started (a fast first screenshot).
+pub(super) const PRESTART_TIMER: usize = 4;
+/// Delay of [`PRESTART_TIMER`]: logon has calmed down, and the first hotkey usually comes later.
+const PRESTART_MS: u32 = 5000;
 
 /// The hotkey id of an action.
 const fn hotkey_id(action: HotkeyAction) -> i32 {
@@ -272,6 +276,10 @@ impl App {
             self.notify(text);
         }
 
+        if matches!(action, Action::Background) && !self.isolated {
+            // SAFETY: no pointer arguments; the timer belongs to our window.
+            unsafe { SetTimer(self.window(), PRESTART_TIMER, PRESTART_MS, None) };
+        }
         match action {
             Action::ShowRecordingSettings => self.deliver(EngineRequest::RecordingSettings),
             Action::ShowSettings => self.deliver(EngineRequest::Settings),
@@ -382,6 +390,11 @@ impl App {
             WM_TIMER => {
                 match wparam {
                     TRAY_RETRY_TIMER => self.add_tray_icon(),
+                    PRESTART_TIMER => {
+                        // SAFETY: no pointer arguments; the timer belongs to our window.
+                        unsafe { KillTimer(self.window(), PRESTART_TIMER) };
+                        let _ = self.engine.prestart();
+                    }
                     SAVE_TIMER => {
                         if self.flush_settings().is_err() {
                             self.notify(balloon::SAVE_FAILED);
@@ -668,12 +681,17 @@ impl App {
     /// Hands a request to the engine after writing pending settings. While the tray
     /// menu is open, the request waits for it to close.
     fn deliver(&self, request: EngineRequest) {
+        self.deliver_with(request, false);
+    }
+
+    /// [`App::deliver`] for a command chosen in the tray menu: the engine waits until the menu is gone.
+    fn deliver_with(&self, request: EngineRequest, from_menu: bool) {
         if self.in_modal() {
             self.pending_request.set(Some(request));
             return;
         }
         self.flush_settings_or_notify();
-        if self.engine.deliver(request).failed() {
+        if self.engine.deliver_with(request, from_menu).failed() {
             self.notify(balloon::ENGINE_FAILED);
         }
     }
@@ -724,8 +742,8 @@ impl App {
                     recording: registered.recording.map(Hotkey::label),
                 };
                 match self.run_modal(|| tray::show_menu(self.window(), x, y, &hotkeys)) {
-                    Some(MenuCommand::Screenshot) => self.deliver(EngineRequest::Screenshot),
-                    Some(MenuCommand::Recording) => self.deliver(EngineRequest::Recording),
+                    Some(MenuCommand::Screenshot) => self.deliver_with(EngineRequest::Screenshot, true),
+                    Some(MenuCommand::Recording) => self.deliver_with(EngineRequest::Recording, true),
                     Some(MenuCommand::Settings) => self.deliver(EngineRequest::Settings),
                     Some(MenuCommand::Quit) => {
                         // A refusal is shown as a balloon.
