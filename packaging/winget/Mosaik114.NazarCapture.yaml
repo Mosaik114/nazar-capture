@@ -20,7 +20,7 @@ NestedInstallerFiles:
     PortableCommandAlias: nazar-capture
 Installers:
   - Architecture: x64
-    InstallerUrl: https://github.com/Mosaik114/mosaik-capture/releases/download/v1.1.3/nazar-capture-1.1.3-win-x64.zip
+    InstallerUrl: https://github.com/Mosaik114/nazar-capture/releases/download/v1.1.3/nazar-capture-1.1.3-win-x64.zip
     InstallerSha256: 0000000000000000000000000000000000000000000000000000000000000000
 ManifestType: singleton
 ManifestVersion: 1.6.0

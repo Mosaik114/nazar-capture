@@ -51,7 +51,7 @@ internal sealed class UpdateState
 /// </summary>
 internal sealed class UpdateCheck
 {
-    public const string Repository = "Mosaik114/mosaik-capture";
+    public const string Repository = "Mosaik114/nazar-capture";
     public const string LatestApi = "https://api.github.com/repos/" + Repository + "/releases/latest";
     public const string ReleasesPage = "https://github.com/" + Repository + "/releases";
     public static readonly TimeSpan Interval = TimeSpan.FromDays(1);

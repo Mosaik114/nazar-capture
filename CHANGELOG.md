@@ -6,46 +6,51 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
-### Changed
-- "Darstellung" offers only "Hell" and "Dunkel", as in Hams; "Wie Windows" is gone. A stored
-  "like Windows" becomes, once at start, the palette Windows shows then; new users start light.
-  A change applies at once in every open window: main window, settings, cards, bars and overlays.
-
 ## [1.1.3] - 2026-11-16
 
+A redesign in the look of its sister app Hams Dictate, a new name, and updates from inside the app.
+
 ### Changed
-- The app is called **Nazar Capture** everywhere, also technically: `NazarCapture.exe` and
-  `NazarCapture.Engine.exe` (Task Manager shows "Nazar Capture" and "Nazar Capture Engine"),
-  installed to `%LOCALAPPDATA%\Programs\NazarCapture`, settings in `%LOCALAPPDATA%\NazarCapture`
-  (copied once from `%LOCALAPPDATA%\MosaikCapture`), new default folders `Nazar-Screenshots` and
-  `Nazar-Aufnahmen` (folders stored in the settings stay). Autostart entry and Start-menu shortcut
-  point to the new executable. New logo "Fokus" in cobalt, ink and watercolour.
-- One design language with Hams: every window is built from one kit (`engine/NazarUi`) — tokens,
-  the stone painter with ink edge and side, real buttons with roles, Nunito.
-- The settings window is built like Hams': a painted head (mark, title, a viewfinder banner in cobalt,
-  round close stone), tabs (Screenshot, Aufnahme, Allgemein, Info & Hilfe), one page per tab with a
-  visible scroll bar; its size can be dragged and is remembered.
-- A small main window like Hams' opens from the tray icon or a plain start: "Screenshot" and
-  "Aufnahme", both hotkeys as key caps, the gear for the settings. The tray menu stays.
-- The settings window is part of the engine: groups instead of a form, changes apply at once,
-  problems show in their own row, appearance light/dark/like Windows, the window grows with the
-  Windows text size.
-- Hotkeys are recorded by pressing them; Print, Pause, Insert, the numpad and Win are possible.
+- **New name: Nazar Capture** (was Mosaik Capture), with a new logo "Fokus" in cobalt, ink and
+  watercolour. Programs `NazarCapture.exe` and `NazarCapture.Engine.exe`, installed to
+  `%LOCALAPPDATA%\Programs\NazarCapture`; settings move once from `%LOCALAPPDATA%\MosaikCapture` to
+  `%LOCALAPPDATA%\NazarCapture`. New default folders `Nazar-Screenshots` and `Nazar-Aufnahmen`; folders you
+  chose stay. Autostart and Start menu point to the new program. The repository is now
+  `Mosaik114/nazar-capture` (old links redirect).
+- **One design language with Hams:** every window, card, bar and overlay is built from one kit
+  (shared design tokens, painted "stone" buttons with an ink edge, Nunito for titles).
+- **Main window and settings like Hams':** a small main window (Screenshot, Aufnahme, both hotkeys
+  as key caps, gear) opens from the tray icon; the settings window has a painted head and four tabs
+  (Screenshot, Aufnahme, Allgemein, Info & Hilfe), applies every change at once, shows problems in
+  the row, can be resized and grows with the Windows text size.
+- **Appearance:** light or dark, chosen in the settings and applied at once to every open window
+  (new users start light; "like Windows" from 1.1.2 becomes the palette Windows shows at the first
+  start).
+- **Hotkeys** are recorded by pressing them; Print, Pause, Insert, the numpad and Win are possible.
   A hotkey taken by another program is retried every 30 seconds.
-- Everything works with the keyboard and screen readers: Tab, Space, Enter, menus with arrow keys,
-  the overlay with the arrow keys (Enter sets start and end); a shown card or the recording bar
-  comes to the keyboard with its hotkey plus Ctrl.
-- Faster and leaner: the overlay opens in about half the time, the first screenshot after logon
-  is prepared in the background, memory no longer grows with every capture.
-- Failed cards stay until they are closed; actions that wait for the file say so.
-- The start at logon (`--background`) is silent, as in Hams: only the tray icon, no window, no card, no
-  balloon, no focus taken; a new version shows as a row in the settings instead of a card.
+- **Keyboard and screen readers everywhere:** Tab, Space, Enter, menus with the arrow keys, the
+  selection overlay with the arrow keys (Enter sets start and end); a card or the recording bar
+  takes the keyboard with its hotkey plus Ctrl.
+- **The start at logon (`--background`) is silent:** only the tray icon, no window, no card, no
+  focus taken.
 
 ### Added
-- Update check once a day with a calm notice; updating checks the SHA-256 of the download and
-  installs only after your click (`NazarCapture.exe --install`).
-- NVENC that fails in the first seconds falls back to the software encoder; recordings need at
-  least 2 GB of free space.
+- **Updates:** once a day a read-only look at the latest GitHub release (can be switched off under
+  *Allgemein*); *Jetzt aktualisieren* downloads the ZIP, checks its SHA-256 against the release and only
+  then installs it. `NazarCapture.exe --install` installs or updates by hand.
+- NVENC that fails in the first seconds of a recording falls back to the software encoder.
+
+### Performance
+- The engine is prepared in the background after logon, so the first screenshot opens in about
+  70 ms instead of about 650 ms for a cold start (measuring run, `tools/measure.ps1`).
+- Memory no longer grows with every capture: cards and pins keep small copies instead of the frozen
+  screen. No file access on the UI thread when a recording starts.
+
+### Fixed
+- A failed card stays until it is closed; actions that wait for the file say so.
+- Recordings need at least 2 GB of free space instead of failing late.
+- Autostart removes an old entry only when it starts this app.
+- A click on a closed selection list opens it again.
 
 ## [1.1.2] - 2026-11-13
 
@@ -166,10 +171,12 @@ First public release as a standalone project.
 - First standalone version (before this repository existed): screenshot and
   screen-recording tray app with its own hotkeys (Shift+Alt+4 / Shift+Alt+5), settings
   window and autostart. Its sources were imported unchanged as the first commit of this
-  repository on 2026-11-12 (tag [`original-import`](https://github.com/Mosaik114/mosaik-capture/tree/original-import)),
+  repository on 2026-11-12 (tag [`original-import`](https://github.com/Mosaik114/nazar-capture/tree/original-import)),
   so the whole 1.0.0 restructuring can be read as a before/after diff.
 
-[1.1.2]: https://github.com/Mosaik114/mosaik-capture/releases/tag/v1.1.2
-[1.1.1]: https://github.com/Mosaik114/mosaik-capture/releases/tag/v1.1.1
-[1.1.0]: https://github.com/Mosaik114/mosaik-capture/releases/tag/v1.1.0
-[1.0.0]: https://github.com/Mosaik114/mosaik-capture/releases/tag/v1.0.0
+[Unreleased]: https://github.com/Mosaik114/nazar-capture/compare/v1.1.3...HEAD
+[1.1.3]: https://github.com/Mosaik114/nazar-capture/releases/tag/v1.1.3
+[1.1.2]: https://github.com/Mosaik114/nazar-capture/releases/tag/v1.1.2
+[1.1.1]: https://github.com/Mosaik114/nazar-capture/releases/tag/v1.1.1
+[1.1.0]: https://github.com/Mosaik114/nazar-capture/releases/tag/v1.1.0
+[1.0.0]: https://github.com/Mosaik114/nazar-capture/releases/tag/v1.0.0

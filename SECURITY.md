@@ -3,13 +3,18 @@
 ## Reporting a vulnerability
 
 Please report security issues privately through
-[GitHub's private vulnerability reporting](https://github.com/Mosaik114/mosaik-capture/security/advisories/new)
+[GitHub's private vulnerability reporting](https://github.com/Mosaik114/nazar-capture/security/advisories/new)
 instead of opening a public issue. You can expect a first answer within a week.
 
 ## Design notes relevant to security
 
-- **No network access.** Neither process opens a socket. Text recognition uses the
-  on-device Windows OCR engine.
+- **One read-only network call a day, nothing else.** The engine asks the GitHub API for the
+  latest release of this repository at most once a day (no account, no data about you; it can
+  be switched off under *Allgemein*). An update is downloaded only after you click
+  *Jetzt aktualisieren*, only from this repository's release assets, and installed only if
+  its SHA-256 matches the one published with the release. Screenshots, recordings and
+  recognised text never leave the machine; text recognition uses the on-device Windows OCR
+  engine. There is no telemetry.
 - **No elevation.** Both executables run with the user's normal rights
   (`asInvoker` manifest); autostart is a per-user `HKCU\…\Run` value.
 - **ffmpeg is resolved, never downloaded.** The engine only runs `ffmpeg.exe` /

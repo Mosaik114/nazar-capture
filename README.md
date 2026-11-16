@@ -1,118 +1,90 @@
-<div align="center">
+<p align="center">
+  <img src="engine/NazarUi/Logo/nazar_mark.png" alt="Nazar Capture logo" width="104">
+</p>
 
-<img src="assets/capture.png" width="96" alt="">
+<h1 align="center">Nazar Capture</h1>
 
-# Nazar Capture
+<p align="center">
+  <b>Keyboard-first screenshots and screen recordings for Windows.</b><br>
+  Press a hotkey, drag an area, and the screenshot is on the clipboard and saved as PNG, with an annotation editor,
+  offline text recognition and GPU screen recording one click away.
+</p>
 
-**A fast, keyboard-first screenshot and screen-recording tool for Windows,
-built as a small Rust tray app driving a C#/WPF capture engine.**
+<p align="center">
+  <a href="https://github.com/Mosaik114/nazar-capture/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Mosaik114/nazar-capture/actions/workflows/ci.yml/badge.svg?branch=main"></a>
+  <a href="https://github.com/Mosaik114/nazar-capture/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/Mosaik114/nazar-capture?label=release&color=315C99"></a>
+  <img alt="Rust and C#/WPF" src="https://img.shields.io/badge/Rust%20%2B%20C%23%2FWPF-two%20processes-b7410e">
+  <img alt="Platform: Windows 10 and 11, x64" src="https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0078d4">
+  <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/license-MIT-green"></a>
+</p>
 
-[![CI](https://github.com/Mosaik114/mosaik-capture/actions/workflows/ci.yml/badge.svg)](https://github.com/Mosaik114/mosaik-capture/actions/workflows/ci.yml)
-[![Secret scan](https://github.com/Mosaik114/mosaik-capture/actions/workflows/secrets.yml/badge.svg)](https://github.com/Mosaik114/mosaik-capture/actions/workflows/secrets.yml)
-![Rust](https://img.shields.io/badge/Rust-2024-b7410e?logo=rust)
-![C#](https://img.shields.io/badge/C%23-WPF%20·%20.NET%20Framework%204.8-512bd4?logo=dotnet)
-![Platform](https://img.shields.io/badge/Windows-10%20%7C%2011%20x64-0078d4?logo=windows)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+<p align="center">
+  <img src="docs/images/demo.gif" width="880" alt="Nazar Capture in action: Shift+Alt+4 freezes the screen, a dimmed overlay with a loupe and key hints appears, an area around a window is dragged, and a card slides in: In Zwischenablage kopiert (copied to the clipboard), with Edit, Pin, Text, Folder and Delete">
+  <br>
+  <sub>Drawn by the app's own overlay and card code; the desktop behind it is a mock-up, pointer and key caps are added.</sub>
+</p>
 
-<img src="docs/images/demo.gif" alt="Demo: Shift+Alt+4 freezes the screen and an area is dragged; in the editor a rough pen stroke held still becomes an arrow, the highlighter snaps to a text line, an e-mail address is pixelated, numbered steps are placed and the result is copied" width="880">
+<p align="center">
+  <b><a href="https://github.com/Mosaik114/nazar-capture/releases/latest">Download Nazar Capture for Windows</a></b>
+  (ZIP, no runtime to install) · <a href="#install">Install</a> · <a href="docs/architecture.md">Architecture</a>
+</p>
 
-<sub>The real overlay and editor code, rendered off-screen and driven by a scripted pointer; the app in the screenshot is a mock-up, cursor and key hints are drawn on top.</sub>
+> **Use it**
+> 1. Press **`Shift+Alt+4`**, drag an area (or click a window, or press `Space` for the whole monitor): it is copied
+>    and saved. The card offers *Bearbeiten* (edit), *Anpinnen* (pin), *Text*, folder and delete.
+> 2. Press **`Shift+Alt+5`** to record an area with system sound and microphone; press it again to stop.
+> 3. Everything else is behind the tray icon: main window, settings, help.
 
-</div>
-
-Press **Shift+Alt+4**, drag an area, and the screenshot is already on the clipboard and
-saved as PNG. A card offers editing, pinning and text recognition. **Shift+Alt+5** does the
-same for screen recordings: GPU-accelerated capture with system sound and microphone,
-pause/resume, trimming and GIF export.
-
-> The user interface is in German (the author's daily driver); code, docs and commit
-> history are in English.
+The user interface is in German (the author's daily driver); code, docs and commit history are in English.
 
 ## Highlights
 
-| | |
+- **Instant capture.** The screen is frozen first, so menus and tooltips stay put. A loupe shows the pixels under
+  the pointer; the overlay spans all monitors, also very wide ones such as 5120 × 1440, and works with the arrow keys.
+- **Annotation editor.** Arrows, shapes, pen, highlighter, spotlight, text plates, numbered steps, pixelate and blur.
+  A rough pen stroke held still snaps into a clean line, arrow or shape; the highlighter snaps to text lines.
+- **Offline text recognition.** *Text* copies the text in a capture with the Windows OCR engine on your machine.
+- **Screen recording.** GPU capture through ffmpeg (NVENC, with a software fallback), system sound and microphone on
+  separate tracks that stay in sync across pauses, then trim and export as MP4 or GIF.
+- **Small and quiet.** A native tray app keeps the hotkeys; the capture engine starts on the first capture and is
+  prepared in the background after logon. No telemetry; the only network call is a daily, read-only update check
+  that you can switch off.
+
+<p align="center"><img src="docs/images/editor-annotations.png" width="720" alt="The editor over a selected window: numbered steps 1 to 3, a pixelated e-mail address, a hand-drawn ellipse snapped to a clean shape around a field, a highlighted note, an arrow with the label Then save, and the toolbar below the selection"><br><sub>The editor: steps, pixelate, a pen ellipse that snapped into shape, highlighter and a labelled arrow.</sub></p>
+
+<p align="center"><img src="docs/images/recording-bar.png" width="440" alt="Recording bar: red dot and 0:42, microphone, system sound and click display switches, pause, stop and discard"><br><sub>While recording: time, microphone, system sound, clicks, pause, stop, discard.</sub></p>
+
+## For reviewers
+
+If you have five minutes, this is what the project shows:
+
+| | Where to look |
 |---|---|
-| **Instant capture** | The screen is frozen first, so menus and tooltips stay put. Drag an area, click a window, or press Space for the whole monitor. A magnifier shows the pixels under the cursor. Spans all monitors, including very wide virtual screens such as 5120 × 1440. |
-| **Annotation editor** | Arrows, rectangles, ellipses, lines, pen, highlighter, spotlight, text (plain or on a plate), numbered steps, pixelate and blur. Hold the pen still and a rough stroke snaps into a clean line, arrow, ellipse, rectangle, triangle or rhombus; the highlighter snaps to text lines and word boundaries. |
-| **Offline text recognition** | `Ctrl+Shift+C` copies the text in the capture using the on-device Windows OCR engine — nothing leaves the machine. |
-| **Pin to screen** | Keep a capture floating above other windows as a reference. |
-| **Screen recording** | Desktop Duplication through ffmpeg's `ddagrab` on the GPU, NVENC with automatic x264 fallback, 30 or 60 fps. System sound (WASAPI loopback) and microphone are recorded as separate tracks and stay in sync across pauses. |
-| **Trim & GIF** | A film-strip trimmer (`Space` play, `I`/`O` in/out, arrow keys step) exports MP4 or GIF. |
-| **Tiny footprint** | A ~280 KB tray app with no runtime dependencies (CI prints the size of every release build); the engine starts on the first capture and stays resident. No network access, no telemetry, no elevation. |
+| **Architecture:** a small Rust host for hotkeys, tray and settings file; a C#/WPF engine for everything visual; one contract file that both test suites check | [Architecture](docs/architecture.md#why-split-it-this-way), [contract](contract/contract.json) |
+| **Hard problems:** audio in sync across pauses, no black flash on a 5120 × 1440 overlay, joining segments from different encoders | [Three problems](docs/architecture.md#three-problems-worth-describing) |
+| **Testing:** Rust and xUnit suites with pixel comparisons of every window (light and dark, 100 and 150 %), an end-to-end test of the real settings window, real ffmpeg runs; all in CI on Windows | [Testing strategy](docs/architecture.md#testing-strategy), [CI runs](https://github.com/Mosaik114/nazar-capture/actions/workflows/ci.yml) |
+| **Measured, not guessed:** a measuring run against the 1.1.2 baseline; the first capture after logon opens in about 70 ms instead of about 650 ms | [`tools/measure.ps1`](tools/measure.ps1), [baseline](tests/Measurements/baseline-1.1.2.json) |
+| **Shipping:** release ZIP with SHA-256 built in CI, an in-app update that installs only a matching checksum | [Releases](https://github.com/Mosaik114/nazar-capture/releases), [changelog](CHANGELOG.md) |
 
-<p align="center">
-  <img src="docs/images/editor-toolbar.png" alt="Annotation toolbar: select, arrow, shapes, pen, highlighter, text, numbered steps, pixelate, colours, stroke sizes, undo/redo, save, copy, text recognition, pin, close, done" width="900">
-</p>
-
-<p align="center">
-  <img src="docs/images/editor-annotations.png" alt="Annotations: highlighter on text, labelled plates, snapped circles, arrows, the pixelate tool applied to part of an e-mail address" width="640">
-</p>
-
-<p align="center">
-  <img src="docs/images/recording-bar.png" alt="Recording bar: timer, microphone, system sound, click display, pause, stop, discard" width="420">
-  &nbsp;
-  <img src="docs/images/recording-card.png" alt="Card after recording: trim, GIF, folder, delete" width="300">
-</p>
-
-<p align="center">
-  <img src="docs/images/trim-editor.png" alt="Trim window with film strip, selection handles and export as GIF or MP4" width="640">
-</p>
-
-<sub>These images are reference renders from the pixel-comparison test suite, drawn
-off-screen by the real WPF code.</sub>
-
-## Architecture
-
-```mermaid
-flowchart LR
-    subgraph host["NazarCapture.exe · Rust"]
-        HK["Global hotkeys<br/>RegisterHotKey"]
-        UI["Settings window<br/>+ tray icon"]
-        CFG[("settings.ini<br/>UTF-16, atomic writes")]
-    end
-    subgraph engine["NazarCapture.Engine.exe · C#/WPF"]
-        SHOT["Screenshot<br/>overlay · editor · card · pin · OCR"]
-        REC["Recording<br/>countdown · bar · trim · GIF"]
-    end
-    FF["ffmpeg<br/>ddagrab + NVENC/x264"]
-    WAS["WASAPI<br/>loopback + mic"]
-
-    HK -- "spawn once, then<br/>WM_APP messages" --> engine
-    engine -- "WM_APP+20 audio toggles" --> UI
-    UI --- CFG
-    engine -. reads .-> CFG
-    REC --> FF
-    REC --> WAS
-```
-
-**Why two languages?** The always-running part should cost nothing: the Rust host is a
-small native Win32 app that registers hotkeys, owns the settings and autostart, and
-otherwise sleeps in its message loop. Everything visual — the freeze-frame overlay, the
-editor with its shape recognition, the recording UI — lives in WPF, which is still a very
-productive way to build rich, high-DPI desktop UI on Windows. The engine is started on the
-first capture and then stays resident, so later captures open instantly.
-
-The two processes talk only through window messages and session-local mutexes; the
-contract (settings keys and defaults, message numbers, class names, command-line flags) lives
-in one file, [`contract/contract.json`](contract/contract.json), which both test suites
-check against, and a cross-process test drives the real engine from the host code. Details — the recording pipeline, the testing strategy, what is deliberately not
-tested, and three engineering problems and how they were solved — are in
-[docs/architecture.md](docs/architecture.md).
+Built by **Mazgin A. Ahmad**, business informatics student at Kiel University (CAU) ·
+[GitHub profile](https://github.com/Mosaik114) · sister project: [Hams Dictate](https://github.com/Mosaik114/hams-bachelorprojekt)
 
 ## Install
 
-1. Download `nazar-capture-<version>-win-x64.zip` from the
-   [latest release](https://github.com/Mosaik114/mosaik-capture/releases/latest) and unzip it.
-2. Run `NazarCapture.exe --install`. It installs into `%LOCALAPPDATA%\Programs\NazarCapture`,
-   adds a Start-menu entry, the tray icon and (by default) autostart. Updates come the same way:
-   once a day the app looks for a new release (switch it off under *Allgemein*) and shows a calm
-   card; *Jetzt aktualisieren* downloads the ZIP, checks its SHA-256 against the release and only
-   then installs it. Settings are kept.
-3. For screen recording, install ffmpeg: `winget install Gyan.FFmpeg.Essentials`.
+**Windows 10/11 (x64):** download `nazar-capture-<version>-win-x64.zip` from the
+[latest release](https://github.com/Mosaik114/nazar-capture/releases/latest), unzip it and run
+`NazarCapture.exe --install`. It installs per user into `%LOCALAPPDATA%\Programs\NazarCapture` (no admin rights) and
+adds a Start-menu entry, the tray icon and autostart. It needs .NET Framework 4.8, which is part of current Windows.
+The programs are not code-signed, so SmartScreen may warn (**More info → Run anyway**); with *Smart App Control*
+switched on, Windows refuses to run them.
 
-Requirements: Windows 10/11 x64 with .NET Framework 4.8 (built into current Windows).
-The executables are not code-signed, so Windows SmartScreen may warn on first start, and
-with *Smart App Control* enabled Windows refuses to run them.
+**Verify the download:** each release lists `nazar-capture-<version>-win-x64.zip.sha256`; compare it with
+`Get-FileHash nazar-capture-<version>-win-x64.zip`. The in-app update does the same check before it installs.
+
+**For screen recording**, install ffmpeg once: `winget install Gyan.FFmpeg.Essentials`.
+
+**Updates:** once a day the app looks for a new release and shows a calm notice; *Jetzt aktualisieren* downloads,
+checks and installs it. Settings are kept, also those of earlier versions.
 
 ## Usage
 
@@ -120,23 +92,14 @@ with *Smart App Control* enabled Windows refuses to run them.
 |---|---|
 | `Shift+Alt+4` | Screenshot: drag an area, click a window, or `Space` for the whole monitor |
 | `Shift+Alt+5` | Start recording (area, window or `Space`); press again to stop |
-| `Esc` | Cancel selection or countdown |
+| Arrow keys, `Enter` | Move the pointer in the overlay; `Enter` sets start and end |
 | `V A R E L P M S T B N X W` | Editor tools: move, arrow, rectangle, ellipse, line, pen, marker, spotlight, text, text plate, number, pixelate, blur |
-| `Ctrl+Shift+C` | Recognise and copy text (editor) |
 | `Space` · `I` / `O` · `←` `→` | Trim window: play, set in/out, step |
 
-Shortcuts, folders, microphone, system sound, click display, frame rate, countdown, appearance,
-update check and autostart are configured in the settings window (the gear in the main window, which the
-tray icon opens, or the tray menu → *Einstellungen*);
-every change applies at once. A shortcut is recorded by pressing it: one key (letter, digit,
-Space, F1–F24, Insert, numpad) plus Ctrl, Alt or Win, optionally with Shift, so it can never
-swallow normal typing; Print and Pause may also stand alone (switch off Windows' own use of the
-Print key for the Snipping Tool first).
-Settings live in `%LOCALAPPDATA%\NazarCapture\settings.ini`. By default screenshots go to
-`Pictures\Nazar-Screenshots` and recordings to `Videos\Nazar-Aufnahmen` — user-facing
-names, so they follow the German UI (as do output file names like
-`Nazar-Aufnahme 2026-09-26 14-03-12.mp4`); both folders can be changed in the settings.
-An update from 1.1.2 keeps the folders stored in `settings.ini`.
+Hotkeys, folders, microphone, system sound, clicks, frame rate, countdown, appearance (light or dark), update check
+and autostart are in the settings window; every change applies at once. A hotkey is recorded by pressing it.
+
+<p align="center"><img src="docs/images/settings-screenshot.png" width="460" alt="Settings window, tab Screenshot: the hotkey Shift Alt 4 as key caps with a button to change it, and the folder for screenshots with Change and Open"><br><sub>The settings: four tabs; the hotkey is recorded by pressing it.</sub></p>
 
 ## Build from source
 
@@ -144,82 +107,35 @@ Prerequisites: [Rust](https://rustup.rs) (stable) and the [.NET SDK 10](https://
 
 ```powershell
 ./build.ps1 -Test      # builds both programs into bin\ and runs the Rust and C# test suites
-./build.ps1 -Package   # additionally zips the executables into dist\
+./build.ps1 -Package   # additionally zips them into dist\ with the SHA-256
 ```
 
-Without Visual Studio's MSVC linker the script builds the Rust part with the
-`stable-x86_64-pc-windows-gnu` toolchain; `build.rs` embeds icon, manifest and version info
-without external resource tools, so both toolchains produce the same resources.
+Without Visual Studio's linker the script uses the `stable-x86_64-pc-windows-gnu` toolchain; `build.rs` embeds icon,
+manifest and version info without external resource tools. Tests and CI: [CONTRIBUTING](CONTRIBUTING.md).
 
-## Quality
+## Design decisions
 
-| Check | Rust host | C# engine |
-|---|---|---|
-| Tests | Unit tests (hotkeys, settings, migration, CLI, forwarding, DPI, atomic writes, resource writer, the shared contract) + an end-to-end test that drives the real settings window + a cross-process test against the built engine | xUnit tests: the recording and screenshot state machines with fakes (incl. recovery from UI errors), ffmpeg timeouts and cancellation, WASAPI padding/trimming, shape recognition, highlighter snapping, command-line quoting, real-ffmpeg trim/GIF/audio-sync runs, the shared contract, pixel comparisons of the UI |
-| Static analysis | `clippy::pedantic`, warnings as errors, every `unsafe` block carries a `// SAFETY:` note | Nullable reference types, .NET analyzers (`Recommended`), warnings as errors |
-| Formatting | `cargo fmt --check` | `dotnet format --verify-no-changes` |
-| Supply chain | `Cargo.lock`, a single dependency (`windows-sys`) | Central package management, `packages.lock.json`, locked restore |
+- **Two processes instead of one.** Hotkeys keep working while the editor is busy or has crashed, and the always-on
+  part costs almost nothing. The price is an IPC contract, which both sides pin in tests.
+- **WPF on .NET Framework 4.8, not .NET 8+.** 4.8 ships with Windows, so users install no runtime and the engine
+  stays at about 1 MB. .NET 8 would start faster, at the cost of a runtime install or a ~150 MB self-contained build.
+- **Own WASAPI capture instead of ffmpeg's audio inputs.** Separate tracks with device timestamps are what keep
+  sound in sync across pause and resume ([how](docs/architecture.md#three-problems-worth-describing)).
 
-CI runs every one of these suites on `windows-latest` for each push — including the window
-end-to-end test and the real ffmpeg runs. The pixel tests run too, with a blur-tolerant
-comparison because the runner's fonts differ slightly, and skip with a named reason if a
-reference font is missing there. CI also prints the binary size, builds the release zip and
-attaches it to tagged releases. Actions are pinned to commit SHAs, Dependabot watches Cargo,
-NuGet and Actions, and gitleaks scans the full history on every push and weekly.
-
-## Design decisions and trade-offs
-
-- **Two processes instead of one.** Hotkeys must work even while the editor is busy or has
-  crashed, and the always-on part should cost almost nothing. The price is an IPC contract,
-  which is why both sides pin it in tests.
-- **WPF on .NET Framework 4.8, not .NET 8+.** 4.8 ships with Windows, so users need no
-  runtime and the engine stays a ~290 KB executable. Moving to .NET 8 would bring faster
-  startup and newer APIs at the cost of a runtime install or a ~150 MB self-contained build.
-- **ffmpeg as an external tool.** Desktop Duplication, NVENC and robust muxing come for free;
-  the engine only has to drive it carefully (absolute local paths, a job object, one encoder
-  per session, exact segment timing).
-- **Own WASAPI capture instead of ffmpeg's audio inputs.** Keeping system sound and microphone
-  on separate tracks with device timestamps is what makes pause/resume stay in sync.
-- **A hand-written resource writer in `build.rs`.** It avoids requiring `rc.exe`/`windres`
-  on contributors' machines; the cost — a bit of binary-format code — is paid back by
-  golden-layout tests.
-- **Next steps:** code-sign the binaries, add an installer (winget manifest), and
-  move the editor's UI construction from code into XAML resources to shorten the largest files.
-
-## Project layout
-
-```
-src/                 Rust tray app
-  main.rs            entry point, exit codes
-  cli.rs             command-line parsing
-  isolation.rs       test-only names and folders, so a test instance never meets the real one
-  single_instance.rs mutex and forwarding to the running instance
-  hotkey.rs          "Shift+Alt+4" → RegisterHotKey (German and English key names)
-  config.rs          settings model, defaults, validation (pure, unit-tested)
-  store.rs           settings.ini I/O with atomic replace and migration
-  autostart.rs       per-user Run value
-  engine.rs, ipc.rs  launching and messaging the capture engine
-  ui/                settings window, tray icon, theme, DPI-aware layout, folder picker
-build.rs, build/     embeds icon, manifest and version info (tested resource writer)
-contract/            contract.json: the host–engine contract both test suites check against
-engine/              C#/WPF capture engine (net48)
-  Core/              entry point, IPC bridge, settings, error log, NativeMethods, UiText
-  Screenshot/        grabber, overlay, editor (shapes, markup, mouse, result), card, pin, OCR
-  Recording/         controller + interfaces, session, ffmpeg + argument builder, WASAPI, trim
-tests/               xUnit test project incl. reference images
-docs/                architecture notes and images
-```
+**Next steps:** code-sign the programs, publish to winget (a manifest is in `packaging/winget/`), and one overlay
+window per monitor.
 
 ## How it was built
 
-This started as a personal tool that I use every day. This repository was created on
-2026-11-12: the first commit imports that tool unchanged, and the following commits are a
-deliberate restructuring for publication — modular Rust, an SDK-style C# project, tests,
-CI — done in several rounds of independent AI-assisted code review whose findings were fixed
-and verified by the test suites. From the first public release on, changes go through pull requests with CI.
+This started as a personal tool I use every day. The repository begins with that tool imported unchanged (tag
+`original-import`); the commits after it restructure it for publication: modular Rust, an SDK-style C# project,
+tests and CI. Version 1.1.3 rebuilt every window in the design language of my dictation app Hams. I worked with AI
+coding agents (Anthropic Claude Code, OpenAI Codex): I set requirements, architecture and design, and I reviewed and
+tested the changes; the agents wrote most of the code under those rules, with the test suites and CI as the gate.
 
-It was developed with AI coding assistants (OpenAI Codex, Anthropic Claude) as pair
-programmers; requirements, design decisions, review and day-to-day testing are the author's.
+<details><summary>More screenshots</summary>
+<p align="center"><img src="docs/images/main-window.png" width="424" alt="Main window: Nazar Capture, status Bereit (ready), the buttons Screenshot and Aufnahme, and both hotkeys as key caps"><br><sub>The main window, opened from the tray icon.</sub></p>
+</details>
 
 ## License
 
