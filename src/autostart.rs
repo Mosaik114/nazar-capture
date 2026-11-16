@@ -7,8 +7,9 @@ use std::ptr;
 
 use windows_sys::Win32::Foundation::{ERROR_FILE_NOT_FOUND, ERROR_SUCCESS, WIN32_ERROR};
 use windows_sys::Win32::System::Registry::{
-    HKEY, HKEY_CURRENT_USER, KEY_SET_VALUE, REG_OPTION_NON_VOLATILE, REG_SZ, RegCloseKey,
-    RegCreateKeyExW, RegDeleteValueW, RegSetValueExW,
+    HKEY, HKEY_CURRENT_USER, KEY_QUERY_VALUE, KEY_SET_VALUE, REG_OPTION_NON_VOLATILE, REG_SZ,
+    RRF_RT_REG_EXPAND_SZ, RRF_RT_REG_SZ, RegCloseKey, RegCreateKeyExW, RegDeleteValueW,
+    RegGetValueW, RegSetValueExW,
 };
 
 use crate::wide::to_wide;
@@ -18,8 +19,21 @@ const RUN_KEY: &str = r"Software\Microsoft\Windows\CurrentVersion\Run";
 /// Name of this app's value under [`RUN_KEY`]: the product name, which Windows shows
 /// in the list of startup apps.
 const VALUE_NAME: &str = crate::ui::PRODUCT;
-/// Value names used by earlier versions; removed whenever autostart is written.
+/// Value names used by earlier versions; removed whenever autostart is written, but only when
+/// the value starts this app: another program of the user may use the same name (on the
+/// developer's machine "Mosaiks Aufnahme" is a different app).
 const LEGACY_VALUE_NAMES: [&str; 2] = ["Mosaik Capture", "Mosaiks Aufnahme"];
+/// The executable an entry of ours starts (the technical name stays across the rename).
+const OWN_EXE: &str = "mosaikcapture.exe";
+
+/// Whether a `Run` command starts this app (any copy of `MosaikCapture.exe`).
+fn starts_this_app(command: &OsStr) -> bool {
+    let text = command.to_string_lossy().to_lowercase();
+    text.contains(&format!("\\{OWN_EXE}"))
+        || text.contains(&format!("/{OWN_EXE}"))
+        || text.starts_with(OWN_EXE)
+        || text.starts_with(&format!("\"{OWN_EXE}"))
+}
 
 /// The command Windows runs at logon: the quoted executable plus `--background`.
 pub fn command_line(exe: &Path) -> OsString {
@@ -38,6 +52,8 @@ pub fn set_enabled(enabled: bool, exe: &Path) -> io::Result<()> {
 
 /// The values of a `Run` key, as far as autostart needs them.
 trait RunValues {
+    /// The command stored under `name`, if any.
+    fn get(&self, name: &str) -> Option<OsString>;
     fn set(&self, name: &str, value: &OsStr) -> io::Result<()>;
     /// Removes a value; a missing one is success.
     fn delete(&self, name: &str) -> io::Result<()>;
@@ -47,7 +63,9 @@ trait RunValues {
 /// then the current one is written or removed.
 fn apply(key: &impl RunValues, enabled: bool, exe: &Path) -> io::Result<()> {
     for legacy in LEGACY_VALUE_NAMES {
-        key.delete(legacy)?;
+        if key.get(legacy).is_some_and(|command| starts_this_app(&command)) {
+            key.delete(legacy)?;
+        }
     }
     if enabled { key.set(VALUE_NAME, &command_line(exe)) } else { key.delete(VALUE_NAME) }
 }
@@ -68,7 +86,7 @@ impl RunKey {
                 0,
                 ptr::null(),
                 REG_OPTION_NON_VOLATILE,
-                KEY_SET_VALUE,
+                KEY_SET_VALUE | KEY_QUERY_VALUE,
                 ptr::null(),
                 &raw mut key,
                 ptr::null_mut(),
@@ -80,6 +98,33 @@ impl RunKey {
 }
 
 impl RunValues for RunKey {
+    fn get(&self, name: &str) -> Option<OsString> {
+        use std::os::windows::ffi::OsStringExt;
+        let name = to_wide(name);
+        let mut buffer = vec![0u16; 2048];
+        let mut size = u32::try_from(buffer.len() * 2).ok()?;
+        // SAFETY: `self.0` is an open key; `name` is NUL-terminated; `buffer` holds `size`
+        // bytes and outlives the call; the type pointer is optional.
+        let status = unsafe {
+            RegGetValueW(
+                self.0,
+                ptr::null(),
+                name.as_ptr(),
+                RRF_RT_REG_SZ | RRF_RT_REG_EXPAND_SZ,
+                ptr::null_mut(),
+                buffer.as_mut_ptr().cast(),
+                &raw mut size,
+            )
+        };
+        if status != ERROR_SUCCESS {
+            return None;
+        }
+        let units = (size as usize / 2).min(buffer.len());
+        let text = &buffer[..units];
+        let end = text.iter().position(|&unit| unit == 0).unwrap_or(text.len());
+        Some(OsString::from_wide(&text[..end]))
+    }
+
     fn set(&self, name: &str, value: &OsStr) -> io::Result<()> {
         let name = to_wide(name);
         let data: Vec<u8> = to_wide(value).iter().flat_map(|unit| unit.to_le_bytes()).collect();
@@ -130,6 +175,9 @@ mod tests {
     struct FakeRunKey(RefCell<BTreeMap<String, OsString>>);
 
     impl RunValues for FakeRunKey {
+        fn get(&self, name: &str) -> Option<OsString> {
+            self.0.borrow().get(name).cloned()
+        }
         fn set(&self, name: &str, value: &OsStr) -> io::Result<()> {
             self.0.borrow_mut().insert(name.to_owned(), value.to_owned());
             Ok(())
@@ -146,7 +194,8 @@ mod tests {
         let key = FakeRunKey::default();
         key.set("Mosaik Capture", OsStr::new(r#""C:\Alt\MosaikCapture.exe" --background"#))
             .unwrap();
-        key.set("Mosaiks Aufnahme", OsStr::new("alt")).unwrap();
+        key.set("Mosaiks Aufnahme", OsStr::new(r#""C:\Alt2\MosaikCapture.exe" --background"#))
+            .unwrap();
         key.set("OneDrive", OsStr::new("fremd")).unwrap();
 
         apply(&key, true, exe).unwrap();
@@ -157,9 +206,24 @@ mod tests {
 
         apply(&key, true, exe).unwrap();
         assert_eq!(key.0.borrow().len(), 2, "writing again changes nothing");
-        key.set("Mosaik Capture", OsStr::new("alt")).unwrap();
+        key.set("Mosaik Capture", OsStr::new(r#""C:\Alt\MosaikCapture.exe" --background"#))
+            .unwrap();
         apply(&key, false, exe).unwrap();
         assert_eq!(key.0.borrow().keys().collect::<Vec<_>>(), ["OneDrive"], "off removes all");
+    }
+
+    #[test]
+    fn another_program_under_an_old_name_is_left_alone() {
+        let exe = Path::new(r"C:\Apps\MosaikCapture.exe");
+        let key = FakeRunKey::default();
+        let other = r#""C:\Projekte\Mosaiks-Desktop\bin\Mosaiks-Aufnahme.exe" --background"#;
+        key.set("Mosaiks Aufnahme", OsStr::new(other)).unwrap();
+        apply(&key, true, exe).unwrap();
+        assert_eq!(key.0.borrow()["Mosaiks Aufnahme"], other);
+        assert!(key.0.borrow().contains_key("Nazar Capture"));
+        assert!(starts_this_app(OsStr::new(r#""C:\X\MosaikCapture.exe" --background"#)));
+        assert!(!starts_this_app(OsStr::new(r#""C:\X\Mosaiks-Aufnahme.exe" --background"#)));
+        assert!(!starts_this_app(OsStr::new(r#""C:\X\NotMosaikCapture.exe""#)));
     }
 
     #[test]
