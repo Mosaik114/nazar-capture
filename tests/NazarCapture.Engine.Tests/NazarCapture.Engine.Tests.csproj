@@ -41,4 +41,9 @@
     <AssemblyMetadata Include="RepositoryDirectory" Value="$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\..\..'))" />
   </ItemGroup>
 
+  <ItemGroup Condition="'$(NazarReadme)' == 'true'">
+    <!-- The renders for the README pictures, only for tools/readme/render.ps1. -->
+    <Compile Include="..\..\tools\readme\ReadmeRenders.cs" Link="ReadmeRenders.cs" />
+  </ItemGroup>
+
 </Project>

@@ -30,6 +30,10 @@ The host–engine contract (settings keys and defaults, message numbers, names, 
 lives in `contract/contract.json`. Change it together with both sides; each test suite checks
 its side against the file.
 
+The pictures of the README (`docs/images`) are drawn by the app's own code, not taken by hand:
+`tools/readme/render.ps1` renders them at 200 % and frames them (Python with Pillow), so they can be made
+anew after a change to the look.
+
 ## What CI expects
 
 Every pull request must pass the same checks as `main`:
