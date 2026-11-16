@@ -78,6 +78,24 @@ internal static class Roles
             SurfaceState.Error => (null, UiTokens.Keys.Error),
             _ => (null, UiTokens.Keys.TextSecondary),
         },
+        // A tab says where you are, not what to do: a word on the paper, the chosen one on a sheet of its own.
+        MuiRole.Tab => state switch
+        {
+            SurfaceState.Hover => (UiTokens.Keys.ControlSurface, UiTokens.Keys.TextPrimary),
+            SurfaceState.Pressed => (UiTokens.Keys.ControlPressed, UiTokens.Keys.TextPrimary),
+            SurfaceState.Selected => (UiTokens.Keys.ControlSurface, UiTokens.Keys.TextPrimary),
+            SurfaceState.Loading => (null, UiTokens.Keys.TextTertiary),
+            SurfaceState.Disabled => (null, UiTokens.Keys.TextDisabled),
+            SurfaceState.Error => (null, UiTokens.Keys.Error),
+            _ => (null, UiTokens.Keys.TextSecondary),
+        },
+        MuiRole.TabSelected => state switch
+        {
+            SurfaceState.Loading => (UiTokens.Keys.GroupSurface, UiTokens.Keys.TextSecondary),
+            SurfaceState.Disabled => (UiTokens.Keys.GroupSurface, UiTokens.Keys.TextDisabled),
+            SurfaceState.Error => (UiTokens.Keys.ErrorSurface, UiTokens.Keys.OnFill),
+            _ => (UiTokens.Keys.GroupSurface, UiTokens.Keys.AccentTint),
+        },
         MuiRole.Recording => Filled(state, UiTokens.Keys.RecordingSurface, UiTokens.Keys.RecordingHover, UiTokens.Keys.RecordingPressed),
         MuiRole.Ai => Filled(state, UiTokens.Keys.AiSurface, UiTokens.Keys.AiHover, UiTokens.Keys.AiPressed),
         _ => state switch
@@ -111,6 +129,7 @@ internal static class Roles
             MuiRole.Primary => UiTokens.Keys.AccentSide,
             MuiRole.Recording => UiTokens.Keys.RecordingSide,
             MuiRole.Ai => UiTokens.Keys.AiSide,
+            MuiRole.Tab or MuiRole.TabSelected => UiTokens.Keys.WindowBg,   // tabs lie flat: no stone edge shows
             _ => UiTokens.Keys.ControlSide,
         },
     };

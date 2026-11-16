@@ -166,9 +166,10 @@ internal sealed class WindowHotkey : IDisposable
 }
 
 /// <summary>
-/// Layer 5, the ordinary windows (trim window, settings): own frame on the paper colour, a head with the app mark and the
-/// title in the rounded face, a close cross, draggable by the head, Esc closes. Resizable through the system frame
-/// (WindowChrome), rounded corners on Windows 11.
+/// Layer 5, the ordinary windows (trim window, settings): own frame on the paper colour, a head, a close cross,
+/// draggable by the head and the free paper, Esc closes. Resizable through the system frame (WindowChrome), rounded
+/// corners on Windows 11. Two heads: the compact one (mark, product name, caption, plain cross; the trim window) and,
+/// with a <see cref="BannerMotif"/>, Hams' <see cref="Stage"/> (mark, title, painted banner, round close stone).
 /// </summary>
 internal class MosaikWindow : Window
 {
@@ -176,9 +177,9 @@ internal class MosaikWindow : Window
 
     readonly DockPanel frame = new();
     readonly ContentControl body = new() { Focusable = false };
-    readonly TextBlock caption;
+    readonly TextBlock? caption;
 
-    public MosaikWindow(string title)
+    public MosaikWindow(string title, BannerMotif? stage = null)
     {
         Title = UiText.Product + " – " + title;
         WindowStyle = WindowStyle.None;
@@ -187,7 +188,7 @@ internal class MosaikWindow : Window
         TextOptions.SetTextFormattingMode(this, TextFormattingMode.Display);
         WindowChrome.SetWindowChrome(this, new WindowChrome
         {
-            CaptionHeight = HeadHeight,
+            CaptionHeight = stage != null ? Stage.StageHeight : HeadHeight,
             ResizeBorderThickness = new Thickness(6),
             GlassFrameThickness = new Thickness(0),
             CornerRadius = new CornerRadius(0),
@@ -196,33 +197,45 @@ internal class MosaikWindow : Window
         Palette.Apply(Resources);
         SetResourceReference(BackgroundProperty, UiTokens.Keys.WindowBg);
         InputModality.Install();
-
-        var head = new DockPanel { Height = HeadHeight, Margin = new Thickness(UiTokens.Space.Window, 0, UiTokens.Space.Md, 0) };
-        var close = new IconButton(IconGlyphs.ChromeClose, UiText.Common.Close, () => RequestClose()) { VerticalAlignment = VerticalAlignment.Center };
-        WindowChrome.SetIsHitTestVisibleInChrome(close, true);
-        DockPanel.SetDock(close, Dock.Right);
-        head.Children.Add(close);
         HeadActions = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-        WindowChrome.SetIsHitTestVisibleInChrome(HeadActions, true);
-        DockPanel.SetDock(HeadActions, Dock.Right);
-        head.Children.Add(HeadActions);
-        var mark = new AppMark { Margin = new Thickness(0, 0, UiTokens.Space.Md + UiTokens.Space.Xs, 0) };
-        DockPanel.SetDock(mark, Dock.Left);
-        head.Children.Add(mark);
-        var name = TextStyle.Text(UiText.Product, TextRole.WindowTitle);
-        name.VerticalAlignment = VerticalAlignment.Center;
-        DockPanel.SetDock(name, Dock.Left);
-        head.Children.Add(name);
-        caption = TextStyle.Text(title, TextRole.Section, UiTokens.Keys.TextSecondary);
-        caption.VerticalAlignment = VerticalAlignment.Center;
-        caption.Margin = new Thickness(UiTokens.Space.Md + UiTokens.Space.Xs, 2, 0, 0);
-        caption.TextTrimming = TextTrimming.CharacterEllipsis;
-        head.Children.Add(caption);
+
+        FrameworkElement head;
+        if (stage != null)
+        {
+            StageHead = new Stage(title, () => RequestClose(), UiText.Common.Close, stage);
+            head = StageHead;
+        }
+        else
+        {
+            var compact = new DockPanel { Height = HeadHeight, Margin = new Thickness(UiTokens.Space.Window, 0, UiTokens.Space.Md, 0) };
+            var close = new IconButton(IconGlyphs.ChromeClose, UiText.Common.Close, () => RequestClose()) { VerticalAlignment = VerticalAlignment.Center };
+            WindowChrome.SetIsHitTestVisibleInChrome(close, true);
+            DockPanel.SetDock(close, Dock.Right);
+            compact.Children.Add(close);
+            WindowChrome.SetIsHitTestVisibleInChrome(HeadActions, true);
+            DockPanel.SetDock(HeadActions, Dock.Right);
+            compact.Children.Add(HeadActions);
+            var mark = new AppMark { Margin = new Thickness(0, 0, UiTokens.Space.Md + UiTokens.Space.Xs, 0) };
+            DockPanel.SetDock(mark, Dock.Left);
+            compact.Children.Add(mark);
+            var name = TextStyle.Text(UiText.Product, TextRole.WindowTitle);
+            name.VerticalAlignment = VerticalAlignment.Center;
+            DockPanel.SetDock(name, Dock.Left);
+            compact.Children.Add(name);
+            caption = TextStyle.Text(title, TextRole.Section, UiTokens.Keys.TextSecondary);
+            caption.VerticalAlignment = VerticalAlignment.Center;
+            caption.Margin = new Thickness(UiTokens.Space.Md + UiTokens.Space.Xs, 2, 0, 0);
+            caption.TextTrimming = TextTrimming.CharacterEllipsis;
+            compact.Children.Add(caption);
+            head = compact;
+        }
         DockPanel.SetDock(head, Dock.Top);
         frame.Children.Add(head);
         frame.Children.Add(body);
         frame.SetResourceReference(Panel.BackgroundProperty, UiTokens.Keys.WindowBg);   // the paper is part of the content (pixel tests render it)
+        WindowDrag.SetIsSurface(frame, true);
         base.Content = frame;
+        WindowDrag.Install(this);
 
         PreviewKeyDown += (_, e) =>
         {
@@ -238,8 +251,11 @@ internal class MosaikWindow : Window
     /// <summary>What the cross and Esc do: close (a reused window hides instead).</summary>
     protected virtual void RequestClose() => Close();
 
-    /// <summary>Room in the head for the window's main actions (left of the cross).</summary>
+    /// <summary>Room in the compact head for the window's main actions (left of the cross).</summary>
     public StackPanel HeadActions { get; }
+
+    /// <summary>The painted head (windows built with a banner motif).</summary>
+    public Stage? StageHead { get; }
 
     /// <summary>Whether Esc closes the window (a control may keep Esc, e.g. a hotkey field while it records).</summary>
     public bool CloseOnEscape { get; set; } = true;
@@ -253,8 +269,13 @@ internal class MosaikWindow : Window
 
     public string Caption
     {
-        get => caption.Text;
-        set { caption.Text = value; Title = UiText.Product + " – " + value; }
+        get => StageHead?.Title ?? caption!.Text;
+        set
+        {
+            if (StageHead != null) StageHead.Title = value;
+            else caption!.Text = value;
+            Title = UiText.Product + " – " + value;
+        }
     }
 }
 
@@ -265,6 +286,8 @@ internal class MosaikWindow : Window
 internal sealed class AppMark : Image
 {
     public const double Size = 24;
+    /// <summary>The mark on a stage and in the main window head (Hams' MARK_SIZE).</summary>
+    public const double StageSize = 26;
 
     static readonly Lazy<BitmapSource> logo = new(() =>
     {
@@ -279,9 +302,9 @@ internal sealed class AppMark : Image
         return image;
     });
 
-    public AppMark()
+    public AppMark(double size = Size)
     {
-        Width = Height = Size;
+        Width = Height = size;
         Source = logo.Value;
         VerticalAlignment = VerticalAlignment.Center;
         IsHitTestVisible = false;

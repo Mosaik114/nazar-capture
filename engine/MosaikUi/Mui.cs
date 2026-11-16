@@ -15,6 +15,10 @@ internal enum MuiRole
     Recording,
     /// <summary>Text recognition and other assisted actions.</summary>
     Ai,
+    /// <summary>A tab: a word on the paper; hover and press show a sheet (Hams' role "tab").</summary>
+    Tab,
+    /// <summary>The chosen tab: a paper sheet with ink edge, its word in the accent colour (Hams' "tab_selected").</summary>
+    TabSelected,
 }
 
 /// <summary>
@@ -44,6 +48,12 @@ internal static class Mui
     public static readonly DependencyProperty DepthProperty = DependencyProperty.RegisterAttached(
         "Depth", typeof(double), typeof(Mui), new FrameworkPropertyMetadata(UiTokens.Depth.Control, FrameworkPropertyMetadataOptions.AffectsMeasure));
 
+    /// <summary>Whether the control's stone is a squircle (default) or a plain rounded shape (round icon stones).</summary>
+    public static readonly DependencyProperty SquircleProperty = DependencyProperty.RegisterAttached(
+        "Squircle", typeof(bool), typeof(Mui), new FrameworkPropertyMetadata(true, FrameworkPropertyMetadataOptions.AffectsRender));
+
+    public static bool GetSquircle(DependencyObject element) => (bool)element.GetValue(SquircleProperty);
+    public static void SetSquircle(DependencyObject element, bool value) => element.SetValue(SquircleProperty, value);
     public static double GetRadius(DependencyObject element) => (double)element.GetValue(RadiusProperty);
     public static void SetRadius(DependencyObject element, double value) => element.SetValue(RadiusProperty, value);
     public static double GetDepth(DependencyObject element) => (double)element.GetValue(DepthProperty);

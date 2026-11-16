@@ -284,6 +284,7 @@ impl App {
             Action::ShowRecordingSettings => self.deliver(EngineRequest::RecordingSettings),
             Action::ShowSettings => self.deliver(EngineRequest::Settings),
             _ if !all_registered || valid.is_err() => self.deliver(EngineRequest::Settings),
+            Action::ShowMain => self.deliver(EngineRequest::Main),
             Action::TakeScreenshot => self.deliver(EngineRequest::Screenshot),
             Action::ToggleRecording => self.deliver(EngineRequest::Recording),
             Action::Background | Action::Quit | Action::Probe => {}
@@ -432,6 +433,10 @@ impl App {
             }
             ipc::SHOW_SETTINGS => {
                 self.deliver(EngineRequest::Settings);
+                1
+            }
+            ipc::SHOW_MAIN => {
+                self.deliver(EngineRequest::Main);
                 1
             }
             ipc::SHOW_RECORDING_SETTINGS => {
@@ -734,7 +739,7 @@ impl App {
 
     fn tray_event(&self, event: TrayEvent) {
         match event {
-            TrayEvent::Select => self.deliver(EngineRequest::Settings),
+            TrayEvent::Select => self.deliver(EngineRequest::Main),
             TrayEvent::ContextMenu { x, y } => {
                 let registered = self.registered.get();
                 let hotkeys = MenuHotkeys {

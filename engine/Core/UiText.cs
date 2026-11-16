@@ -29,6 +29,7 @@ static class UiText
         public const string Trim = "Aufnahme kürzen";
         public const string KitDemo = "Nazar Capture – Bausteine";
         public const string Settings = "Nazar Capture – Einstellungen";
+        public const string Main = "Nazar Capture";
     }
 
     /// <summary>Names of the files the user gets.</summary>
@@ -245,11 +246,28 @@ static class UiText
     public static class Settings
     {
         public const string Title = "Einstellungen";
-        public const string TakeScreenshot = "Screenshot erstellen";
-        public const string StartRecording = "Aufnahme starten";
         public const string ScreenshotGroup = "Screenshot";
         public const string RecordingGroup = "Aufnahme";
         public const string GeneralGroup = "Allgemein";
+        public const string InfoGroup = "Info & Hilfe";
+        public const string SoundGroup = "Ton und Klicks";
+        public const string Tabs = "Bereiche der Einstellungen";
+        public const string TabChosen = "ausgewählt";
+        public const string FolderHint = "Hier landet jede Datei, sobald sie gespeichert ist.";
+        public const string MicrophoneHint = "Deine Stimme über das Standardmikrofon.";
+        public const string SystemAudioHint = "Was der Rechner während der Aufnahme abspielt.";
+        public const string AutostartHint = "Startet still im Infobereich nach der Anmeldung.";
+        public const string ProjectPage = "Projektseite";
+        public const string ProjectPageHint = "Quelltext, Versionen und Anleitung auf GitHub.";
+        public const string ReportProblem = "Fehler melden";
+        public const string ReportProblemHint = "Ein Problem auf GitHub beschreiben, am besten mit den Schritten dorthin.";
+        public const string License = "Lizenz";
+        public const string LicenseHint = "Freie Software unter der MIT-Lizenz. Die Schrift Nunito steht unter der SIL Open Font License.";
+        public const string View = "Ansehen";
+        public const string UpdateTitle = "Update verfügbar";
+        public const string UpdateDismiss = "Hinweis für diese Version ausblenden";
+        public static string UpdateHint(string version, string current) => Product + " " + version + " ist erschienen · installiert ist " + current;
+        public static string VersionValue(string version) => Product + " " + version;
         public const string Hotkey = "Kurzbefehl";
         public const string ScreenshotHotkeyHint = "Startet die Auswahl auf allen Bildschirmen.";
         public const string RecordingHotkeyHint = "Startet und beendet eine Bildschirmaufnahme.";
@@ -278,6 +296,17 @@ static class UiText
         public static readonly string[] FrameRates = { "30 Bilder pro Sekunde", "60 Bilder pro Sekunde" };
         public static readonly string[] Countdowns = { "Aus", "3 Sekunden", "5 Sekunden" };
         public static readonly string[] Appearances = { "Wie Windows", "Hell", "Dunkel" };
+    }
+    /// <summary>The main window (Hams' main window: head, status, the two actions, the hotkeys as keys).</summary>
+    public static class Main
+    {
+        public const string SettingsTooltip = "Einstellungen";
+        public const string HideTooltip = "Fenster ausblenden";
+        public const string Screenshot = "Screenshot";
+        public const string Recording = "Aufnahme";
+        public const string StopRecording = "Aufnahme beenden";
+        public const string Ready = "Bereit";
+        public const string RecordingRunning = "Aufnahme läuft";
     }
     /// <summary>The update notice.</summary>
     public static class Update

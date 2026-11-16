@@ -118,9 +118,10 @@ internal sealed class HotkeyBox : DockPanel
         LastChildFill = false;
         System.Windows.Automation.AutomationProperties.SetName(this, name);
 
-        change = new SecondaryButton(UiText.Hotkeys.Change, StartCapture);
-        reset = new SecondaryButton(UiText.Hotkeys.Default, () => Try(defaultCombo)) { Visibility = Visibility.Collapsed, Margin = new Thickness(0, 0, UiTokens.Space.Sm, 0) };
-        cancel = new IconButton(IconGlyphs.ChromeClose, UiText.Hotkeys.Cancel, CancelCapture) { Visibility = Visibility.Collapsed };
+        change = new SecondaryButton(UiText.Hotkeys.Change, StartCapture) { MinWidth = ChangeWidth };
+        reset = new SecondaryButton(UiText.Hotkeys.Default, () => Try(defaultCombo)) { MinWidth = DefaultWidth, Visibility = Visibility.Collapsed, Margin = new Thickness(0, 0, UiTokens.Space.Xs, 0) };
+        cancel = IconButton.Stone(LineIcon.Shape.Close, UiText.Hotkeys.Cancel, CancelCapture);
+        cancel.Visibility = Visibility.Collapsed;
         foreach (var button in new FrameworkElement[] { change, cancel, reset })
         {
             SetDock(button, Dock.Right);
@@ -137,6 +138,16 @@ internal sealed class HotkeyBox : DockPanel
         {
             if (Capturing && !(e.NewFocus is DependencyObject next && IsAncestorOf(next))) CancelCapture();
         };
+    }
+
+    /// <summary>Widths of "Ändern" and "Standard" (Hams' CHANGE_WIDTH and DEFAULT_WIDTH).</summary>
+    public const double ChangeWidth = 96, DefaultWidth = 108;
+
+    /// <summary>The keys held right now, or the current hotkey while none is held.</summary>
+    void ShowHeld()
+    {
+        string held = recorder.HeldText();
+        keys.SetCombo(held.Length > 0 ? held : combo);
     }
 
     /// <summary>The hotkey shown and applied.</summary>
@@ -161,7 +172,7 @@ internal sealed class HotkeyBox : DockPanel
         change.Visibility = Visibility.Collapsed;
         cancel.Visibility = Visibility.Visible;
         reset.Visibility = HotkeyText.Same(combo, defaultCombo) ? Visibility.Collapsed : Visibility.Visible;
-        keys.SetCombo("", UiText.Hotkeys.PressKeys);
+        keys.SetCombo(combo);   // as Hams: the old keys stay until new ones are held
         Message?.Invoke(UiText.Hotkeys.Capture, Status.Processing);
         Focus();
         CaptureChanged?.Invoke(true);
@@ -216,7 +227,7 @@ internal sealed class HotkeyBox : DockPanel
         Key key = e.Key == Key.System ? e.SystemKey : e.Key;
         if (key == Key.Snapshot) { Handle(recorder.Press(key, Keyboard.Modifiers)); return; }
         recorder.Release(key, Keyboard.Modifiers);
-        keys.SetCombo(recorder.HeldText(), UiText.Hotkeys.PressKeys);
+        ShowHeld();
     }
 
     /// <summary>Feeds one recorder outcome (also used by tests with a recorder of their own).</summary>
@@ -228,7 +239,7 @@ internal sealed class HotkeyBox : DockPanel
                 CancelCapture();
                 break;
             case HotkeyRecorder.Outcome.Pending:
-                keys.SetCombo(recorder.HeldText(), UiText.Hotkeys.PressKeys);
+                ShowHeld();
                 break;
             case HotkeyRecorder.Outcome.Unsupported:
                 Message?.Invoke(UiText.Hotkeys.Unsupported, Status.Warning);
@@ -246,7 +257,7 @@ internal sealed class HotkeyBox : DockPanel
         if (!verdict.Ok)
         {
             recorder.Reset();
-            keys.SetCombo("", UiText.Hotkeys.PressKeys);
+            keys.SetCombo(combo);   // the old keys again, the recording stays open
             Message?.Invoke(verdict.Problem, Status.Error);
             return;
         }

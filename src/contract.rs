@@ -186,6 +186,7 @@ fn host_window_messages_and_replies() {
         ("show_recording_settings", ipc::SHOW_RECORDING_SETTINGS),
         ("take_screenshot", ipc::TAKE_SCREENSHOT),
         ("toggle_recording", ipc::TOGGLE_RECORDING),
+        ("show_main", ipc::SHOW_MAIN),
         ("quit", ipc::QUIT),
         ("probe", ipc::PROBE),
         ("audio_settings", ipc::AUDIO_SETTINGS),
@@ -260,6 +261,7 @@ fn engine_names_messages_and_state_bits() {
         engine::MSG_RECORDING_SETTINGS,
         c.message(&["engine", "messages", "recording_settings"])
     );
+    assert_eq!(engine::MSG_MAIN, c.message(&["engine", "messages", "main"]));
     assert_eq!(engine::MSG_QUERY_STATE, c.message(&["engine", "messages", "query_state"]));
     assert_eq!(
         engine::STATE_BUSY,
@@ -270,6 +272,7 @@ fn engine_names_messages_and_state_bits() {
         ("recording", EngineRequest::Recording),
         ("settings", EngineRequest::Settings),
         ("recording_settings", EngineRequest::RecordingSettings),
+        ("main", EngineRequest::Main),
     ];
     for (name, request) in requests {
         assert_eq!(request.flag(), c.str(&["engine", "arguments", name]), "{name}");

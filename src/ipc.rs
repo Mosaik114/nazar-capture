@@ -17,6 +17,8 @@ pub const SHOW_SETTINGS: u32 = WM_APP + 1;
 pub const SHOW_RECORDING_SETTINGS: u32 = WM_APP + 2;
 pub const TAKE_SCREENSHOT: u32 = WM_APP + 3;
 pub const TOGGLE_RECORDING: u32 = WM_APP + 4;
+/// Show the main window (the engine's, as Hams' main window).
+pub const SHOW_MAIN: u32 = WM_APP + 5;
 /// Quit the app. Answered with [`QUIT_ACCEPTED`], or [`QUIT_REFUSED`] while the
 /// engine is busy, the tray menu is open or start-up is not finished.
 pub const QUIT: u32 = WM_APP + 9;
@@ -41,6 +43,7 @@ pub const fn needs_startup(message: u32) -> bool {
         message,
         SHOW_SETTINGS
             | SHOW_RECORDING_SETTINGS
+            | SHOW_MAIN
             | TAKE_SCREENSHOT
             | TOGGLE_RECORDING
             | QUIT
@@ -109,6 +112,7 @@ mod tests {
         for message in [
             SHOW_SETTINGS,
             SHOW_RECORDING_SETTINGS,
+            SHOW_MAIN,
             TAKE_SCREENSHOT,
             TOGGLE_RECORDING,
             QUIT,
@@ -119,7 +123,7 @@ mod tests {
         ] {
             assert!(needs_startup(message), "{message:#x}");
         }
-        for message in [WM_APP, WM_APP + 5, WM_APP + 11, 0x0010 /* WM_CLOSE */] {
+        for message in [WM_APP, WM_APP + 6, WM_APP + 11, 0x0010 /* WM_CLOSE */] {
             assert!(!needs_startup(message), "{message:#x}");
         }
     }
@@ -131,6 +135,7 @@ mod tests {
             (SHOW_RECORDING_SETTINGS, 0x8002),
             (TAKE_SCREENSHOT, 0x8003),
             (TOGGLE_RECORDING, 0x8004),
+            (SHOW_MAIN, 0x8005),
             (QUIT, 0x8009),
             (PROBE, 0x800A),
             (AUDIO_SETTINGS, 0x8014),

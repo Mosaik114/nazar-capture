@@ -44,6 +44,8 @@ pub const MSG_QUIT: u32 = WM_APP + 3;
 pub const MSG_SETTINGS: u32 = WM_APP + 4;
 /// Show the settings window at the recording settings.
 pub const MSG_RECORDING_SETTINGS: u32 = WM_APP + 5;
+/// Show the main window.
+pub const MSG_MAIN: u32 = WM_APP + 6;
 /// Answered with state bits, see [`STATE_BUSY`].
 pub const MSG_QUERY_STATE: u32 = WM_APP + 10;
 /// State bit: something is in progress that quitting would lose (a selection,
@@ -65,6 +67,8 @@ pub enum EngineRequest {
     Settings,
     /// Show the settings window at the recording settings.
     RecordingSettings,
+    /// Show the main window (tray icon, a plain start of the app).
+    Main,
 }
 
 impl EngineRequest {
@@ -75,6 +79,7 @@ impl EngineRequest {
             Self::Recording => "--recording",
             Self::Settings => "--settings",
             Self::RecordingSettings => "--recording-settings",
+            Self::Main => "--main",
         }
     }
 
@@ -84,6 +89,7 @@ impl EngineRequest {
             Self::Recording => MSG_RECORDING,
             Self::Settings => MSG_SETTINGS,
             Self::RecordingSettings => MSG_RECORDING_SETTINGS,
+            Self::Main => MSG_MAIN,
         }
     }
 }
@@ -327,6 +333,7 @@ mod tests {
             (EngineRequest::Recording, "--recording", MSG_RECORDING),
             (EngineRequest::Settings, "--settings", MSG_SETTINGS),
             (EngineRequest::RecordingSettings, "--recording-settings", MSG_RECORDING_SETTINGS),
+            (EngineRequest::Main, "--main", MSG_MAIN),
         ];
         for (request, flag, message) in cases {
             assert_eq!(request.flag(), flag, "{request:?}");

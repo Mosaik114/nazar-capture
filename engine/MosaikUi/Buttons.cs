@@ -1,3 +1,5 @@
+using System.Windows.Documents;
+
 namespace MosaikCapture.Engine.MosaikUi;
 
 /// <summary>
@@ -61,20 +63,130 @@ internal sealed class SecondaryButton : KitButton
     }
 }
 
-/// <summary>A round stone with one icon (close, more, cancel); no surface at rest. Needs a tooltip: it is its name.</summary>
+/// <summary>
+/// A round button with one icon. Two looks: plain (no surface at rest; tool bars and cards) and, with
+/// <see cref="Stone"/>, Hams' IconButton: a round paper stone (34, ink edge, side)
+/// with a drawn line icon, the icon in the secondary text colour, under the pointer in the primary one or in its own
+/// hover colour (red for the close cross). Needs a tooltip: it is its name.
+/// </summary>
 internal sealed class IconButton : KitButton
 {
+    /// <summary>Diameter of the stone in window heads and rows (Hams' IconButton.SIZE).</summary>
+    public const double StoneSize = 34;
+
+    readonly FrameworkElement icon;
+    string? hoverInk;
+
     public IconButton(string glyph, string tooltip, Action? click = null, double size = UiTokens.Height.Standard, MuiRole role = MuiRole.Plain)
+        : this(TextStyle.Icon(glyph, Math.Round(size / 2)), tooltip, click, size, role)
     {
+    }
+
+    IconButton(FrameworkElement icon, string tooltip, Action? click, double size, MuiRole role)
+    {
+        this.icon = icon;
         Mui.SetRole(this, role);
         Width = size;
         Height = size + UiTokens.Depth.Control;
         Mui.SetRadius(this, UiTokens.Radius.Pill(size));
         Padding = new Thickness(0);
-        Content = TextStyle.Icon(glyph, Math.Round(size / 2));
+        Content = icon;
         ToolTip = Kit.ToolTip(tooltip);
         System.Windows.Automation.AutomationProperties.SetName(this, tooltip);
         if (click != null) Click += (_, _) => click();
+    }
+
+    /// <summary>Hams' IconButton: a round paper stone with a line icon (settings gear, close cross).</summary>
+    public static IconButton Stone(LineIcon.Shape shape, string tooltip, Action? click = null, string? hoverInk = null)
+    {
+        var button = new IconButton(new LineIcon(shape), tooltip, click, StoneSize, MuiRole.Secondary) { hoverInk = hoverInk };
+        Mui.SetSquircle(button, false);
+        button.IsMouseDirectlyOverChanged += delegate { button.Tint(); };
+        button.MouseEnter += delegate { button.Tint(); };
+        button.MouseLeave += delegate { button.Tint(); };
+        button.IsEnabledChanged += delegate { button.Tint(); };
+        button.Tint();
+        return button;
+    }
+
+    /// <summary>The icon colour of a stone: secondary at rest, primary (or the hover colour) under the pointer.</summary>
+    internal string IconInk => !IsEnabled ? UiTokens.Keys.TextDisabled : IsMouseOver ? hoverInk ?? UiTokens.Keys.TextPrimary : UiTokens.Keys.TextSecondary;
+
+    void Tint() => icon.SetResourceReference(TextElement.ForegroundProperty, IconInk);
+}
+
+/// <summary>
+/// The drawn line icons of Hams (ui_kit/icons.py) on its 16 px grid with a stroke of 1.8 and round ends: the gear (six
+/// broad teeth with soft flanks and a clear hole) and the close cross. Drawn as vectors in the inherited text colour.
+/// </summary>
+internal sealed class LineIcon : FrameworkElement
+{
+    public enum Shape { Close, Settings }
+
+    public const double Box = 16, Stroke = 1.8;
+    const int GearTeeth = 6;
+    const double GearRoot = 4.3, GearTip = 6.0, GearHole = 2.0;
+
+    public static readonly DependencyProperty ForegroundProperty = TextElement.ForegroundProperty.AddOwner(typeof(LineIcon),
+        new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.Inherits | FrameworkPropertyMetadataOptions.AffectsRender));
+
+    public LineIcon(Shape shape)
+    {
+        Kind = shape;
+        Width = Height = Box;
+        HorizontalAlignment = HorizontalAlignment.Center;
+        VerticalAlignment = VerticalAlignment.Center;
+        IsHitTestVisible = false;
+    }
+
+    public Shape Kind { get; }
+
+    public Brush? Foreground { get => (Brush?)GetValue(ForegroundProperty); set => SetValue(ForegroundProperty, value); }
+
+    /// <summary>The gear's outline (Hams' gear_outline): tooth tips on 6.0, roots on 4.3, smoothstep flanks.</summary>
+    internal static List<Point> GearOutline(double cx, double cy, int steps = 360)
+    {
+        double period = 2 * Math.PI / GearTeeth, top = 0.5 * 0.75, bottom = 0.5;
+        var points = new List<Point>(steps);
+        for (int step = 0; step < steps; step++)
+        {
+            double angle = step / (double)steps * 2 * Math.PI;
+            double offset = Math.Abs((((angle + Math.PI / 2 + period / 2) % period) / period) - 0.5) * 2;
+            double radius;
+            if (offset <= top) radius = GearTip;
+            else if (offset >= bottom) radius = GearRoot;
+            else
+            {
+                double k = (offset - top) / (bottom - top);
+                radius = GearTip + (GearRoot - GearTip) * k * k * (3 - 2 * k);
+            }
+            points.Add(new Point(cx + radius * Math.Cos(angle), cy + radius * Math.Sin(angle)));
+        }
+        return points;
+    }
+
+    protected override void OnRender(DrawingContext dc)
+    {
+        var ink = Foreground;
+        if (ink == null) return;
+        var pen = new Pen(ink, Stroke) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round, LineJoin = PenLineJoin.Round };
+        if (Kind == Shape.Close)
+        {
+            dc.DrawLine(pen, new Point(4.6, 4.6), new Point(11.4, 11.4));
+            dc.DrawLine(pen, new Point(11.4, 4.6), new Point(4.6, 11.4));
+            return;
+        }
+        var outline = GearOutline(8, 8);
+        var gear = new StreamGeometry();
+        using (var g = gear.Open())
+        {
+            g.BeginFigure(outline[0], false, true);
+            g.PolyLineTo(outline.Skip(1).ToList(), true, true);
+        }
+        gear.Freeze();
+        dc.DrawGeometry(null, pen, gear);
+        // Hams draws the hole's outline inward from 2.0 + stroke/2, so the middle of its stroke lies on 2.0.
+        dc.DrawEllipse(null, pen, new Point(8, 8), GearHole, GearHole);
     }
 }
 

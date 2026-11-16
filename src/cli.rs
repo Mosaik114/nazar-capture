@@ -2,7 +2,8 @@
 //!
 //! | Argument          | Effect                                                  |
 //! |-------------------|---------------------------------------------------------|
-//! | *(none)*          | open the settings window                                |
+//! | *(none)*          | open the main window                                    |
+//! | `--settings`      | open the settings window                                |
 //! | `recording`       | open the settings window, focused on the recording key  |
 //! | `--background`    | start silently in the notification area                 |
 //! | `--screenshot`    | take a screenshot                                       |
@@ -37,7 +38,9 @@ pub enum Command {
 pub enum Action {
     /// Start without showing anything.
     Background,
+    /// Show the main window (a plain start, as a click on the tray icon).
     #[default]
+    ShowMain,
     ShowSettings,
     /// Show the settings window with the recording hotkey focused.
     ShowRecordingSettings,
@@ -53,6 +56,7 @@ impl Action {
     pub const fn message(self) -> Option<u32> {
         match self {
             Self::Background => None,
+            Self::ShowMain => Some(ipc::SHOW_MAIN),
             Self::ShowSettings => Some(ipc::SHOW_SETTINGS),
             Self::ShowRecordingSettings => Some(ipc::SHOW_RECORDING_SETTINGS),
             Self::TakeScreenshot => Some(ipc::TAKE_SCREENSHOT),
@@ -65,6 +69,7 @@ impl Action {
     fn from_arg(arg: &OsString) -> Option<Self> {
         Some(match arg.to_str()? {
             "--background" => Self::Background,
+            "--settings" => Self::ShowSettings,
             "--screenshot" => Self::TakeScreenshot,
             "--recording" => Self::ToggleRecording,
             "--quit" => Self::Quit,
@@ -111,7 +116,8 @@ mod tests {
 
     #[test]
     fn no_arguments_show_settings() {
-        assert_eq!(run(&[]), Command::Run(Action::ShowSettings));
+        assert_eq!(run(&[]), Command::Run(Action::ShowMain));
+        assert_eq!(action(&["--settings"]), Action::ShowSettings);
     }
 
     #[test]
@@ -128,8 +134,8 @@ mod tests {
     fn last_action_wins_and_unknown_args_are_ignored() {
         assert_eq!(action(&["--screenshot", "--recording"]), Action::ToggleRecording);
         assert_eq!(action(&["--probe", "--whatever", "--background"]), Action::Background);
-        assert_eq!(action(&["--Background", "RECORDING"]), Action::ShowSettings);
-        assert_eq!(action(&["--preview", "a.ini"]), Action::ShowSettings, "no longer an option");
+        assert_eq!(action(&["--Background", "RECORDING"]), Action::ShowMain);
+        assert_eq!(action(&["--preview", "a.ini"]), Action::ShowMain, "no longer an option");
     }
 
     #[test]
@@ -158,6 +164,7 @@ mod tests {
     fn forwarded_messages() {
         assert_eq!(Action::Background.message(), None);
         assert_eq!(Action::ShowSettings.message(), Some(ipc::SHOW_SETTINGS));
+        assert_eq!(Action::ShowMain.message(), Some(ipc::SHOW_MAIN));
         assert_eq!(Action::ShowRecordingSettings.message(), Some(ipc::SHOW_RECORDING_SETTINGS));
         assert_eq!(Action::TakeScreenshot.message(), Some(ipc::TAKE_SCREENSHOT));
         assert_eq!(Action::ToggleRecording.message(), Some(ipc::TOGGLE_RECORDING));

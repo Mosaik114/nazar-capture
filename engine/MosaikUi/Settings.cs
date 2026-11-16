@@ -5,7 +5,7 @@ namespace MosaikCapture.Engine.MosaikUi;
 /// <summary>
 /// One setting row (Hams' SettingRow), four forms: title and control; title, description and control; title with a
 /// status line (dot and text, an error in the error colour) and control; title and a value. <c>stacked</c> puts the
-/// control below the text in full width (long values). At least 68 high; a description wraps instead of being cut.
+/// control below the text in full width (long values). At least 68 high with its padding; a description wraps instead of being cut.
 /// A row with a <see cref="ToggleSwitch"/> is a trigger as a whole: a click anywhere on it flips the switch.
 /// </summary>
 internal sealed class SettingRow : Grid
@@ -19,7 +19,6 @@ internal sealed class SettingRow : Grid
     public SettingRow(string title, string? description = null, UIElement? control = null, bool stacked = false)
     {
         baseDescription = description ?? "";
-        MinHeight = UiTokens.Height.RowMin;
         Margin = new Thickness(UiTokens.Space.RowX, UiTokens.Space.RowY, UiTokens.Space.RowX, UiTokens.Space.RowY);
         ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -42,6 +41,8 @@ internal sealed class SettingRow : Grid
         Children.Add(texts);
 
         Stacked = stacked;
+        // the row is at least RowMin high with its padding (Hams: minsize ROW_MIN - 2 * ROW_Y); a stacked row grows with its content
+        MinHeight = stacked ? 0 : UiTokens.Height.RowMin - 2 * UiTokens.Space.RowY;
         if (stacked) RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         if (stacked) RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         SetControl(control);
@@ -130,7 +131,8 @@ internal sealed class SettingGroup : StackPanel
         if (heading != null)
         {
             var text = TextStyle.Text(heading, TextRole.Section);
-            text.Margin = new Thickness(UiTokens.Space.RowX, 0, 0, UiTokens.Space.Md);
+            // flush with the row text below it (group inset plus row padding), as Hams' group()
+            text.Margin = new Thickness(UiTokens.Space.GroupInset + UiTokens.Space.RowX, 0, 0, UiTokens.Space.GroupGap);
             Children.Add(text);
             System.Windows.Automation.AutomationProperties.SetName(this, heading);
         }
@@ -146,6 +148,16 @@ internal sealed class SettingGroup : StackPanel
         if (rows.Children.Count > 0) rows.Children.Add(new KitSeparator { Margin = new Thickness(UiTokens.Space.RowX, 0, UiTokens.Space.RowX, 0) });
         rows.Children.Add(row);
         return row;
+    }
+
+    /// <summary>Shows or hides a row together with its hairline (a notice that comes and goes, as Hams' update row).</summary>
+    public void SetRowVisible(SettingRow row, bool visible)
+    {
+        int index = rows.Children.IndexOf(row);
+        if (index < 0) return;
+        row.Visibility = visible ? Visibility.Visible : Visibility.Collapsed;
+        int line = index > 0 ? index - 1 : index + 1;
+        if (line < rows.Children.Count && rows.Children[line] is KitSeparator separator) separator.Visibility = row.Visibility;
     }
 }
 

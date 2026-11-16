@@ -154,6 +154,8 @@ public sealed class ContractTests
         Assert.Equal(CaptureBridge.RecordingSettingsMessage, Message("engine", "messages", "recording_settings"));
         Assert.Equal(CaptureBridge.SettingsMessage, CaptureBridge.CommandBase + CaptureBridge.ParseCommand(new[] { Text("engine", "arguments", "settings") }));
         Assert.Equal(CaptureBridge.RecordingSettingsMessage, CaptureBridge.CommandBase + CaptureBridge.ParseCommand(new[] { Text("engine", "arguments", "recording_settings") }));
+        Assert.Equal(CaptureBridge.MainMessage, Message("engine", "messages", "main"));
+        Assert.Equal(CaptureBridge.MainMessage, CaptureBridge.CommandBase + CaptureBridge.ParseCommand(new[] { Text("engine", "arguments", "main") }));
         Assert.Equal(Number("engine", "state_bits", "busy"), CaptureBridge.StateFlags(busy: true, live: false));
         Assert.Equal(Number("engine", "state_bits", "live"), CaptureBridge.StateFlags(busy: false, live: true));
     }

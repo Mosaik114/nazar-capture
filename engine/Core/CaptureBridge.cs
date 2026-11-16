@@ -33,7 +33,7 @@ internal static class CaptureBridge
     internal static readonly string Title = TestIsolation.Isolate("MosaikCapture.Engine");
     internal static readonly string MutexName = TestIsolation.Isolate("Local\\MosaikCapture.Engine");
     internal const int CommandBase = 0x8000;
-    internal const int ScreenshotMessage = 0x8001, RecordingMessage = 0x8002, QuitMessage = 0x8003, SettingsMessage = 0x8004, RecordingSettingsMessage = 0x8005, StateMessage = 0x800A;
+    internal const int ScreenshotMessage = 0x8001, RecordingMessage = 0x8002, QuitMessage = 0x8003, SettingsMessage = 0x8004, RecordingSettingsMessage = 0x8005, MainMessage = 0x8006, StateMessage = 0x800A;
     internal const string AfterArgument = "--after";
 
     /// <summary>More capture commands per second than this are ignored (a person presses a hotkey far less often).</summary>
@@ -46,7 +46,7 @@ internal static class CaptureBridge
     /// <summary>How long a restarted engine waits for the crashed one to exit.</summary>
     static readonly TimeSpan ParentExitTimeout = TimeSpan.FromSeconds(10);
 
-    enum Command { Idle = 0, Screenshot = 1, Recording = 2, Settings = 4, RecordingSettings = 5 }
+    enum Command { Idle = 0, Screenshot = 1, Recording = 2, Settings = 4, RecordingSettings = 5, Main = 6 }
 
     public static void Run(string[] args)
     {
@@ -159,7 +159,7 @@ internal static class CaptureBridge
     }
 
     /// <summary>
-    /// 0 = idle, 1 = screenshot, 2 = recording, 4 = settings, 5 = settings at the recording group; added to <see cref="CommandBase"/> when forwarded.
+    /// 0 = idle, 1 = screenshot, 2 = recording, 4 = settings, 5 = settings at the recording page, 6 = the main window; added to <see cref="CommandBase"/> when forwarded.
     /// No argument means a screenshot (a plain start of the exe). An unknown first argument is logged and
     /// treated as idle: starting the engine must never take a screenshot nobody asked for.
     /// </summary>
@@ -173,6 +173,7 @@ internal static class CaptureBridge
             case "--idle": return (int)Command.Idle;
             case "--settings": return (int)Command.Settings;
             case "--recording-settings": return (int)Command.RecordingSettings;
+            case "--main": return (int)Command.Main;
             default:
                 ErrorLog.Write("Unknown command line argument " + args[0] + "; starting idle", null);
                 return (int)Command.Idle;
@@ -216,6 +217,7 @@ internal static class CaptureBridge
         else if (command == (int)Command.Recording) { if (fromMenu) ScreenRecorder.ToggleSoon(); else ScreenRecorder.Toggle(); }
         else if (command == (int)Command.Idle) Diagnostics.WarmUp.Soon();
         else if (command is (int)Command.Settings or (int)Command.RecordingSettings) Settings.SettingsWindow.ShowShared(command == (int)Command.RecordingSettings);
+        else if (command == (int)Command.Main) Settings.MainWindow.ShowShared();
     }
 
     static IntPtr OnMessage(IntPtr hwnd, int message, IntPtr wParam, IntPtr lParam, ref bool handled)
@@ -231,6 +233,7 @@ internal static class CaptureBridge
                 break;
             case SettingsMessage:
             case RecordingSettingsMessage:
+            case MainMessage:
                 handled = true;
                 Execute(message - CommandBase);
                 break;

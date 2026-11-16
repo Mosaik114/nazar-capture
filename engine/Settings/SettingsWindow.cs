@@ -3,108 +3,103 @@ using Microsoft.Win32;
 namespace MosaikCapture.Engine.Settings;
 
 /// <summary>
-/// The settings window in the style of Hams: a <see cref="MosaikWindow"/> with three setting groups (Screenshot,
-/// Aufnahme, Allgemein). Every change applies at once through the host (<see cref="IHostChannel"/>, the host stays the
-/// only writer of settings.ini); there is no save button. A problem shows in its own row (status line in the error
-/// colour), never in a shared status bar. Hotkeys are recorded by pressing them; while one is recorded, the host
-/// releases both so the old one does not fire. The window grows with "Text vergrößern" (TextScaleFactor).
+/// The settings window as Hams' (settings_window.py): the <see cref="Stage"/> (mark, title, painted banner, round close
+/// stone), a <see cref="TabBar"/>, one page per tab in a <see cref="ScrollArea"/>, each page groups on paper plates with
+/// <see cref="SettingRow"/>s. The pages come as data (<see cref="NazarSettings.Pages"/>); every page is built and laid
+/// out ahead (<see cref="PageHost"/>), so a switch shows a finished page. The window is built once and then only shown
+/// and hidden; its size can be dragged (minimum as Hams') and is remembered.
+/// Every change applies at once through the host (<see cref="IHostChannel"/>, the host stays the only writer of
+/// settings.ini); there is no save button. A problem shows in its own row. Hotkeys are recorded by pressing them; while
+/// one is recorded, the host releases both so the old one does not fire. The window grows with "Text vergrößern".
 /// </summary>
 internal sealed class SettingsWindow : MosaikWindow
 {
-    public const double BaseWidth = 780;
-    const string ScreenshotHotkeyKey = "screenshot_hotkey", RecordingHotkeyKey = "recording_hotkey";
+    /// <summary>Size and smallest size (Hams' SETTINGS_WIDTH/HEIGHT and SETTINGS_MIN_WIDTH/HEIGHT).</summary>
+    public const double BaseWidth = 440, BaseHeight = 680, MinimumWidth = 400, MinimumHeight = 420;
+    /// <summary>Width of a choice beside its text (Hams' CONTROL_WIDTH) and of the buttons in rows.</summary>
+    public const double ControlWidth = 160, RowButtonWidth = 96;
+    const string PlaceKey = "settings";
 
     static SettingsWindow? shared;
 
     readonly IHostChannel host;
     readonly Func<CaptureSettingsSnapshot> load;
-    readonly ScrollViewer scroll = new() { VerticalScrollBarVisibility = ScrollBarVisibility.Auto, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled, Focusable = false };
-    readonly StackPanel page = new() { Margin = new Thickness(UiTokens.Space.Window, 0, UiTokens.Space.Window, UiTokens.Space.Window) };
-    readonly SettingGroup screenshotGroup, recordingGroup, generalGroup;
-    readonly HotkeyBox screenshotHotkey, recordingHotkey;
-    readonly SettingRow screenshotHotkeyRow, recordingHotkeyRow, screenshotFolderRow, recordingFolderRow;
-    readonly Select fps, countdown, appearance;
-    readonly ToggleSwitch microphone, systemAudio, clicks, autostart, checkUpdates;
-    readonly SettingRow versionRow;
+    readonly WindowPlaces? places;
+    readonly IReadOnlyList<PageSpec> specs;
+    readonly TabBar tabs;
+    readonly ScrollArea scroll = new() { Margin = new Thickness(UiTokens.Space.Window, 0, ScrollArea.EdgeGap, UiTokens.Space.Window) };
+    readonly PageHost pages = new();
+    readonly List<SettingGroup> groups = new();
+    readonly Dictionary<string, SettingRow> rows = new();
+    readonly Dictionary<string, ToggleSwitch> switches = new();
+    readonly Dictionary<string, Select> selects = new();
+    readonly Dictionary<string, HotkeyBox> hotkeys = new();
+    readonly List<(SettingRow Row, Func<CaptureSettingsSnapshot, string> Value)> folders = new();
+    readonly DispatcherTimer sizeSaver;
+    readonly Func<Updates.Release?> pending;
+    SettingRow? updateRow;
+    SettingGroup? updateGroup;
+    Updates.Release? pendingRelease;
     CaptureSettingsSnapshot current = new();
     bool populating;
 
-    public SettingsWindow(IHostChannel host, Func<CaptureSettingsSnapshot> load, double textScale = 1) : base(UiText.Settings.Title)
+    public SettingsWindow(IHostChannel host, Func<CaptureSettingsSnapshot> load, double textScale = 1, WindowPlaces? places = null, IReadOnlyList<PageSpec>? pageSpecs = null, Func<Updates.Release?>? pending = null)
+        : base(UiText.Settings.Title, new ViewfinderMotif())
     {
         this.host = host;
         this.load = load;
+        this.places = places;
+        specs = pageSpecs ?? NazarSettings.Pages();
+        this.pending = pending ?? Updates.UpdateNotice.Pending;
+        MinWidth = MinimumWidth * textScale;
+        MinHeight = MinimumHeight * textScale;
         Width = BaseWidth * textScale;
-        SizeToContent = SizeToContent.Height;
-        MinWidth = 520;
+        Height = BaseHeight * textScale;
+        if (places?.Read(PlaceKey) is { } size)
+        {
+            Width = Math.Max(MinWidth, size.A);
+            Height = Math.Max(MinHeight, size.B);
+        }
         ResizeMode = ResizeMode.CanResize;
         ShowInTaskbar = true;
 
-        HeadActions.Children.Add(new PrimaryButton(UiText.Settings.TakeScreenshot, () => { Hide(); Screenshots.StartSoon(); }, IconGlyphs.Edit) { Margin = new Thickness(0, 0, UiTokens.Space.Md, 0) });
-        HeadActions.Children.Add(new SecondaryButton(UiText.Settings.StartRecording, () => { Hide(); ScreenRecorder.ToggleSoon(); }, IconGlyphs.Video, MuiRole.Recording) { Margin = new Thickness(0, 0, UiTokens.Space.Md, 0) });
-
-        // Screenshot
-        screenshotHotkey = new HotkeyBox(UiText.Settings.Hotkey + " " + UiText.Settings.ScreenshotGroup, CaptureSettingsSnapshot.DefaultScreenshotHotkey,
-            CaptureSettingsSnapshot.DefaultScreenshotHotkey, new HostHotkeyChecker(host, ScreenshotHotkeyKey, UiText.Settings.Recording, () => recordingHotkey!.Combo));
-        screenshotHotkeyRow = new SettingRow(UiText.Settings.Hotkey, UiText.Settings.ScreenshotHotkeyHint, screenshotHotkey, stacked: false);
-        screenshotFolderRow = FolderRow("screenshot_folder", () => current.ScreenshotFolder);
-        screenshotGroup = new SettingGroup(UiText.Settings.ScreenshotGroup);
-        screenshotGroup.Add(screenshotHotkeyRow);
-        screenshotGroup.Add(screenshotFolderRow);
-
-        // Aufnahme
-        recordingHotkey = new HotkeyBox(UiText.Settings.Hotkey + " " + UiText.Settings.RecordingGroup, CaptureSettingsSnapshot.DefaultRecordingHotkey,
-            CaptureSettingsSnapshot.DefaultRecordingHotkey, new HostHotkeyChecker(host, RecordingHotkeyKey, UiText.Settings.Screenshot, () => screenshotHotkey.Combo));
-        recordingHotkeyRow = new SettingRow(UiText.Settings.Hotkey, UiText.Settings.RecordingHotkeyHint, recordingHotkey);
-        recordingFolderRow = FolderRow("recording_folder", () => current.RecordingFolder);
-        fps = Choice(UiText.Settings.FrameRate, UiText.Settings.FrameRates, new object[] { 30, 60 });
-        countdown = Choice(UiText.Settings.Countdown, UiText.Settings.Countdowns, new object[] { 0, 3, 5 });
-        microphone = new ToggleSwitch(UiText.Settings.Microphone);
-        systemAudio = new ToggleSwitch(UiText.Settings.SystemAudio);
-        clicks = new ToggleSwitch(UiText.Settings.Clicks);
-        recordingGroup = new SettingGroup(UiText.Settings.RecordingGroup) { Margin = new Thickness(0, UiTokens.Space.SectionGap, 0, 0) };
-        recordingGroup.Add(recordingHotkeyRow);
-        recordingGroup.Add(recordingFolderRow);
-        recordingGroup.Add(new SettingRow(UiText.Settings.FrameRate, null, fps));
-        recordingGroup.Add(new SettingRow(UiText.Settings.Countdown, UiText.Settings.CountdownHint, countdown));
-        recordingGroup.Add(new SettingRow(UiText.Settings.Microphone, null, microphone));
-        recordingGroup.Add(new SettingRow(UiText.Settings.SystemAudio, null, systemAudio));
-        recordingGroup.Add(new SettingRow(UiText.Settings.Clicks, UiText.Settings.ClicksHint, clicks));
-
-        // Allgemein
-        appearance = Choice(UiText.Settings.Appearance, UiText.Settings.Appearances, new object[] { 0, 1, 2 });
-        autostart = new ToggleSwitch(UiText.Settings.Autostart);
-        checkUpdates = new ToggleSwitch(UiText.Settings.CheckUpdates);
-        generalGroup = new SettingGroup(UiText.Settings.GeneralGroup) { Margin = new Thickness(0, UiTokens.Space.SectionGap, 0, 0) };
-        generalGroup.Add(new SettingRow(UiText.Settings.Appearance, null, appearance));
-        generalGroup.Add(new SettingRow(UiText.Settings.Autostart, null, autostart));
-        generalGroup.Add(new SettingRow(UiText.Settings.CheckUpdates, UiText.Settings.CheckUpdatesHint, checkUpdates));
-        versionRow = SettingRow.Display(UiText.Settings.Version, AppInfo.Version);
-        generalGroup.Add(versionRow);
-
-        page.Children.Add(screenshotGroup);
-        page.Children.Add(recordingGroup);
-        page.Children.Add(generalGroup);
-        scroll.Content = page;
-        Body = scroll;
+        current = load();
+        foreach (var spec in specs) pages.Add(BuildPage(spec));
+        tabs = new TabBar(specs.Select(spec => spec.Title)) { Margin = new Thickness(UiTokens.Space.Window, 0, UiTokens.Space.Window, UiTokens.Space.Md - TabBar.Gap) };
+        tabs.Chosen += ShowPage;
+        scroll.Content = pages;
+        var body = new DockPanel();
+        DockPanel.SetDock(tabs, Dock.Top);
+        body.Children.Add(tabs);
+        body.Children.Add(scroll);
+        Body = body;
         if (textScale > 1.01) ((FrameworkElement)Content).LayoutTransform = new ScaleTransform(textScale, textScale);
 
-        HookUp();
+        sizeSaver = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
+        sizeSaver.Tick += delegate { sizeSaver.Stop(); RememberSize(); };
+        SizeChanged += delegate { if (IsVisible && places != null) { sizeSaver.Stop(); sizeSaver.Start(); } };
+
         Populate();
     }
 
-    /// <summary>The groups (tests).</summary>
-    internal IEnumerable<SettingGroup> Groups => new[] { screenshotGroup, recordingGroup, generalGroup };
+    // ---------------------------------------------------------- what tests and the host see
 
-    internal HotkeyBox ScreenshotHotkey => screenshotHotkey;
-    internal SettingRow ScreenshotHotkeyRow => screenshotHotkeyRow;
-    internal SettingRow ScreenshotFolderRow => screenshotFolderRow;
-    internal ToggleSwitch Microphone => microphone;
-    internal Select Appearance => appearance;
+    internal IReadOnlyList<SettingGroup> Groups => groups;
+    internal TabBar Tabs => tabs;
+    internal PageHost Pages => pages;
+    internal ScrollArea Scroll => scroll;
+    internal HotkeyBox ScreenshotHotkey => hotkeys[NazarSettings.ScreenshotHotkey];
+    internal SettingRow ScreenshotHotkeyRow => rows[NazarSettings.ScreenshotHotkey];
+    internal SettingRow ScreenshotFolderRow => rows[NazarSettings.ScreenshotFolder];
+    internal ToggleSwitch Microphone => switches["microphone"];
+    internal Select Appearance => selects[NazarSettings.Appearance];
+    internal SettingRow? UpdateRow => updateRow;
+    internal SettingRow Row(string key) => rows[key];
 
-    /// <summary>Opens (or brings back) the one settings window of the engine; <paramref name="recording"/> scrolls to the recording group.</summary>
+    /// <summary>Opens (or brings back) the one settings window of the engine; <paramref name="recording"/> shows the recording page.</summary>
     public static void ShowShared(bool recording)
     {
-        shared ??= new SettingsWindow(new HostChannel(), CaptureSettings.Load, TextScaleFactor());
+        shared ??= new SettingsWindow(new HostChannel(), CaptureSettings.Load, TextScaleFactor(), WindowPlaces.User());
         shared.Open(recording);
     }
 
@@ -124,26 +119,42 @@ internal sealed class SettingsWindow : MosaikWindow
     {
         Populate();
         Palette.Apply(Resources);
+        if (recording) SelectPage(NazarSettings.RecordingPage);
         if (!IsVisible)
         {
             RECT work = NativeMethods.WorkAreaAtCursor();
             double scale = NativeMethods.ScaleOfMonitor(work);
             MaxHeight = (work.bottom - work.top) / scale * 0.92;
+            Height = Math.Min(Height, MaxHeight);
             WindowStartupLocation = WindowStartupLocation.Manual;
             Left = (work.left + (work.right - work.left) / 2.0) / scale - Width / 2;
             Top = (work.top / scale) + 40;
+            scroll.ScrollTo(0);
             Show();
         }
         if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
         ToolWindowBase.TakeFocus(this, new WindowInteropHelper(this).Handle);
-        if (recording) recordingGroup.BringIntoView();
-        (recording ? recordingHotkeyRow : screenshotHotkeyRow).Focus();
+        tabs.Buttons[tabs.Selected].Focus();
+    }
+
+    /// <summary>Shows a page as if its tab had been chosen.</summary>
+    internal void SelectPage(int index)
+    {
+        tabs.Show(index);
+        ShowPage(index);
+    }
+
+    void ShowPage(int index)
+    {
+        foreach (var box in hotkeys.Values) box.CancelCapture();
+        pages.Selected = index;
+        scroll.ScrollTo(0);
     }
 
     protected override void RequestClose()
     {
-        screenshotHotkey.CancelCapture();
-        recordingHotkey.CancelCapture();
+        foreach (var box in hotkeys.Values) box.CancelCapture();
+        if (sizeSaver.IsEnabled) { sizeSaver.Stop(); RememberSize(); }
         Hide();
     }
 
@@ -154,6 +165,101 @@ internal sealed class SettingsWindow : MosaikWindow
         RequestClose();
     }
 
+    void RememberSize()
+    {
+        if (places == null || WindowState != WindowState.Normal || ActualWidth < 1) return;
+        places.Write(PlaceKey, ActualWidth, ActualHeight);
+    }
+
+    // ---------------------------------------------------------- building from the page data
+
+    FrameworkElement BuildPage(PageSpec spec)
+    {
+        // On the right the groups end one scroll gutter earlier, so both window margins are equally wide (Hams' group()).
+        var page = new StackPanel { Margin = new Thickness(0, 0, UiTokens.Space.Window - ScrollArea.GutterWidth - ScrollArea.EdgeGap, 0) };
+        System.Windows.Automation.AutomationProperties.SetName(page, spec.Title);
+        bool first = true;
+        foreach (var groupSpec in spec.Groups)
+        {
+            var group = new SettingGroup(first ? null : groupSpec.Heading);
+            System.Windows.Automation.AutomationProperties.SetName(group, groupSpec.Heading ?? spec.Title);
+            if (!first) group.Margin = new Thickness(0, UiTokens.Space.SectionGap, 0, 0);
+            foreach (var row in groupSpec.Rows) group.Add(BuildRow(row, group));
+            groups.Add(group);
+            page.Children.Add(group);
+            first = false;
+        }
+        return page;
+    }
+
+    SettingRow BuildRow(RowSpec spec, SettingGroup group)
+    {
+        switch (spec)
+        {
+            case SwitchSpec s:
+                {
+                    var toggle = new ToggleSwitch(s.Title);
+                    var row = new SettingRow(s.Title, s.Hint, toggle);
+                    switches[s.Key] = toggle;
+                    rows[s.Key] = row;
+                    toggle.Checked += delegate { Change(toggle, s.Key, "1"); };
+                    toggle.Unchecked += delegate { Change(toggle, s.Key, "0"); };
+                    return row;
+                }
+            case ChoiceSpec c:
+                {
+                    var select = new Select(c.Title);
+                    for (int i = 0; i < c.Labels.Length; i++) select.Add(c.Labels[i], c.Values[i]);
+                    if (!c.Stacked) select.Width = ControlWidth;
+                    var row = new SettingRow(c.Title, c.Hint, select, stacked: c.Stacked);
+                    selects[c.Key] = select;
+                    rows[c.Key] = row;
+                    select.SelectionChanged += delegate { Chosen(select, c.Key); };
+                    return row;
+                }
+            case HotkeySpec h:
+                {
+                    var box = new HotkeyBox(h.Title + " " + PageOf(h), h.Value(current), h.Default,
+                        new HostHotkeyChecker(host, h.Key, h.OtherName, () => hotkeys.TryGetValue(h.OtherKey, out var other) ? other.Combo : ""));
+                    var row = new SettingRow(h.Title, h.Hint, box, stacked: true);
+                    hotkeys[h.Key] = box;
+                    rows[h.Key] = row;
+                    Hook(box, row, h.Key, h.Value);
+                    return row;
+                }
+            case FolderSpec f:
+                {
+                    var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
+                    var row = new SettingRow(f.Title, f.Value(current), buttons, stacked: true);
+                    buttons.Children.Add(new SecondaryButton(UiText.Settings.Change, () => ChangeFolder(row, f.Key, f.Value(current))) { MinWidth = RowButtonWidth, Margin = new Thickness(0, 0, UiTokens.Space.Md, 0) });
+                    buttons.Children.Add(new SecondaryButton(UiText.Settings.Open, () => OpenFolder(row, f.Value(current)), IconGlyphs.Folder) { MinWidth = RowButtonWidth });
+                    rows[f.Key] = row;
+                    folders.Add((row, f.Value));
+                    return row;
+                }
+            case LinkSpec l:
+                return new SettingRow(l.Title, l.Hint, new SecondaryButton(l.Button, () => Shell.Open(l.Url)) { MinWidth = RowButtonWidth });
+            case DisplaySpec d:
+                return SettingRow.Display(d.Title, d.Value);
+            case UpdateNoticeSpec:
+                {
+                    var actions = new StackPanel { Orientation = Orientation.Horizontal };
+                    actions.Children.Add(new SecondaryButton(UiText.Settings.View, () => { if (pendingRelease != null) Updates.UpdateNotice.Show(pendingRelease); }) { MinWidth = RowButtonWidth });
+                    actions.Children.Add(IconButton.Stone(LineIcon.Shape.Close, UiText.Settings.UpdateDismiss, DismissUpdate));
+                    ((FrameworkElement)actions.Children[1]).Margin = new Thickness(UiTokens.Space.Xs, 0, 0, 0);
+                    updateRow = new SettingRow(spec.Title, "", actions);
+                    updateGroup = group;
+                    return updateRow;
+                }
+            default:
+                throw new ArgumentException("Unknown row: " + spec.GetType().Name, nameof(spec));
+        }
+    }
+
+    string PageOf(RowSpec spec) => specs.First(page => page.Groups.Any(g => g.Rows.Contains(spec))).Title;
+
+    // ---------------------------------------------------------- state
+
     /// <summary>Shows the settings as stored now, and which hotkeys the host could register.</summary>
     internal void Populate()
     {
@@ -161,38 +267,42 @@ internal sealed class SettingsWindow : MosaikWindow
         populating = true;
         try
         {
-            screenshotHotkey.Show(current.ScreenshotHotkey);
-            recordingHotkey.Show(current.RecordingHotkey);
-            screenshotFolderRow.SetDescription(current.ScreenshotFolder);
-            recordingFolderRow.SetDescription(current.RecordingFolder);
-            fps.SelectedValue = current.Fps;
-            countdown.SelectedValue = current.Countdown;
-            appearance.SelectedValue = (int)current.Appearance;
-            microphone.IsChecked = current.Microphone;
-            systemAudio.IsChecked = current.SystemAudio;
-            clicks.IsChecked = current.Clicks;
-            autostart.IsChecked = current.Autostart;
-            checkUpdates.IsChecked = current.CheckUpdates;
+            foreach (var page in specs)
+                foreach (var group in page.Groups)
+                    foreach (var spec in group.Rows)
+                        switch (spec)
+                        {
+                            case SwitchSpec s: switches[s.Key].IsChecked = s.Value(current); break;
+                            case ChoiceSpec c: selects[c.Key].SelectedValue = c.Value(current); break;
+                            case HotkeySpec h: hotkeys[h.Key].Show(h.Value(current)); break;
+                        }
+            foreach (var (row, value) in folders) row.SetDescription(value(current));
         }
         finally { populating = false; }
         ShowHotkeyState();
-        ShowUpdate(Updates.UpdateNotice.Pending());
+        ShowUpdate(pending());
     }
 
-    /// <summary>A newer version (as remembered by the daily check) shows in the version row with a button.</summary>
-    internal void ShowUpdate(Updates.Release? pending)
+    /// <summary>A newer version (as remembered by the daily check) shows as a calm row above "Nach Updates suchen".</summary>
+    internal void ShowUpdate(Updates.Release? release)
     {
-        if (pending == null) { versionRow.ShowStatus("", Status.None); return; }
-        versionRow.ShowStatus(UiText.Update.Available(pending.Version), Status.Processing);
-        if (versionRow.Control is not PrimaryButton)
-            versionRow.SetControl(new PrimaryButton(UiText.Update.Now, () => Updates.UpdateNotice.Show(pending), IconGlyphs.Refresh));
+        pendingRelease = release;
+        if (updateRow == null || updateGroup == null) return;
+        if (release != null) updateRow.SetDescription(UiText.Settings.UpdateHint(release.Version, AppInfo.Version));
+        updateGroup.SetRowVisible(updateRow, release != null);
+    }
+
+    void DismissUpdate()
+    {
+        if (pendingRelease != null) new Updates.UpdateCheck().Dismiss(pendingRelease.Version);
+        ShowUpdate(null);
     }
 
     void ShowHotkeyState()
     {
         var state = host.Probe();
-        ShowHint(screenshotHotkeyRow, screenshotHotkey.Combo, state is { Screenshot: false });
-        ShowHint(recordingHotkeyRow, recordingHotkey.Combo, state is { Recording: false });
+        if (rows.TryGetValue(NazarSettings.ScreenshotHotkey, out var shot)) ShowHint(shot, ScreenshotHotkey.Combo, state is { Screenshot: false });
+        if (rows.TryGetValue(NazarSettings.RecordingHotkey, out var take)) ShowHint(take, hotkeys[NazarSettings.RecordingHotkey].Combo, state is { Recording: false });
     }
 
     static void ShowHint(SettingRow row, string combo, bool missing)
@@ -202,25 +312,9 @@ internal sealed class SettingsWindow : MosaikWindow
         row.ShowStatus(printAlone ? UiText.Hotkeys.PrintHint : "", Status.None);
     }
 
-    void HookUp()
-    {
-        Hook(screenshotHotkey, screenshotHotkeyRow, ScreenshotHotkeyKey);
-        Hook(recordingHotkey, recordingHotkeyRow, RecordingHotkeyKey);
-        Bind(microphone, "microphone");
-        Bind(systemAudio, "system_audio");
-        Bind(clicks, "show_clicks");
-        Bind(autostart, "autostart");
-        Bind(checkUpdates, "check_updates");
-        Bind(fps, "fps");
-        Bind(countdown, "countdown");
-        Bind(appearance, "appearance", value =>
-        {
-            CaptureSettings.UseAppearance(CaptureSettings.NormalizeAppearance((int)value));
-            Palette.Apply(Resources);
-        });
-    }
+    // ---------------------------------------------------------- changes
 
-    void Hook(HotkeyBox box, SettingRow row, string key)
+    void Hook(HotkeyBox box, SettingRow row, string key, Func<CaptureSettingsSnapshot, string> value)
     {
         box.Message += (text, status) => row.ShowStatus(text, status);
         box.CaptureChanged += capturing =>
@@ -231,17 +325,11 @@ internal sealed class SettingsWindow : MosaikWindow
         };
         box.Applied += combo =>
         {
-            string before = key == ScreenshotHotkeyKey ? current.ScreenshotHotkey : current.RecordingHotkey;
+            string before = value(current);
             var reply = host.Set(key, combo);
             if (reply == HostReply.Ok) { current = load(); ShowHint(row, combo, false); return; }
             box.Refuse(before, Explain(reply));
         };
-    }
-
-    void Bind(ToggleSwitch toggle, string key)
-    {
-        toggle.Checked += delegate { Change(toggle, key, "1"); };
-        toggle.Unchecked += delegate { Change(toggle, key, "0"); };
     }
 
     void Change(ToggleSwitch toggle, string key, string value)
@@ -256,33 +344,26 @@ internal sealed class SettingsWindow : MosaikWindow
         row.ShowStatus(Explain(reply), Status.Error);
     }
 
-    void Bind(Select select, string key, Action<object>? applied = null)
+    void Chosen(Select select, string key)
     {
-        select.SelectionChanged += delegate
+        if (populating || select.SelectedValue == null) return;
+        var row = (SettingRow)select.Parent;
+        var reply = host.Set(key, Convert.ToString(select.SelectedValue, CultureInfo.InvariantCulture)!);
+        if (reply == HostReply.Ok)
         {
-            if (populating || select.SelectedValue == null) return;
-            var row = (SettingRow)select.Parent;
-            var reply = host.Set(key, Convert.ToString(select.SelectedValue, CultureInfo.InvariantCulture)!);
-            if (reply == HostReply.Ok) { row.ShowStatus("", Status.None); applied?.Invoke(select.SelectedValue); current = load(); return; }
-            row.ShowStatus(Explain(reply), Status.Error);
-            Populate();
-        };
-    }
-
-    static Select Choice(string name, string[] labels, object[] values)
-    {
-        var select = new Select(name);
-        for (int i = 0; i < labels.Length; i++) select.Add(labels[i], values[i]);
-        return select;
-    }
-
-    SettingRow FolderRow(string key, Func<string> folder)
-    {
-        var buttons = new StackPanel { Orientation = Orientation.Horizontal };
-        var row = new SettingRow(UiText.Settings.Folder, folder(), buttons);
-        buttons.Children.Add(new SecondaryButton(UiText.Settings.Change, () => ChangeFolder(row, key, folder())) { Margin = new Thickness(0, 0, UiTokens.Space.Md, 0) });
-        buttons.Children.Add(new SecondaryButton(UiText.Settings.Open, () => OpenFolder(row, folder()), IconGlyphs.Folder));
-        return row;
+            row.ShowStatus("", Status.None);
+            if (key == NazarSettings.Appearance)
+            {
+                // works at once in the open window, and in every window opened from now on
+                CaptureSettings.UseAppearance(CaptureSettings.NormalizeAppearance((int)select.SelectedValue));
+                Palette.Apply(Resources);
+                MainWindow.Repaint();
+            }
+            current = load();
+            return;
+        }
+        row.ShowStatus(Explain(reply), Status.Error);
+        Populate();
     }
 
     void ChangeFolder(SettingRow row, string key, string before) =>

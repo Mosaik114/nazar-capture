@@ -48,6 +48,7 @@
       "show_settings": 1,
       "show_recording_settings": 2,
       "take_screenshot": 3,
+      "show_main": 5,
       "toggle_recording": 4,
       "quit": 9,
       "probe": 10,
@@ -83,8 +84,8 @@
     "executable": "MosaikCapture.Engine.exe",
     "mutex": "Local\\MosaikCapture.Engine",
     "window_title": "MosaikCapture.Engine",
-    "arguments": { "screenshot": "--screenshot", "recording": "--recording", "idle": "--idle", "settings": "--settings", "recording_settings": "--recording-settings" },
-    "messages": { "screenshot": 1, "recording": 2, "quit": 3, "settings": 4, "recording_settings": 5, "query_state": 10 },
+    "arguments": { "screenshot": "--screenshot", "recording": "--recording", "idle": "--idle", "settings": "--settings", "recording_settings": "--recording-settings", "main": "--main" },
+    "messages": { "screenshot": 1, "recording": 2, "quit": 3, "settings": 4, "recording_settings": 5, "main": 6, "query_state": 10 },
     "state_bits": { "busy": 1, "live": 2 }
   },
 

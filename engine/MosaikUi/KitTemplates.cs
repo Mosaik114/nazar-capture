@@ -18,6 +18,7 @@ internal static class KitTemplates
         chrome.SetValue(StoneChrome.RadiusProperty, new TemplateBindingExtension(Mui.RadiusProperty));
         chrome.SetValue(StoneChrome.DepthProperty, new TemplateBindingExtension(Mui.DepthProperty));
         chrome.SetValue(StoneChrome.PaddingProperty, new TemplateBindingExtension(Control.PaddingProperty));
+        chrome.SetValue(StoneChrome.IsSquircleProperty, new TemplateBindingExtension(Mui.SquircleProperty));
         chrome.SetValue(UIElement.SnapsToDevicePixelsProperty, true);
         var content = new FrameworkElementFactory(typeof(ContentPresenter));
         content.SetValue(ContentPresenter.ContentProperty, new TemplateBindingExtension(ContentControl.ContentProperty));

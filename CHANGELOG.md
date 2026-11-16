@@ -14,6 +14,11 @@ All notable changes to this project are documented here. The format follows
   update loses nothing. New logo "Fokus" in cobalt, ink and watercolour.
 - One design language with Hams: every window is built from one kit (`engine/MosaikUi`) — tokens,
   the stone painter with ink edge and side, real buttons with roles, Nunito.
+- The settings window is built like Hams': a painted head (mark, title, a viewfinder banner in cobalt,
+  round close stone), tabs (Screenshot, Aufnahme, Allgemein, Info & Hilfe), one page per tab with a
+  visible scroll bar; its size can be dragged and is remembered.
+- A small main window like Hams' opens from the tray icon or a plain start: "Screenshot" and
+  "Aufnahme", both hotkeys as key caps, the gear for the settings. The tray menu stays.
 - The settings window is part of the engine: groups instead of a form, changes apply at once,
   problems show in their own row, appearance light/dark/like Windows, the window grows with the
   Windows text size.

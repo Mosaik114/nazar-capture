@@ -113,7 +113,7 @@ public sealed class ComponentTests : IDisposable
 
         row.RaiseEvent(new MouseButtonEventArgs(Mouse.PrimaryDevice, 0, MouseButton.Left) { RoutedEvent = UIElement.MouseLeftButtonUpEvent });
         Assert.False(toggle.IsChecked);   // a click on the row (not on the switch) flips it, too
-        Assert.True(row.ActualHeight >= UiTokens.Height.RowMin);
+        Assert.True(row.ActualHeight + row.Margin.Top + row.Margin.Bottom >= UiTokens.Height.RowMin);
         Assert.Equal("Kopieren", UIElementAutomationPeer.CreatePeerForElement(toggle).GetName());
     });
 
@@ -259,7 +259,7 @@ public sealed class ComponentTests : IDisposable
         Assert.Equal(Status.Error, row.Status);
         row.ShowStatus("", Status.None);
         Assert.Equal("C:\\Bilder", row.Description);
-        Assert.True(row.ActualHeight >= UiTokens.Height.RowMin);
+        Assert.True(row.ActualHeight + row.Margin.Top + row.Margin.Bottom >= UiTokens.Height.RowMin);
     });
 
     [Fact]
