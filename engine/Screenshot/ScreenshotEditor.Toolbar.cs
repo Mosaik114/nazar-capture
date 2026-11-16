@@ -53,6 +53,9 @@ internal sealed partial class ScreenshotEditor
         return bar;
     }
 
+    /// <summary>The color dots of the toolbar, in the order of <see cref="InkStyle.Colors"/> (tests).</summary>
+    internal IReadOnlyList<Shapes.Ellipse> ColorDots => colorDots;
+
     /// <summary>Every button of the toolbar (tests: all reachable by keyboard and named).</summary>
     internal IEnumerable<ButtonBase> ToolbarButtons => Descendants<ButtonBase>(toolbarRow);
 
@@ -74,8 +77,16 @@ internal sealed partial class ScreenshotEditor
             var ring = new Shapes.Ellipse { Width = Metrics.ColorRingSize, Height = Metrics.ColorRingSize, StrokeThickness = Metrics.ColorRingThickness, Visibility = Visibility.Hidden };
             ring.SetResourceReference(Shapes.Shape.StrokeProperty, UiTokens.Keys.TextPrimary);
             face.Children.Add(ring);
-            face.Children.Add(new Shapes.Ellipse { Width = Metrics.ColorDotSize, Height = Metrics.ColorDotSize, Fill = new SolidColorBrush(InkStyle.Colors[i]) });
+            var dot = new Shapes.Ellipse { Width = Metrics.ColorDotSize, Height = Metrics.ColorDotSize, Fill = new SolidColorBrush(InkStyle.Colors[i]) };
+            // The white marker would vanish on the almost white light toolbar: a fine ink edge, as the stones have.
+            if (InkStyle.Colors[i] == UiTokens.Fixed.Markup6)
+            {
+                dot.StrokeThickness = UiTokens.Depth.Ink;
+                dot.SetResourceReference(Shapes.Shape.StrokeProperty, UiTokens.Keys.Ink);
+            }
+            face.Children.Add(dot);
             colorRings.Add(ring);
+            colorDots.Add(dot);
             int index = i;
             var button = new KitButton { Content = face, Width = Metrics.ColorButtonWidth, Height = ToolButton.Size + UiTokens.Depth.Control, Padding = new Thickness(0) };
             Mui.SetRole(button, MuiRole.Plain);

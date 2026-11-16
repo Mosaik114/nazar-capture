@@ -59,6 +59,7 @@ internal sealed partial class ScreenshotEditor : Window
     readonly StackPanel toolbarRow, menuItems;
     readonly List<ToolGroup> groups = new();
     readonly List<Shapes.Ellipse> colorRings = new();
+    readonly List<Shapes.Ellipse> colorDots = new();
     readonly List<KitToggleButton> widthButtons = new();
     readonly InkStyle style = new();
 

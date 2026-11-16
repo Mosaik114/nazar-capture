@@ -88,6 +88,25 @@ public sealed class WindowTests
     });
 
     [Fact]
+    public void TheWhiteMarkerDotHasAnInkEdgeOnTheLightToolbar() => WpfThread.Run(() =>
+    {
+        bool? previous = Palette.Force;
+        Palette.Force = true;   // light: the plate is almost white, like the white marker
+        try
+        {
+            var editor = new ScreenshotEditor((_, _) => { }, _ => { }, (_, _) => { });
+            Lay((FrameworkElement)editor.Toolbar);
+            var white = Assert.Single(editor.ColorDots, dot => ((SolidColorBrush)dot.Fill).Color == UiTokens.Fixed.Markup6);
+            Assert.Equal(UiTokens.Depth.Ink, white.StrokeThickness);
+            var plate = ((SolidColorBrush)((StoneChrome)editor.Toolbar).Fill!).Color;
+            Assert.True(TokenTests.Contrast(((SolidColorBrush)white.Stroke).Color, plate) >= 2, "the edge must stand out from the plate");
+            Assert.All(editor.ColorDots.Where(dot => dot != white), dot => Assert.Null(dot.Stroke));   // the others need none
+            editor.Close();
+        }
+        finally { Palette.Force = previous; }
+    });
+
+    [Fact]
     public void PinnedImageMenuIsAKeyboardMenu() => WpfThread.Run(() =>
     {
         var image = BitmapSource.Create(4, 4, 96, 96, PixelFormats.Bgra32, null, new byte[64], 16);
