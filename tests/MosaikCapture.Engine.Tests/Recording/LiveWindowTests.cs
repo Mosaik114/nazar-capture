@@ -82,6 +82,6 @@ public sealed class LiveWindowTests
             Assert.Equal(WindowStyle.None, window.WindowStyle);
             Assert.False(window.IsVisible, window.Title);
         }
-        Assert.Equal(new[] { "Mosaiks-Aufnahme Rahmen", "Mosaiks-Aufnahme Countdown", "Mosaiks-Aufnahme Leiste", "Mosaiks-Aufnahme Karte" }, windows.Select(w => w.Title));
+        Assert.Equal(new[] { UiText.Titles.RecordingFrame, UiText.Titles.Countdown, UiText.Titles.Toolbar, UiText.Titles.RecordingCard }, windows.Select(w => w.Title));
     });
 }

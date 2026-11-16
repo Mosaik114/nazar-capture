@@ -56,7 +56,7 @@ internal sealed class ClickHighlighter
         dispatcher = Dispatcher.CurrentDispatcher;
         var installed = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         var started = new HookRun();
-        started.Thread = new Thread(() => RunHook(started, installed)) { IsBackground = true, Name = "Mosaik Capture click hook" };
+        started.Thread = new Thread(() => RunHook(started, installed)) { IsBackground = true, Name = "Nazar Capture click hook" };
         run = started;
         started.Thread.Start();
         WatchInstallAsync(started, installed.Task).LogFailures("Starting the click highlights");

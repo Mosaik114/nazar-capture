@@ -6,26 +6,29 @@ namespace MosaikCapture.Engine.Core;
 /// </summary>
 static class UiText
 {
+    /// <summary>The product name, the one place it is written in the engine (the host has its own in strings.rs).</summary>
+    public const string Product = "Nazar Capture";
+
     /// <summary>
-    /// Window titles. They are part of the German UI and its brand ("Mosaiks-Screenshot", "Mosaiks-Aufnahme"):
+    /// Window titles. They are part of the German UI and carry the product name (Product.Name):
     /// Alt+Tab, the taskbar and screen readers show them. The invisible helper windows of a recording
     /// (frame, countdown, toolbar, click ring) are never listed there, but screen readers and UI automation
     /// still read their titles, and tests and QA scripts find all windows by them, so they follow the same scheme.
     /// </summary>
     public static class Titles
     {
-        public const string Overlay = "Mosaiks-Screenshot";
-        public const string ScreenshotCard = "Mosaiks-Screenshot Karte";
-        public const string Editor = "Mosaiks-Screenshot bearbeiten";
-        public const string Pin = "Mosaiks-Screenshot angepinnt";
-        public const string RecordingFrame = "Mosaiks-Aufnahme Rahmen";
-        public const string Countdown = "Mosaiks-Aufnahme Countdown";
-        public const string Toolbar = "Mosaiks-Aufnahme Leiste";
-        public const string RecordingCard = "Mosaiks-Aufnahme Karte";
-        public const string Click = "Mosaiks-Aufnahme Klick";
+        public const string Overlay = "Nazar Capture – Screenshot";
+        public const string ScreenshotCard = "Nazar Capture – Screenshot-Karte";
+        public const string Editor = "Nazar Capture – Screenshot bearbeiten";
+        public const string Pin = "Nazar Capture – angepinnter Screenshot";
+        public const string RecordingFrame = "Nazar Capture – Aufnahmerahmen";
+        public const string Countdown = "Nazar Capture – Countdown";
+        public const string Toolbar = "Nazar Capture – Aufnahmeleiste";
+        public const string RecordingCard = "Nazar Capture – Aufnahme-Karte";
+        public const string Click = "Nazar Capture – Klick";
         public const string Trim = "Aufnahme kürzen";
-        public const string KitDemo = "Bausteine";
-        public const string Settings = "Einstellungen";
+        public const string KitDemo = "Nazar Capture – Bausteine";
+        public const string Settings = "Nazar Capture – Einstellungen";
     }
 
     /// <summary>Names of the files the user gets.</summary>
@@ -35,12 +38,12 @@ static class UiText
         public const string ScreenshotFolder = "Mosaiks-Screenshots";
         /// <summary>Default folder below Videos.</summary>
         public const string RecordingFolder = "Mosaiks-Aufnahmen";
-        public const string ScreenshotPrefix = "Mosaiks-Screenshot ";
-        public const string RecordingPrefix = "Mosaiks-Aufnahme ";
+        public const string ScreenshotPrefix = "Nazar-Screenshot ";
+        public const string RecordingPrefix = "Nazar-Aufnahme ";
         public const string TrimmedSuffix = " gekürzt";
         /// <summary>Folder next to a recording that could not be saved: its raw segments and sound tracks.</summary>
         public const string RawDataSuffix = " (Rohdaten)";
-        public const string SaveAsTitle = "Mosaiks-Screenshot speichern unter";
+        public const string SaveAsTitle = "Nazar Capture – Screenshot speichern unter";
         public const string SaveAsFilter = "PNG-Bild (*.png)|*.png|JPEG-Bild (*.jpg)|*.jpg";
     }
 
@@ -279,7 +282,7 @@ static class UiText
     /// <summary>The update notice.</summary>
     public static class Update
     {
-        public const string Title = "Mosaiks-Screenshot Update";
+        public const string Title = "Nazar Capture – Update";
         public const string Now = "Jetzt aktualisieren";
         public const string Later = "Später";
         public const string WhatsNew = "Was ist neu";

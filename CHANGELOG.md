@@ -6,6 +6,32 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.1.3] - 2026-11-16
+
+### Changed
+- The app is called **Nazar Capture** (tray, windows, autostart entry, Start menu, installer, About);
+  the executables, `%LOCALAPPDATA%\MosaikCapture` and the default folders keep their names, so an
+  update loses nothing. New logo "Fokus" in cobalt, ink and watercolour.
+- One design language with Hams: every window is built from one kit (`engine/MosaikUi`) — tokens,
+  the stone painter with ink edge and side, real buttons with roles, Nunito.
+- The settings window is part of the engine: groups instead of a form, changes apply at once,
+  problems show in their own row, appearance light/dark/like Windows, the window grows with the
+  Windows text size.
+- Hotkeys are recorded by pressing them; Print, Pause, Insert, the numpad and Win are possible.
+  A hotkey taken by another program is retried every 30 seconds.
+- Everything works with the keyboard and screen readers: Tab, Space, Enter, menus with arrow keys,
+  the overlay with the arrow keys (Enter sets start and end); a shown card or the recording bar
+  comes to the keyboard with its hotkey plus Ctrl.
+- Faster and leaner: the overlay opens in about half the time, the first screenshot after logon
+  is prepared in the background, memory no longer grows with every capture.
+- Failed cards stay until they are closed; actions that wait for the file say so.
+
+### Added
+- Update check once a day with a calm notice; updating checks the SHA-256 of the download and
+  installs only after your click (`MosaikCapture.exe --install`).
+- NVENC that fails in the first seconds falls back to the software encoder; recordings need at
+  least 2 GB of free space.
+
 ## [1.1.2] - 2026-11-13
 
 ### Changed

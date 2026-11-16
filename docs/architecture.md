@@ -1,6 +1,7 @@
 # Architecture
 
-Mosaik Capture is two cooperating Windows processes:
+Nazar Capture (formerly Mosaik Capture; the executables, the settings folder and the window classes keep the
+technical name `MosaikCapture`) is two cooperating Windows processes:
 
 | Process | Language | Lifetime | Responsibility |
 |---|---|---|---|

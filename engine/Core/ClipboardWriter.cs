@@ -54,7 +54,7 @@ internal static class ClipboardWriter
                 result.TrySetResult(false);
             }
         })
-        { IsBackground = true, Name = "Mosaik Capture clipboard" };
+        { IsBackground = true, Name = "Nazar Capture clipboard" };
         thread.SetApartmentState(ApartmentState.STA);
         thread.Start();
         if (await Task.WhenAny(result.Task, Task.Delay(Timeout)).ConfigureAwait(false) == result.Task) return await result.Task.ConfigureAwait(false);

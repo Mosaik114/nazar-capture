@@ -11,7 +11,7 @@ namespace MosaikCapture.Engine.Settings;
 /// </summary>
 internal sealed class SettingsWindow : MosaikWindow
 {
-    public const double BaseWidth = 680;
+    public const double BaseWidth = 780;
     const string ScreenshotHotkeyKey = "screenshot_hotkey", RecordingHotkeyKey = "recording_hotkey";
 
     static SettingsWindow? shared;

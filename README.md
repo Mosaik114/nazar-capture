@@ -1,6 +1,8 @@
 <div align="center">
 
-# Mosaik Capture
+<img src="assets/capture.png" width="96" alt="">
+
+# Nazar Capture
 
 **A fast, keyboard-first screenshot and screen-recording tool for Windows,
 built as a small Rust tray app driving a C#/WPF capture engine.**
@@ -99,10 +101,13 @@ tested, and three engineering problems and how they were solved — are in
 
 ## Install
 
-1. Download `mosaik-capture-<version>-win-x64.zip` from the
-   [latest release](https://github.com/Mosaik114/mosaik-capture/releases/latest) and unzip
-   both executables into one folder.
-2. Start `MosaikCapture.exe`. It adds itself to the tray and (by default) to autostart.
+1. Download `nazar-capture-<version>-win-x64.zip` from the
+   [latest release](https://github.com/Mosaik114/mosaik-capture/releases/latest) and unzip it.
+2. Run `MosaikCapture.exe --install`. It installs into `%LOCALAPPDATA%\Programs\MosaikCapture`,
+   adds a Start-menu entry, the tray icon and (by default) autostart. Updates come the same way:
+   once a day the app looks for a new release (switch it off under *Allgemein*) and shows a calm
+   card; *Jetzt aktualisieren* downloads the ZIP, checks its SHA-256 against the release and only
+   then installs it. Settings are kept.
 3. For screen recording, install ffmpeg: `winget install Gyan.FFmpeg.Essentials`.
 
 Requirements: Windows 10/11 x64 with .NET Framework 4.8 (built into current Windows).
@@ -120,14 +125,17 @@ with *Smart App Control* enabled Windows refuses to run them.
 | `Ctrl+Shift+C` | Recognise and copy text (editor) |
 | `Space` · `I` / `O` · `←` `→` | Trim window: play, set in/out, step |
 
-Shortcuts, folders, microphone, system sound, click display, frame rate, countdown and
-autostart are configured in the settings window (tray icon → *Einstellungen*). A custom
-shortcut is one key (letter, digit, Space or F1–F24) plus Ctrl or Alt, optionally with Shift,
-so it can never swallow normal typing.
+Shortcuts, folders, microphone, system sound, click display, frame rate, countdown, appearance,
+update check and autostart are configured in the settings window (tray icon → *Einstellungen*);
+every change applies at once. A shortcut is recorded by pressing it: one key (letter, digit,
+Space, F1–F24, Insert, numpad) plus Ctrl, Alt or Win, optionally with Shift, so it can never
+swallow normal typing; Print and Pause may also stand alone (switch off Windows' own use of the
+Print key for the Snipping Tool first).
 Settings live in `%LOCALAPPDATA%\MosaikCapture\settings.ini`. By default screenshots go to
 `Pictures\Mosaiks-Screenshots` and recordings to `Videos\Mosaiks-Aufnahmen` — user-facing
 names, so they follow the German UI (as do output file names like
-`Mosaiks-Aufnahme 2026-09-26 14-03-12.mp4`); both folders can be changed in the settings.
+`Nazar-Aufnahme 2026-09-26 14-03-12.mp4`); both folders can be changed in the settings.
+The default folders keep their names from the time the app was called Mosaik Capture.
 
 ## Build from source
 

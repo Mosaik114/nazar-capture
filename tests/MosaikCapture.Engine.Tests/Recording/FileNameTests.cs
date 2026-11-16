@@ -33,19 +33,19 @@ public sealed class FileNameTests : IDisposable
 
     [Fact]
     public void RecordingFileNameContainsTheStartTime() =>
-        Assert.Equal("Mosaiks-Aufnahme 2026-09-26 14-03-12.mp4", RecordingBackend.FileName(When));
+        Assert.Equal("Nazar-Aufnahme 2026-09-26 14-03-12.mp4", RecordingBackend.FileName(When));
 
     [Fact]
     public void ScreenshotPathIsTimestampedAndNumbered()
     {
         string first = Screenshots.NewPath(directory.Path, When);
-        Assert.Equal(directory.File("Mosaiks-Screenshot 2026-09-26 14-03-12.png"), first);
+        Assert.Equal(directory.File("Nazar-Screenshot 2026-09-26 14-03-12.png"), first);
 
         File.WriteAllText(first, "");
-        Assert.Equal("Mosaiks-Screenshot 2026-09-26 14-03-12 (2).png", Path.GetFileName(Screenshots.NewPath(directory.Path, When)));
+        Assert.Equal("Nazar-Screenshot 2026-09-26 14-03-12 (2).png", Path.GetFileName(Screenshots.NewPath(directory.Path, When)));
 
-        File.WriteAllText(directory.File("Mosaiks-Screenshot 2026-09-26 14-03-12 (2).png"), "");
-        Assert.Equal("Mosaiks-Screenshot 2026-09-26 14-03-12 (3).png", Path.GetFileName(Screenshots.NewPath(directory.Path, When)));
+        File.WriteAllText(directory.File("Nazar-Screenshot 2026-09-26 14-03-12 (2).png"), "");
+        Assert.Equal("Nazar-Screenshot 2026-09-26 14-03-12 (3).png", Path.GetFileName(Screenshots.NewPath(directory.Path, When)));
     }
 
     [Theory]
@@ -59,8 +59,8 @@ public sealed class FileNameTests : IDisposable
         {
             Thread.CurrentThread.CurrentCulture = CultureInfo.GetCultureInfo(culture);
 
-            Assert.Equal("Mosaiks-Aufnahme 2026-09-26 14-03-12.mp4", RecordingBackend.FileName(When));
-            Assert.Equal("Mosaiks-Screenshot 2026-09-26 14-03-12.png", Path.GetFileName(Screenshots.NewPath(directory.Path, When)));
+            Assert.Equal("Nazar-Aufnahme 2026-09-26 14-03-12.mp4", RecordingBackend.FileName(When));
+            Assert.Equal("Nazar-Screenshot 2026-09-26 14-03-12.png", Path.GetFileName(Screenshots.NewPath(directory.Path, When)));
         }
         finally { Thread.CurrentThread.CurrentCulture = previous; }
     }
@@ -68,10 +68,10 @@ public sealed class FileNameTests : IDisposable
     [Fact]
     public void ExportTargetsLieNextToTheSource()
     {
-        string source = directory.File("Mosaiks-Aufnahme 2026-09-26 14-03-12.mp4");
+        string source = directory.File("Nazar-Aufnahme 2026-09-26 14-03-12.mp4");
 
-        Assert.Equal(directory.File("Mosaiks-Aufnahme 2026-09-26 14-03-12 gekürzt.mp4"), VideoExport.ExportTarget(source, gif: false));
-        Assert.Equal(directory.File("Mosaiks-Aufnahme 2026-09-26 14-03-12.gif"), VideoExport.ExportTarget(source, gif: true));
+        Assert.Equal(directory.File("Nazar-Aufnahme 2026-09-26 14-03-12 gekürzt.mp4"), VideoExport.ExportTarget(source, gif: false));
+        Assert.Equal(directory.File("Nazar-Aufnahme 2026-09-26 14-03-12.gif"), VideoExport.ExportTarget(source, gif: true));
     }
 
     [Fact]

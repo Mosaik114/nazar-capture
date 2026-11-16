@@ -180,7 +180,7 @@ internal class MosaikWindow : Window
 
     public MosaikWindow(string title)
     {
-        Title = title;
+        Title = UiText.Product + " – " + title;
         WindowStyle = WindowStyle.None;
         ResizeMode = ResizeMode.CanResize;
         UseLayoutRounding = true;
@@ -209,8 +209,14 @@ internal class MosaikWindow : Window
         var mark = new AppMark { Margin = new Thickness(0, 0, UiTokens.Space.Md + UiTokens.Space.Xs, 0) };
         DockPanel.SetDock(mark, Dock.Left);
         head.Children.Add(mark);
-        caption = TextStyle.Text(title, TextRole.WindowTitle);
+        var name = TextStyle.Text(UiText.Product, TextRole.WindowTitle);
+        name.VerticalAlignment = VerticalAlignment.Center;
+        DockPanel.SetDock(name, Dock.Left);
+        head.Children.Add(name);
+        caption = TextStyle.Text(title, TextRole.Section, UiTokens.Keys.TextSecondary);
         caption.VerticalAlignment = VerticalAlignment.Center;
+        caption.Margin = new Thickness(UiTokens.Space.Md + UiTokens.Space.Xs, 2, 0, 0);
+        caption.TextTrimming = TextTrimming.CharacterEllipsis;
         head.Children.Add(caption);
         DockPanel.SetDock(head, Dock.Top);
         frame.Children.Add(head);
@@ -248,56 +254,38 @@ internal class MosaikWindow : Window
     public string Caption
     {
         get => caption.Text;
-        set { caption.Text = value; Title = value; }
+        set { caption.Text = value; Title = UiText.Product + " – " + value; }
     }
 }
 
 /// <summary>
-/// The app's mark in a window head: the drawn "Fokus" logo (a lens ring with a corner and a point, in the accent).
-/// Drawn from geometry so it is sharp at every scale and follows the theme.
+/// The app's mark in a window head: the "Fokus" logo (lens ring of one stroke, a small square corner, the point of
+/// focus) in cobalt ink and watercolour, from design/logo/nazar_logo.py, shown small and smooth.
 /// </summary>
-internal sealed class AppMark : FrameworkElement
+internal sealed class AppMark : Image
 {
-    public const double Size = 22;
+    public const double Size = 24;
 
-    public static readonly DependencyProperty InkProperty = DependencyProperty.Register(nameof(Ink), typeof(Brush), typeof(AppMark),
-        new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender));
+    static readonly Lazy<BitmapSource> logo = new(() =>
+    {
+        _ = System.IO.Packaging.PackUriHelper.UriSchemePack;   // registers the pack:// scheme
+        var image = new BitmapImage();
+        image.BeginInit();
+        image.UriSource = new Uri("pack://application:,,,/MosaikCapture.Engine;component/MosaikUi/Logo/nazar_mark.png");
+        image.CacheOption = BitmapCacheOption.OnLoad;
+        image.DecodePixelWidth = 96;   // enough for 24 px at 400 %
+        image.EndInit();
+        image.Freeze();
+        return image;
+    });
 
     public AppMark()
     {
         Width = Height = Size;
+        Source = logo.Value;
         VerticalAlignment = VerticalAlignment.Center;
-        SetResourceReference(InkProperty, UiTokens.Keys.AccentSurface);
         IsHitTestVisible = false;
-    }
-
-    public Brush? Ink { get => (Brush?)GetValue(InkProperty); set => SetValue(InkProperty, value); }
-
-    protected override void OnRender(DrawingContext dc)
-    {
-        double s = Math.Min(ActualWidth, ActualHeight) / 24;
-        var pen = new Pen(Ink, 2.4 * s) { StartLineCap = PenLineCap.Round, EndLineCap = PenLineCap.Round, LineJoin = PenLineJoin.Round };
-        // the lens ring: open at the top right (away from the corner), so it reads as a ring, not a "D" or a drop
-        var ring = new PathGeometry();
-        var figure = new PathFigure { StartPoint = Polar(12, 12, 8.2, -60, s), IsClosed = false };
-        figure.Segments.Add(new ArcSegment(Polar(12, 12, 8.2, -20 + 360 - 20, s), new Size(8.2 * s, 8.2 * s), 0, true, SweepDirection.Counterclockwise, true));
-        ring.Figures.Add(figure);
-        dc.DrawGeometry(null, pen, ring);
-        // the square corner of a selection, bottom left, small
-        var corner = new StreamGeometry();
-        using (var c = corner.Open())
-        {
-            c.BeginFigure(new Point(2.2 * s, 16.2 * s), false, false);
-            c.LineTo(new Point(2.2 * s, 21.8 * s), true, true);
-            c.LineTo(new Point(7.8 * s, 21.8 * s), true, true);
-        }
-        dc.DrawGeometry(null, pen, corner);
-        dc.DrawEllipse(Ink, null, new Point(12 * s, 12 * s), 2.3 * s, 2.3 * s);   // the point of focus
-    }
-
-    static Point Polar(double cx, double cy, double r, double degrees, double s)
-    {
-        double a = degrees * Math.PI / 180;
-        return new Point((cx + r * Math.Cos(a)) * s, (cy + r * Math.Sin(a)) * s);
+        RenderOptions.SetBitmapScalingMode(this, BitmapScalingMode.HighQuality);
+        System.Windows.Automation.AutomationProperties.SetName(this, UiText.Product);
     }
 }

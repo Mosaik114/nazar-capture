@@ -75,7 +75,7 @@ internal sealed class AudioRecorder : IAudioRecorder
     public void Start()
     {
         startTicks = Clocks.Now100Ns();
-        thread = new Thread(CaptureLoop) { IsBackground = true, Name = "Mosaik Capture audio" };
+        thread = new Thread(CaptureLoop) { IsBackground = true, Name = "Nazar Capture audio" };
         thread.SetApartmentState(ApartmentState.MTA);
         thread.Start();
     }
