@@ -6,6 +6,37 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.1.6] - 2026-11-17
+
+Seven languages, updates with one click, and captures you do not have to keep.
+
+### Added
+- **Interface languages:** German, English, Russian, Spanish, French, Arabic and Turkish, or *Automatisch* (the
+  Windows display language; English for any other, German for German). Chosen under Settings → Allgemein → Sprache,
+  each language named in itself; it applies at once: the settings and main window are rebuilt in place, every other
+  window the next time it opens, and the tray menu, tooltip and messages of the host follow too. Arabic is laid out
+  from right to left (windows, cards, the editor's toolbar, the overlay hint), while pictures, the video and the
+  trim timeline keep their direction. Key caps follow the language (*Strg/Umschalt*, *Ctrl/Shift*, *Maj*, *Mayús* …).
+  One catalog per language (`engine/Core/Localization`, `src/ui/strings.rs`); tests check that every catalog has
+  the same keys and placeholders and that no text is cut on any settings page in any language.
+- **Updates with one click:** the switch *Über Updates informieren* (the daily check), *Jetzt nach Updates suchen*
+  with the result in the row, and *Jetzt aktualisieren* right in the settings row (the card stays). The update now
+  downloads `Nazar-Capture-Setup-<version>.exe`, checks it against the new release asset
+  `Nazar-Capture-Setup-<version>.exe.sha256`, installs it silently and starts Nazar Capture again in the tray; this
+  also updates the version in Windows *Apps*. Only addresses of this repository's release downloads are fetched,
+  nothing is installed without a matching checksum, and nothing starts while a recording runs.
+- **Screenshots speichern / Aufnahmen speichern** (on by default): switched off, a capture goes to the clipboard only;
+  the card offers *Speichern* instead of *Ordner* to keep it after all, otherwise its file in the app's own folder is
+  deleted after a day. **Aufbewahren** (unlimited, 7, 30, 90 days, 1 year) deletes older captures of Nazar Capture
+  from the folder: only its own file names (`Nazar-Screenshot …`, `Nazar-Aufnahme …`), never another program's
+  file, never a subfolder.
+
+### Changed
+- Settings copied from Mosaik Capture that still point to `Bilder\Mosaiks-Screenshots` or `Videos\Mosaiks-Aufnahmen`
+  are switched once to `Nazar-Screenshots` / `Nazar-Aufnahmen`; folders you chose stay, no file is moved.
+- The setup takes `/RESTARTAPP=1` (the in-app update): it keeps autostart as the app's setting says and starts the
+  app again afterwards. CI publishes the setup's `.sha256`; the ZIP and its `.sha256` stay for 1.1.3 to 1.1.5.
+
 ## [1.1.5] - 2026-11-17
 
 A Windows installer: download `Nazar-Capture-Setup-1.1.5.exe` and double-click it, as with Hams Dictate.
@@ -206,7 +237,8 @@ First public release as a standalone project.
   repository on 2026-11-12 (tag [`original-import`](https://github.com/Mosaik114/nazar-capture/tree/original-import)),
   so the whole 1.0.0 restructuring can be read as a before/after diff.
 
-[Unreleased]: https://github.com/Mosaik114/nazar-capture/compare/v1.1.5...HEAD
+[Unreleased]: https://github.com/Mosaik114/nazar-capture/compare/v1.1.6...HEAD
+[1.1.6]: https://github.com/Mosaik114/nazar-capture/releases/tag/v1.1.6
 [1.1.5]: https://github.com/Mosaik114/nazar-capture/releases/tag/v1.1.5
 [1.1.4]: https://github.com/Mosaik114/nazar-capture/releases/tag/v1.1.4
 [1.1.3]: https://github.com/Mosaik114/nazar-capture/releases/tag/v1.1.3

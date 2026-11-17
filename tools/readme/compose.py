@@ -40,10 +40,10 @@ def save(im, name):
     print(name, im.size, path.stat().st_size // 1024, "KB")
 
 
-# main window and settings (Screenshot tab, cut at the window's minimum height of 420)
+# main window and settings (Screenshot tab, cut below its last row)
 save(framed(Image.open(RAW / "main-window.png")), "main-window.png")
 settings = Image.open(RAW / "settings-0.png")
-save(framed(settings.crop((0, 0, settings.width, 420 * S))), "settings-screenshot.png")
+save(framed(settings.crop((0, 0, settings.width, 590 * S))), "settings-screenshot.png")
 
 # recording bar: it brings its own shadow and margin
 bar = Image.open(RAW / "recording-bar.png")

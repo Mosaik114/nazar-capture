@@ -3,7 +3,7 @@
 # validate with `winget validate`. The ZIP holds the two programs; the nested installer is the host exe as a
 # portable app, which `--install` turns into the regular installation under %LOCALAPPDATA%\Programs\NazarCapture.
 PackageIdentifier: Mosaik114.NazarCapture
-PackageVersion: 1.1.5
+PackageVersion: 1.1.6
 PackageLocale: de-DE
 Publisher: Mosaik114
 PackageName: Nazar Capture
@@ -20,7 +20,7 @@ NestedInstallerFiles:
     PortableCommandAlias: nazar-capture
 Installers:
   - Architecture: x64
-    InstallerUrl: https://github.com/Mosaik114/nazar-capture/releases/download/v1.1.5/nazar-capture-1.1.5-win-x64.zip
+    InstallerUrl: https://github.com/Mosaik114/nazar-capture/releases/download/v1.1.6/nazar-capture-1.1.6-win-x64.zip
     InstallerSha256: 0000000000000000000000000000000000000000000000000000000000000000
 ManifestType: singleton
 ManifestVersion: 1.6.0

@@ -35,7 +35,8 @@
 > 2. Press **`Shift+Alt+5`** to record an area with system sound and microphone; press it again to stop.
 > 3. Everything else is behind the tray icon: main window, settings, help.
 
-The user interface is in German (the author's daily driver); code, docs and commit history are in English.
+The interface speaks German, English, Russian, Spanish, French, Arabic (right to left) and Turkish, or follows the
+Windows language (*Automatisch*); code, docs and commit history are in English.
 
 ## Highlights
 
@@ -46,6 +47,8 @@ The user interface is in German (the author's daily driver); code, docs and comm
 - **Offline text recognition.** *Text* copies the text in a capture with the Windows OCR engine on your machine.
 - **Screen recording.** GPU capture through ffmpeg (NVENC, with a software fallback), system sound and microphone on
   separate tracks that stay in sync across pauses, then trim and export as MP4 or GIF.
+- **Keep it or not.** Every capture goes to the clipboard; saving it as a file can be switched off, and old captures
+  of Nazar Capture can be deleted after 7, 30, 90 days or a year (other files in the folder are never touched).
 - **Small and quiet.** A native tray app keeps the hotkeys; the capture engine starts on the first capture and is
   prepared in the background after logon. No telemetry; the only network call is a daily, read-only update check
   that you can switch off.
@@ -64,14 +67,14 @@ If you have five minutes, this is what the project shows:
 | **Hard problems:** audio in sync across pauses, no black flash on a 5120 × 1440 overlay, joining segments from different encoders | [Three problems](docs/architecture.md#three-problems-worth-describing) |
 | **Testing:** Rust and xUnit suites with pixel comparisons of every window (light and dark, 100 and 150 %), an end-to-end test of the real settings window, real ffmpeg runs; all in CI on Windows | [Testing strategy](docs/architecture.md#testing-strategy), [CI runs](https://github.com/Mosaik114/nazar-capture/actions/workflows/ci.yml) |
 | **Measured, not guessed:** a measuring run against the 1.1.2 baseline; the first capture after logon opens in about 70 ms instead of about 650 ms | [`tools/measure.ps1`](tools/measure.ps1), [baseline](tests/Measurements/baseline-1.1.2.json) |
-| **Shipping:** an Inno Setup installer and a ZIP with SHA-256, built and smoke-tested in CI; an in-app update that installs only a matching checksum | [Releases](https://github.com/Mosaik114/nazar-capture/releases), [changelog](CHANGELOG.md) |
+| **Shipping:** an Inno Setup installer and a ZIP, each with its SHA-256, built and smoke-tested in CI; a one-click in-app update that installs the setup silently, only with a matching checksum | [Releases](https://github.com/Mosaik114/nazar-capture/releases), [changelog](CHANGELOG.md) |
 
 Built by **Mazgin A. Ahmad**, business informatics student at Kiel University (CAU) ·
 [GitHub profile](https://github.com/Mosaik114) · sister project: [Hams Dictate](https://github.com/Mosaik114/hams-bachelorprojekt)
 
 ## Install
 
-**Windows 10/11 (x64):** download `Nazar-Capture-Setup-1.1.5.exe` from the
+**Windows 10/11 (x64):** download `Nazar-Capture-Setup-1.1.6.exe` from the
 [latest release](https://github.com/Mosaik114/nazar-capture/releases/latest) and double-click it. It installs per user
 into `%LOCALAPPDATA%\Programs\NazarCapture` (no admin rights), adds a Start-menu entry, autostart (optional) and an
 uninstaller in Windows *Apps*, and starts Nazar Capture silently in the tray. An installed earlier version is closed
@@ -82,14 +85,16 @@ refuses to run them.
 **Alternative without the installer:** download `nazar-capture-<version>-win-x64.zip`, unzip it and run
 `NazarCapture.exe --install`; it installs into the same folder.
 
-**Verify the download:** each release lists `nazar-capture-<version>-win-x64.zip.sha256`; compare it with
-`Get-FileHash nazar-capture-<version>-win-x64.zip`. The in-app update does the same check before it installs. For the
-installer, compare `Get-FileHash Nazar-Capture-Setup-<version>.exe` with the SHA-256 the release page shows next to it.
+**Verify the download:** each release lists `Nazar-Capture-Setup-<version>.exe.sha256` and
+`nazar-capture-<version>-win-x64.zip.sha256`; compare them with `Get-FileHash <file>`. The in-app update does the same
+check before it installs anything.
 
 **For screen recording**, install ffmpeg once: `winget install Gyan.FFmpeg.Essentials`.
 
-**Updates:** once a day the app looks for a new release and shows a calm notice; *Jetzt aktualisieren* downloads,
-checks and installs it. Settings are kept, also those of earlier versions.
+**Updates with one click:** with *Über Updates informieren* on, the app asks GitHub once a day for a new release;
+*Jetzt nach Updates suchen* (Settings → Allgemein) asks at once. *Jetzt aktualisieren* downloads the setup, checks its
+SHA-256, installs it silently and starts Nazar Capture again; a running recording is never interrupted. Settings are
+kept, also those of earlier versions.
 
 ## Usage
 
@@ -101,10 +106,11 @@ checks and installs it. Settings are kept, also those of earlier versions.
 | `V A R E L P M S T B N X W` | Editor tools: move, arrow, rectangle, ellipse, line, pen, marker, spotlight, text, text plate, number, pixelate, blur |
 | `Space` · `I` / `O` · `←` `→` | Trim window: play, set in/out, step |
 
-Hotkeys, folders, microphone, system sound, clicks, frame rate, countdown, appearance (light or dark), update check
-and autostart are in the settings window; every change applies at once. A hotkey is recorded by pressing it.
+Hotkeys, saving and keeping captures, folders, microphone, system sound, clicks, frame rate, countdown, appearance
+(light or dark), language, updates and autostart are in the settings window; every change applies at once, also the
+language. A hotkey is recorded by pressing it.
 
-<p align="center"><img src="docs/images/settings-screenshot.png" width="460" alt="Settings window, tab Screenshot: the hotkey Shift Alt 4 as key caps with a button to change it, and the folder for screenshots with Change and Open"><br><sub>The settings: four tabs; the hotkey is recorded by pressing it.</sub></p>
+<p align="center"><img src="docs/images/settings-screenshot.png" width="460" alt="Settings window, tab Screenshot: the hotkey Shift Alt 4 as key caps with a button to change it, the switch Screenshots speichern, how long to keep them, and the folder with Change and Open"><br><sub>The settings: four tabs; the hotkey is recorded by pressing it.</sub></p>
 
 ## Build from source
 
