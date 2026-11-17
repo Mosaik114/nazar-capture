@@ -307,16 +307,23 @@ fn settings_protocol() {
     }
     assert_eq!(Reply::NotUnderstood.to_lresult(), 0, "0 means not understood");
 
-    // Every settings key of the contract can be set, and only those.
+    // Every settings key of the contract can be set, and only those; the layout version
+    // is the host's own.
     let separator = c.str(&["host", "copydata", "separator"]);
     for (key, spec) in c.entries(&["settings", "keys"]) {
         let value = match spec["kind"].as_str() {
             Some("text") => "Strg+Alt+K",
             Some("folder") => r"C:\Ordner",
+            Some("language") => "en",
             _ => "1",
         };
         let payload: Vec<u16> = format!("{key}{separator}{value}").encode_utf16().collect();
-        assert!(copydata::parse(copydata::SET, &payload).is_ok(), "{key}");
+        let parsed = copydata::parse(copydata::SET, &payload);
+        if spec["kind"] == "version" {
+            assert_eq!(parsed, Err(Reply::NotUnderstood), "{key}");
+        } else {
+            assert!(parsed.is_ok(), "{key}");
+        }
     }
     let unknown: Vec<u16> = format!("unknown{separator}1").encode_utf16().collect();
     assert_eq!(copydata::parse(copydata::SET, &unknown), Err(Reply::NotUnderstood));

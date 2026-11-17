@@ -56,7 +56,10 @@ Single instance on both sides uses session-local mutexes (`Local\NazarCapture.Ho
 writes (temporary file, flushed, then `MoveFileExW(REPLACE_EXISTING | WRITE_THROUGH)`), the
 engine only reads. On first start the host copies the settings (and the engine's `update-state.json` and
 `windows.txt`) from the folder of versions up to 1.1.3 (`%LOCALAPPDATA%\MosaikCapture`) and replaces the
-old autostart value.
+old autostart value. A file written before 1.1.6 (no `settings_version=2`) is settled once at start-up: a
+folder that is still the old default (`Pictures\Mosaiks-Screenshots`, `Videos\Mosaiks-Aufnahmen`, compared
+like the file system compares names) becomes the new default; folders the user chose stay, and no file is
+moved.
 
 The host's exit codes are for scripts and CI; only outcomes a caller acts on have their own
 code:

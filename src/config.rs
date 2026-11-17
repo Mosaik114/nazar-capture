@@ -31,13 +31,25 @@ pub mod keys {
     pub const APPEARANCE: &str = "appearance";
     /// Look for a newer version (read by the engine).
     pub const CHECK_UPDATES: &str = "check_updates";
+    /// The layout of the file (see [`super::SETTINGS_VERSION`]); only the host reads it.
+    pub const SETTINGS_VERSION: &str = "settings_version";
 }
+
+/// The layout of `settings.ini` this host writes. A file without `settings_version`
+/// (or with a smaller one) was written before 1.1.6 and is settled once at start-up,
+/// see [`crate::store::SettingsStore::load_settled`].
+pub const SETTINGS_VERSION: i32 = 2;
 
 pub const DEFAULT_SCREENSHOT_HOTKEY: &str = "Shift+Alt+4";
 pub const DEFAULT_RECORDING_HOTKEY: &str = "Shift+Alt+5";
 /// Subfolders of the user's Pictures and Videos folders that hold the captures by default.
 pub const SCREENSHOT_FOLDER_NAME: &str = "Nazar-Screenshots";
 pub const RECORDING_FOLDER_NAME: &str = "Nazar-Aufnahmen";
+/// The default subfolders of Mosaik Capture, the app's name up to 1.1.2. Settings copied
+/// from it may still name them; such a folder becomes the new default once (the files
+/// in it stay where they are).
+pub const LEGACY_SCREENSHOT_FOLDER_NAME: &str = "Mosaiks-Screenshots";
+pub const LEGACY_RECORDING_FOLDER_NAME: &str = "Mosaiks-Aufnahmen";
 
 /// Longest folder path in UTF-16 units: the Windows limit for long paths, and what
 /// the engine reads back.
@@ -145,6 +157,14 @@ impl DefaultFolders {
         Self {
             screenshots: pictures.join(SCREENSHOT_FOLDER_NAME),
             recordings: videos.join(RECORDING_FOLDER_NAME),
+        }
+    }
+
+    /// The default subfolders of Mosaik Capture below the same known folders.
+    pub fn legacy(pictures: &Path, videos: &Path) -> Self {
+        Self {
+            screenshots: pictures.join(LEGACY_SCREENSHOT_FOLDER_NAME),
+            recordings: videos.join(LEGACY_RECORDING_FOLDER_NAME),
         }
     }
 }
@@ -264,6 +284,7 @@ impl Config {
             (keys::COUNTDOWN, self.countdown.value().to_string().into()),
             (keys::APPEARANCE, self.appearance.value().to_string().into()),
             (keys::CHECK_UPDATES, flag(self.check_updates)),
+            (keys::SETTINGS_VERSION, SETTINGS_VERSION.to_string().into()),
         ];
         let mut ini = OsString::from(format!("\r\n[{SECTION}]\r\n"));
         for (key, value) in entries {
@@ -273,6 +294,30 @@ impl Config {
             ini.push("\r\n");
         }
         ini
+    }
+
+    /// Points a folder that is still a default of Mosaik Capture (`legacy`) to the new
+    /// default (`defaults`); a folder the user chose stays. `same_folder` decides whether
+    /// two paths name the same folder (case, separators). Returns whether anything changed.
+    /// Only the setting changes: no file is moved, the old folder may belong to another
+    /// program by now.
+    pub fn replace_legacy_folders(
+        &mut self,
+        legacy: &DefaultFolders,
+        defaults: &DefaultFolders,
+        same_folder: impl Fn(&Path, &Path) -> bool,
+    ) -> bool {
+        let mut changed = false;
+        for (folder, old, new) in [
+            (&mut self.screenshot_folder, &legacy.screenshots, &defaults.screenshots),
+            (&mut self.recording_folder, &legacy.recordings, &defaults.recordings),
+        ] {
+            if same_folder(folder, old) {
+                folder.clone_from(new);
+                changed = true;
+            }
+        }
+        changed
     }
 
     /// Parses both hotkeys and checks that they differ.
@@ -458,8 +503,34 @@ mod tests {
             fps=30\r\n\
             countdown=0\r\n\
             appearance=1\r\n\
-            check_updates=1\r\n";
+            check_updates=1\r\n\
+            settings_version=2\r\n";
         assert_eq!(config.to_ini(), expected);
+    }
+
+    #[test]
+    fn old_default_folders_become_the_new_ones() {
+        let legacy = DefaultFolders::legacy(
+            Path::new(r"C:\Users\Ada\Pictures"),
+            Path::new(r"C:\Users\Ada\Videos"),
+        );
+        assert_eq!(legacy.screenshots, Path::new(r"C:\Users\Ada\Pictures\Mosaiks-Screenshots"));
+        assert_eq!(legacy.recordings, Path::new(r"C:\Users\Ada\Videos\Mosaiks-Aufnahmen"));
+        let exact = |a: &Path, b: &Path| a == b;
+
+        let mut config = Config::defaults(&folders());
+        config.screenshot_folder.clone_from(&legacy.screenshots);
+        config.recording_folder.clone_from(&legacy.recordings);
+        assert!(config.replace_legacy_folders(&legacy, &folders(), exact));
+        assert_eq!(config, Config::defaults(&folders()), "both point to the new defaults");
+        assert!(!config.replace_legacy_folders(&legacy, &folders(), exact), "nothing left to do");
+
+        let mut chosen = Config::defaults(&folders());
+        chosen.screenshot_folder = PathBuf::from(r"D:\Mosaiks-Screenshots");
+        chosen.recording_folder.clone_from(&legacy.recordings);
+        assert!(chosen.replace_legacy_folders(&legacy, &folders(), exact));
+        assert_eq!(chosen.screenshot_folder, Path::new(r"D:\Mosaiks-Screenshots"), "chosen: kept");
+        assert_eq!(chosen.recording_folder, folders().recordings);
     }
 
     #[test]

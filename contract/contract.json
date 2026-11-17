@@ -29,7 +29,8 @@
       "fps": { "kind": "choice", "default": 60, "allowed": [30, 60], "otherwise": 60, "engine_reads": true },
       "countdown": { "kind": "choice", "default": 3, "allowed": [0, 3, 5], "otherwise": 3, "engine_reads": true },
       "appearance": { "kind": "choice", "default": 1, "allowed": [1, 2], "otherwise": 1, "engine_reads": true, "$settled_once": "1 = light, 2 = dark, as in Hams. Up to 1.1.3 there was also 0 = like Windows: the host replaces any other value in an existing file once at start-up with the palette Windows shows then, and saves it." },
-      "check_updates": { "kind": "flag", "default": 1, "engine_reads": true }
+      "check_updates": { "kind": "flag", "default": 1, "engine_reads": true },
+      "settings_version": { "kind": "version", "default": 2, "engine_reads": false, "$settled_once": "The layout of the file. Missing (written before 1.1.6) or smaller: the host settles the file once at start-up (a folder that is still Mosaik Capture's default, Pictures\\Mosaiks-Screenshots or Videos\\Mosaiks-Aufnahmen, becomes the new default) and saves it." }
     },
     "numbers": {
       "$comment": "How a stored number is read: a decimal 32-bit integer; anything else means the key's default (null). A flag is on for any non-zero number.",

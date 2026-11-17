@@ -34,7 +34,10 @@ use windows_sys::Win32::UI::Shell::{
 };
 use windows_sys::core::GUID;
 
-use crate::config::{Appearance, Config, DefaultFolders, ProfileSource, SECTION, keys};
+use crate::config::{
+    Appearance, Config, DefaultFolders, ProfileSource, SECTION, SETTINGS_VERSION, keys,
+};
+use crate::process::same_folder;
 use crate::wide::{from_wide, from_wide_ptr, to_wide};
 
 /// Folder below `%LOCALAPPDATA%` that holds the settings.
@@ -81,20 +84,52 @@ impl SettingsStore {
         Config::load(&IniFile::new(&self.path), &known_default_folders())
     }
 
-    /// Reads the settings like [`Self::load`] and, once, settles the appearance of earlier
-    /// versions: a file whose `appearance` is not light or dark (0 = "like Windows", or the
-    /// key missing) gets the palette those versions showed right now, `windows_light`, and
-    /// is saved. Without a file (a new user) the appearance is light, as in Hams.
-    ///
-    /// If saving fails, the settled value is still used and the next start tries again.
+    /// Reads the settings like [`Self::load`] and, once, settles what earlier versions
+    /// left behind (see [`Self::settle`]), with the user's known folders.
     pub fn load_settled(&self, windows_light: impl FnOnce() -> bool) -> Config {
-        let mut config = self.load();
-        if self.path.is_file() {
-            let stored = IniFile::new(&self.path).int(keys::APPEARANCE, 0);
-            if !Appearance::is_choice(stored) {
-                config.appearance = Appearance::like_windows(windows_light());
-                let _ = self.save(&config);
-            }
+        let (pictures, videos) = known_media_folders();
+        self.settle(
+            windows_light,
+            &DefaultFolders::new(&pictures, &videos),
+            &DefaultFolders::legacy(&pictures, &videos),
+        )
+    }
+
+    /// Reads the settings and settles, once, what earlier versions left behind; then the
+    /// file is saved. Without a file (a new user) nothing is written: the appearance is
+    /// light, as in Hams, and the folders are the defaults.
+    ///
+    /// * A file whose `appearance` is not light or dark (0 = "like Windows", or the key
+    ///   missing, up to 1.1.3) gets the palette those versions showed right now,
+    ///   `windows_light`.
+    /// * A file written before 1.1.6 (`settings_version` missing or smaller) whose folder
+    ///   is still a default of Mosaik Capture (`legacy`, e.g. `Bilder\Mosaiks-Screenshots`,
+    ///   copied from the old settings) gets the new default (`defaults`). Folders the user
+    ///   chose stay, and no file is moved.
+    ///
+    /// If saving fails, the settled values are still used and the next start tries again.
+    fn settle(
+        &self,
+        windows_light: impl FnOnce() -> bool,
+        defaults: &DefaultFolders,
+        legacy: &DefaultFolders,
+    ) -> Config {
+        let file = IniFile::new(&self.path);
+        let mut config = Config::load(&file, defaults);
+        if !self.path.is_file() {
+            return config;
+        }
+        let mut changed = false;
+        if !Appearance::is_choice(file.int(keys::APPEARANCE, 0)) {
+            config.appearance = Appearance::like_windows(windows_light());
+            changed = true;
+        }
+        if file.int(keys::SETTINGS_VERSION, 1) < SETTINGS_VERSION {
+            config.replace_legacy_folders(legacy, defaults, same_folder);
+            changed = true;
+        }
+        if changed {
+            let _ = self.save(&config);
         }
         config
     }
@@ -177,11 +212,18 @@ fn migration_source<'a>(
 /// Default output folders below the user's "Pictures" and "Videos" folders, or below
 /// the profile folder if those cannot be looked up.
 pub fn known_default_folders() -> DefaultFolders {
+    let (pictures, videos) = known_media_folders();
+    DefaultFolders::new(&pictures, &videos)
+}
+
+/// The user's "Pictures" and "Videos" folders, or folders of those names below the
+/// profile folder if Windows cannot tell.
+fn known_media_folders() -> (PathBuf, PathBuf) {
     let profile = known_folder(&FOLDERID_Profile);
     let base = |id, name| {
         first_absolute([known_folder(id), profile.as_ref().map(|profile| profile.join(name))])
     };
-    DefaultFolders::new(&base(&FOLDERID_Pictures, "Pictures"), &base(&FOLDERID_Videos, "Videos"))
+    (base(&FOLDERID_Pictures, "Pictures"), base(&FOLDERID_Videos, "Videos"))
 }
 
 /// A known folder of the current user (e.g. `FOLDERID_LocalAppData`), if Windows
@@ -508,6 +550,76 @@ pub mod tests {
                 assert_eq!(again.appearance, settled);
             }
         }
+    }
+
+    fn settle(store: &SettingsStore) -> Config {
+        let (pictures, videos) =
+            (Path::new(r"C:\Users\Ada\Pictures"), Path::new(r"C:\Users\Ada\Videos"));
+        store.settle(
+            || true,
+            &DefaultFolders::new(pictures, videos),
+            &DefaultFolders::legacy(pictures, videos),
+        )
+    }
+
+    #[test]
+    fn old_default_folders_are_replaced_once_and_files_stay() {
+        let dir = TempDir::new();
+        // Copied from %LOCALAPPDATA%\MosaikCapture: the old defaults, in another spelling.
+        let legacy = dir.0.join("MosaikCapture").join("settings.ini");
+        fs::create_dir_all(legacy.parent().unwrap()).unwrap();
+        write_utf16(
+            &legacy,
+            "[capture]\r\nscreenshot_folder=c:\\users\\ada\\pictures\\MOSAIKS-SCREENSHOTS\\\r\n\
+             recording_folder=C:/Users/Ada/Videos/Mosaiks-Aufnahmen\r\nfps=30\r\nappearance=2\r\n",
+        );
+        let store = SettingsStore::at(prepare_user_folder(&dir.0));
+        let config = settle(&store);
+        assert_eq!(config.screenshot_folder, Path::new(r"C:\Users\Ada\Pictures\Nazar-Screenshots"));
+        assert_eq!(config.recording_folder, Path::new(r"C:\Users\Ada\Videos\Nazar-Aufnahmen"));
+        assert_eq!(config.frame_rate, FrameRate::Fps30, "the other values stay");
+        assert_eq!(config.appearance, Appearance::Dark);
+        let file = IniFile::new(&store.path);
+        assert_eq!(
+            file.int(keys::SETTINGS_VERSION, 0),
+            SETTINGS_VERSION,
+            "saved, settled for good"
+        );
+        assert_eq!(
+            file.string(keys::SCREENSHOT_FOLDER, OsStr::new("")),
+            r"C:\Users\Ada\Pictures\Nazar-Screenshots"
+        );
+        assert!(legacy.is_file(), "the old settings file is kept");
+
+        // Chosen again later, on purpose: from now on it is the user's folder.
+        let mut chosen = config;
+        chosen.screenshot_folder = PathBuf::from(r"C:\Users\Ada\Pictures\Mosaiks-Screenshots");
+        store.save(&chosen).unwrap();
+        assert_eq!(settle(&store).screenshot_folder, chosen.screenshot_folder);
+    }
+
+    #[test]
+    fn folders_the_user_chose_survive_the_settling() {
+        let dir = TempDir::new();
+        let path = dir.file("settings.ini");
+        write_utf16(
+            &path,
+            "[capture]\r\nscreenshot_folder=D:\\Mosaiks-Screenshots\r\n\
+             recording_folder=C:\\Users\\Ada\\Videos\\Mosaiks-Aufnahmen\\Alt\r\nappearance=1\r\n",
+        );
+        let store = SettingsStore::at(path.clone());
+        let config = settle(&store);
+        assert_eq!(config.screenshot_folder, Path::new(r"D:\Mosaiks-Screenshots"));
+        assert_eq!(
+            config.recording_folder,
+            Path::new(r"C:\Users\Ada\Videos\Mosaiks-Aufnahmen\Alt")
+        );
+        assert_eq!(IniFile::new(&path).int(keys::SETTINGS_VERSION, 0), SETTINGS_VERSION);
+
+        let fresh = dir.file("new.ini");
+        let config = settle(&SettingsStore::at(fresh.clone()));
+        assert_eq!(config.screenshot_folder, Path::new(r"C:\Users\Ada\Pictures\Nazar-Screenshots"));
+        assert!(!fresh.exists(), "nothing is written for a new user");
     }
 
     #[test]

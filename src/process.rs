@@ -68,6 +68,26 @@ pub fn image_of_process(pid: u32) -> Option<PathBuf> {
     ok.then(|| PathBuf::from(OsString::from_wide(&buffer)))
 }
 
+/// Whether two folder paths name the same folder as the file system compares names:
+/// like [`same_path`], and `/` counts as `\` and trailing separators do not matter
+/// (`C:\Bilder\` and `c:/bilder` are the same folder). Other spellings (8.3 names,
+/// junctions, `..`) are not resolved.
+pub fn same_folder(a: &Path, b: &Path) -> bool {
+    let normalized = |path: &Path| {
+        let mut units: Vec<u16> = path
+            .as_os_str()
+            .encode_wide()
+            .map(|unit| if unit == u16::from(b'/') { u16::from(b'\\') } else { unit })
+            .collect();
+        // A drive root keeps its separator ("C:\"), every other trailing one goes.
+        while units.len() > 3 && units.last() == Some(&u16::from(b'\\')) {
+            units.pop();
+        }
+        PathBuf::from(OsString::from_wide(&units))
+    };
+    same_path(&normalized(a), &normalized(b))
+}
+
 /// Compares like NTFS compares names (`CompareStringOrdinal`, ignoring case), with
 /// or without a `\\?\` prefix.
 fn same_path(a: &Path, b: &Path) -> bool {
@@ -99,6 +119,29 @@ mod tests {
         assert!(same_path(&exe, &verbatim), "verbatim prefix does not matter");
         assert!(!same_path(&exe, &exe.with_file_name("NazarCapture.Engine.exe")));
         assert!(!same_path(&exe, Path::new("")));
+    }
+
+    #[test]
+    fn folders_ignore_case_separators_and_a_trailing_backslash() {
+        let folder = Path::new(r"C:\Users\Ada\Pictures\Mosaiks-Screenshots");
+        for same in [
+            r"c:\users\ada\pictures\mosaiks-screenshots",
+            r"C:\Users\Ada\Pictures\Mosaiks-Screenshots\",
+            r"C:/Users/Ada/Pictures/MOSAIKS-SCREENSHOTS/",
+            r"\\?\C:\Users\Ada\Pictures\Mosaiks-Screenshots",
+        ] {
+            assert!(same_folder(folder, Path::new(same)), "{same}");
+        }
+        for other in [
+            r"C:\Users\Ada\Pictures\Mosaiks-Screenshots\Alt",
+            r"D:\Users\Ada\Pictures\Mosaiks-Screenshots",
+            r"C:\Users\Ada\Pictures\Mosaiks Screenshots",
+            "",
+        ] {
+            assert!(!same_folder(folder, Path::new(other)), "{other}");
+        }
+        assert!(same_folder(Path::new(r"C:\"), Path::new("c:/")), "a drive root stays a root");
+        assert!(!same_folder(Path::new(r"C:\"), Path::new("C:")));
     }
 
     #[test]
