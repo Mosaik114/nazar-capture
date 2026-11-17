@@ -10,6 +10,16 @@
 ; Settings (%LOCALAPPDATA%\NazarCapture: settings.ini, logs, update state) are never written here; the
 ; uninstaller offers to delete them but does not do so on its own. A silent uninstall asks nothing and deletes
 ; nothing. Screenshots and recordings are never touched.
+;
+; The in-app update (engine\Updates\Updates.cs) runs this setup with
+;   /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /RESTARTAPP=1
+; /RESTARTAPP=1 starts the app again (in the tray) after the silent install, keeps the autostart entry as the
+; app's own setting says, and starts the old copy again should the install fail after it was closed.
+;
+; Test builds only (packaging\smoke_test.ps1 on a developer machine): /DAppIdGuid, /DAppDisplayName,
+; /DSettingsDir and /DAppMutexes give the setup its own Windows "Apps" entry, shortcut and autostart names,
+; settings folder and the mutexes of an isolated test instance (NAZAR_CAPTURE_TEST_INSTANCE), so it never
+; meets a real installation. Release builds use the defaults below.
 
 #ifndef AppVersion
   #define AppVersion "0.0.0"
@@ -25,15 +35,26 @@
 #define AppName "NazarCapture"
 ; The name under which Nazar Capture is found: Start menu, desktop shortcut, Windows "Apps", the setup wizard
 ; and the autostart entry (VALUE_NAME in src\autostart.rs).
-#define AppDisplayName "Nazar Capture"
+#ifndef AppDisplayName
+  #define AppDisplayName "Nazar Capture"
+#endif
+#ifndef AppIdGuid
+  #define AppIdGuid "6458E5CD-9A10-4E94-B0ED-57D2DC610D1D"
+#endif
+; Where the app keeps settings.ini (contract\contract.json: settings).
+#ifndef SettingsDir
+  #define SettingsDir "{localappdata}\NazarCapture"
+#endif
 #define AppExe "NazarCapture.exe"
 #define EngineExe "NazarCapture.Engine.exe"
 #define AppUrl "https://github.com/Mosaik114/nazar-capture"
 ; The single-instance mutexes of host and engine (contract\contract.json): setup and uninstall wait for them.
-#define AppMutexes "Local\NazarCapture.Host,Local\NazarCapture.Engine"
+#ifndef AppMutexes
+  #define AppMutexes "Local\NazarCapture.Host,Local\NazarCapture.Engine"
+#endif
 
 [Setup]
-AppId={{6458E5CD-9A10-4E94-B0ED-57D2DC610D1D}
+AppId={{{#AppIdGuid}}
 AppName={#AppDisplayName}
 AppVersion={#AppVersion}
 AppVerName={#AppDisplayName} {#AppVersion}
@@ -98,11 +119,14 @@ Name: "{autodesktop}\{#AppDisplayName}"; Filename: "{app}\{#AppExe}"; Tasks: des
 [Registry]
 ; The same entry the app writes (src\autostart.rs), so there is only ever one.
 ; --background: at sign-in Nazar Capture starts silently in the tray.
-Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "{#AppDisplayName}"; ValueData: """{app}\{#AppExe}"" --background"; Tasks: autostart
+; The in-app update follows the app's own setting instead (CurStepChanged).
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "{#AppDisplayName}"; ValueData: "{code:AutostartCommand}"; Tasks: autostart; Check: not RestartRequested
 
 [Run]
 ; Started silently in the tray, as at sign-in; the tray icon opens the window.
 Filename: "{app}\{#AppExe}"; Parameters: "--background"; Description: "{cm:LaunchProgram,{#AppDisplayName}}"; Flags: nowait postinstall skipifsilent
+; After the in-app update (/RESTARTAPP=1) the new version starts in the tray, as the old one ran.
+Filename: "{app}\{#AppExe}"; Parameters: "--background"; Flags: nowait; Check: RestartRequested
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}"
@@ -116,11 +140,27 @@ const
 
 var
   TasksInitialized: Boolean;
+  { The copy in the install folder was closed for this setup (and did not run again yet). }
+  AppClosed: Boolean;
+  { The files are installed. }
+  Installed: Boolean;
 
 { The settings file of the app (contract\contract.json: settings). }
 function SettingsFile(): String;
 begin
-  Result := ExpandConstant('{localappdata}\{#AppName}\settings.ini');
+  Result := ExpandConstant('{#SettingsDir}\settings.ini');
+end;
+
+{ /RESTARTAPP=1: the in-app update runs this setup silently; the app starts again afterwards. }
+function RestartRequested(): Boolean;
+begin
+  Result := ExpandConstant('{param:RESTARTAPP|0}') = '1';
+end;
+
+{ The autostart command, as the app writes it (src\autostart.rs). }
+function AutostartCommand(Param: String): String;
+begin
+  Result := '"' + ExpandConstant('{app}\{#AppExe}') + '" --background';
 end;
 
 { The app's own autostart setting: on unless the file says 0 (missing file or value: the default, on). }
@@ -160,6 +200,11 @@ begin
     RegDeleteValue(HKCU, RunKey, '{#AppDisplayName}');
 end;
 
+procedure WriteOurAutostart();
+begin
+  RegWriteStringValue(HKCU, RunKey, '{#AppDisplayName}', AutostartCommand(''));
+end;
+
 // Asks the copy running from the install folder to quit through the app's own quit protocol (host and
 // engine) and waits until both have exited. A copy started from another folder is not addressed (its --quit
 // is not trusted there) and keeps running. Returns an error text, or '' when nothing of ours runs any more.
@@ -182,6 +227,7 @@ begin
   { 0: our copy quit, or nothing ran. Anything else: a copy from another folder runs; leave it alone. }
   if ResultCode <> 0 then
     Exit;
+  AppClosed := True;
   Waited := 0;
   while CheckForMutexes('{#AppMutexes}') do
   begin
@@ -215,10 +261,34 @@ procedure CurStepChanged(CurStep: TSetupStep);
 begin
   if CurStep = ssPostInstall then
   begin
+    Installed := True;
+    if RestartRequested() then
+    begin
+      { The in-app update: the app's own setting decides, and it stays as it is. }
+      if StoredAutostart() then
+        WriteOurAutostart()
+      else
+        RemoveOurAutostart();
+      Exit;
+    end;
     { Reinstalled without the task: switch autostart off again. }
     if not WizardIsTaskSelected('autostart') then
       RemoveOurAutostart();
     StoreAutostart(WizardIsTaskSelected('autostart'));
+  end;
+end;
+
+procedure DeinitializeSetup();
+var
+  Exe: String;
+  ResultCode: Integer;
+begin
+  { The in-app update closed the app but could not install: start the old copy again, so it is not just gone. }
+  if RestartRequested() and AppClosed and not Installed then
+  begin
+    Exe := ExpandConstant('{app}\{#AppExe}');
+    if FileExists(Exe) then
+      Exec(Exe, '--background', ExpandConstant('{app}'), SW_SHOWNORMAL, ewNoWait, ResultCode);
   end;
 end;
 

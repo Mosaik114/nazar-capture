@@ -15,12 +15,13 @@
     25 screenshots, compared with tests\Measurementsaseline-1.1.2.json. It opens the real overlay.
 
 .PARAMETER Package
-    Also zip bin\ into dist\nazar-capture-<version>-win-x64.zip (the in-app update installs it; by hand: unpack, run NazarCapture.exe --install)
-    and write its SHA-256 next to it (.sha256), which the in-app update checks.
+    Also zip bin\ into dist\nazar-capture-<version>-win-x64.zip (by hand: unpack, run NazarCapture.exe --install; the
+    in-app update of 1.1.3 to 1.1.5 installs it) and write its SHA-256 next to it (.sha256), which that update checks.
 
 .PARAMETER Installer
     Also build the installer dist\Nazar-Capture-Setup-<version>.exe from bin\ with Inno Setup 6
-    (packaging\nazar.iss): double-click, per user, no admin rights.
+    (packaging\nazar.iss): double-click, per user, no admin rights. Its SHA-256 goes next to it (.sha256);
+    the in-app update downloads the setup and installs it only when it matches.
 
 .PARAMETER InnoCompiler
     Path to ISCC.exe; by default it is looked up on PATH and in the usual Inno Setup 6 folders.
@@ -123,7 +124,8 @@ if ($Measure) {
 
 if ($Package) {
     New-Item -ItemType Directory -Force $dist | Out-Null
-    # The ZIP installs too: unpack it and run NazarCapture.exe --install (the in-app update does exactly that).
+    # The ZIP installs too: unpack it and run NazarCapture.exe --install (the in-app update of 1.1.3 to 1.1.5, and
+    # of later versions for a release without a setup, does exactly that).
     $zip = Join-Path $dist "nazar-capture-$version-win-x64.zip"
     Compress-Archive -Path (Join-Path $bin '*.exe') -DestinationPath $zip -Force
     # The update checks the download against this SHA-256 (and GitHub's asset digest) before it installs anything.
@@ -138,7 +140,10 @@ if ($Installer) {
     & $iscc /Qp "/DAppVersion=$version" "/DSourceDir=$bin" "/DOutputDir=$dist" (Join-Path $root 'packaging/nazar.iss')
     if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed with exit code $LASTEXITCODE" }
     $setup = Join-Path $dist "Nazar-Capture-Setup-$version.exe"
-    Write-Host ("Installer: {0} ({1:N1} MB)" -f $setup, ((Get-Item $setup).Length / 1MB))
+    # The in-app update (1.1.6 on) installs the setup only if it matches this SHA-256 (a release asset of its own).
+    $setupHash = (Get-FileHash -Algorithm SHA256 $setup).Hash.ToLowerInvariant()
+    Set-Content -Path "$setup.sha256" -Value "$setupHash  $(Split-Path -Leaf $setup)" -Encoding ascii
+    Write-Host ("Installer: {0} ({1:N1} MB, {2})" -f $setup, ((Get-Item $setup).Length / 1MB), $setupHash)
 }
 
 Write-Host "Built: $bin" -ForegroundColor Green

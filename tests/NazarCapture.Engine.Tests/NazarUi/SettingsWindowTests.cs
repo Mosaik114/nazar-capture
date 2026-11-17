@@ -140,14 +140,80 @@ public sealed class SettingsWindowTests
     });
 
     [Fact]
-    public void TheUpdateNoticeComesAndGoesAboveTheUpdateSwitch() => WpfThread.Run(() =>
+    public void AWaitingUpdateOffersJetztAktualisierenInItsRow() => WpfThread.Run(() =>
     {
         using var settings = new TestSettings(Version112);
+        using var folder = new TempDirectory();
         var window = Window(new FakeHost(), settings, pending: new Updates.Release("9.9.9", "https://example.invalid", null, null));
-        Assert.Equal(Visibility.Visible, window.UpdateRow!.Visibility);
-        Assert.Equal(UiText.Settings.UpdateHint("9.9.9", AppInfo.Version), window.UpdateRow.Description);
-        window.ShowUpdate(null);
-        Assert.Equal(Visibility.Collapsed, window.UpdateRow.Visibility);
+        var updates = window.UpdateRow!;
+        updates.NewCheck = () => new Updates.UpdateCheck(folder.File("update-state.json"), () => null, () => 1, AppInfo.Version);
+        Assert.Equal(UiText.Settings.UpdateTitle, updates.Row.Title);
+        Assert.Equal(UiText.Settings.UpdateHint("9.9.9", AppInfo.Version), updates.Row.Description);
+        Assert.Equal(Visibility.Visible, updates.InstallButton.Visibility);
+        Assert.Equal(Visibility.Collapsed, updates.SearchButton.Visibility);
+        Assert.True(updates.Row.Stacked);   // the buttons below the text
+
+        var started = new List<string>();
+        bool busy = true;
+        updates.Installation = new Updates.UpdateInstallation
+        {
+            Busy = () => busy,
+            Prepare = _ => (new Updates.PreparedUpdate("C:\\x\\Nazar-Capture-Setup-9.9.9.exe", Updates.UpdateInstaller.SetupArguments), Updates.UpdateProblem.None),
+            Start = update => { started.Add(update.Program + " " + update.Arguments); return true; },
+        };
+        var install = updates.Install();
+        Assert.True(WpfThread.PumpUntil(() => install.IsCompleted, 5000));
+        Assert.Empty(started);   // a recording runs: nothing starts, the row says why
+        Assert.Equal(Status.Error, updates.Row.Status);
+        Assert.Equal(UiText.Update.Reason(Updates.UpdateProblem.Busy), updates.Row.Description);
+        busy = false;
+        install = updates.Install();
+        Assert.True(WpfThread.PumpUntil(() => install.IsCompleted, 5000));
+        Assert.Equal(new[] { "C:\\x\\Nazar-Capture-Setup-9.9.9.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /RESTARTAPP=1" }, started);
+        Assert.Equal(UiText.Update.Installing, updates.Row.Description);
+
+        window.ShowUpdate(null);   // hidden for this version (the cross), or installed meanwhile
+        Assert.Equal(UiText.Settings.UpdatesTitle, updates.Row.Title);
+        Assert.Equal(Visibility.Visible, updates.SearchButton.Visibility);
+        Assert.Equal(Visibility.Collapsed, updates.InstallButton.Visibility);
+        window.Close();
+    });
+
+    [Fact]
+    public void JetztNachUpdatesSuchenSaysTheResultInTheRow() => WpfThread.Run(() =>
+    {
+        using var settings = new TestSettings(Version112);
+        using var folder = new TempDirectory();
+        var window = Window(new FakeHost(), settings);
+        var updates = window.UpdateRow!;
+        Assert.Equal(UiText.Settings.UpdatesInstalled(AppInfo.Version), updates.Row.Description);
+        Assert.Equal(Visibility.Visible, updates.SearchButton.Visibility);
+        Assert.Equal(UiText.Settings.SearchUpdates, System.Windows.Automation.AutomationProperties.GetName(updates.SearchButton));
+        Updates.Release? answer = null;
+        updates.NewCheck = () => new Updates.UpdateCheck(folder.File("update-state.json"), () => answer, () => 1, AppInfo.Version);
+
+        void Search()
+        {
+            var search = updates.SearchNow();
+            Assert.True(WpfThread.PumpUntil(() => search.IsCompleted, 5000));
+        }
+
+        Search();   // offline, or GitHub did not answer
+        Assert.Equal(Status.Error, updates.Row.Status);
+        Assert.Equal(UiText.Settings.SearchFailed, updates.Row.Description);
+
+        answer = new Updates.Release(AppInfo.Version, "p", null, null);
+        Search();
+        Assert.Equal(Status.Ready, updates.Row.Status);
+        Assert.Equal(UiText.Settings.UpToDate(AppInfo.Version), updates.Row.Description);
+        Assert.Null(updates.Pending);
+
+        answer = new Updates.Release("99.0.0", "p", null, null, Updates.UpdateCheck.DownloadPrefix + "v99.0.0/Nazar-Capture-Setup-99.0.0.exe", null);
+        Search();
+        Assert.Equal("99.0.0", updates.Pending!.Version);
+        Assert.Equal(UiText.Settings.UpdateTitle, updates.Row.Title);
+        Assert.Equal(UiText.Settings.UpdateHint("99.0.0", AppInfo.Version), updates.Row.Description);
+        Assert.Equal(Visibility.Visible, updates.InstallButton.Visibility);
         window.Close();
     });
 

@@ -1,29 +1,36 @@
 <#
 .SYNOPSIS
-    Installs Nazar Capture silently, runs both self-tests, reinstalls without autostart, uninstalls, and checks
-    that nothing is left.
+    Installs Nazar Capture silently, runs both self-tests, reinstalls without autostart, runs the silent in-app update
+    (the app must start again), uninstalls, and checks that nothing is left.
 
 .DESCRIPTION
-    Meant for CI (a throwaway Windows runner). It creates a real Start menu entry and a real autostart entry for
-    the current user and writes autostart=0 into the real settings.ini, so do not run it on your own machine.
-    Logs go to build\smoke\.
+    Meant for CI (a throwaway Windows runner). With the defaults it creates a real Start menu entry and a real
+    autostart entry for the current user and writes autostart=0 into the real settings.ini, so do not run it that way
+    on your own machine. On a developer machine, test a setup built with its own names instead (see the test defines
+    in packaging\nazar.iss) and pass the same names here: -AppDir, -DisplayName, -AppIdGuid, -SettingsFile. Every
+    program the test starts runs as an isolated test instance (NAZAR_CAPTURE_TEST_INSTANCE). Logs go to build\smoke\.
 
 .EXAMPLE
-    .\packaging\smoke_test.ps1 -Setup dist\Nazar-Capture-Setup-1.1.5.exe
+    .\packaging\smoke_test.ps1 -Setup dist\Nazar-Capture-Setup-1.1.6.exe
 #>
 [CmdletBinding()]
-param([Parameter(Mandatory = $true)][string]$Setup)
+param(
+    [Parameter(Mandatory = $true)][string]$Setup,
+    [string]$AppDir = (Join-Path $env:LOCALAPPDATA "Programs\NazarCapture"),
+    [string]$DisplayName = "Nazar Capture",
+    [string]$AppIdGuid = "6458E5CD-9A10-4E94-B0ED-57D2DC610D1D",
+    [string]$SettingsFile = (Join-Path $env:LOCALAPPDATA "NazarCapture\settings.ini"),
+    [string]$Logs = (Join-Path (Get-Location) "build\smoke")
+)
 
 $ErrorActionPreference = "Stop"
 $Setup = (Resolve-Path $Setup).Path
-$AppDir = Join-Path $env:LOCALAPPDATA "Programs\NazarCapture"
 $Exe = Join-Path $AppDir "NazarCapture.exe"
-$Settings = Join-Path $env:LOCALAPPDATA "NazarCapture\settings.ini"
+$Settings = $SettingsFile
 $RunKey = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run"
 # Found as "Nazar Capture" (Start menu, Windows "Apps", autostart); folders and the EXE keep the technical name.
-$Shortcut = Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs\Nazar Capture.lnk"
-$UninstallKey = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\{6458E5CD-9A10-4E94-B0ED-57D2DC610D1D}_is1"
-$Logs = Join-Path (Get-Location) "build\smoke"
+$Shortcut = Join-Path $env:APPDATA "Microsoft\Windows\Start Menu\Programs\$DisplayName.lnk"
+$UninstallKey = "HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\{$AppIdGuid}_is1"
 New-Item -ItemType Directory -Force $Logs | Out-Null
 
 function Assert-That([bool]$Condition, [string]$Message) {
@@ -32,20 +39,30 @@ function Assert-That([bool]$Condition, [string]$Message) {
 }
 
 function Get-Autostart {
-    (Get-ItemProperty $RunKey -Name "Nazar Capture" -ErrorAction SilentlyContinue)."Nazar Capture"
+    (Get-ItemProperty $RunKey -Name $DisplayName -ErrorAction SilentlyContinue).$DisplayName
 }
 
 function Get-FileList([string]$Folder) {
     Get-ChildItem $Folder -Recurse -File | ForEach-Object { $_.FullName.Substring($Folder.Length) } | Sort-Object
 }
 
-function Install([string]$Tasks, [string]$Log) {
-    $arguments = "/VERYSILENT /SUPPRESSMSGBOXES /CURRENTUSER /NORESTART $Tasks /LOG=`"$Logs\$Log`""
-    $process = Start-Process $Setup -ArgumentList $arguments -Wait -PassThru
-    Assert-That ($process.ExitCode -eq 0) "setup $Tasks exits with 0 (got $($process.ExitCode))"
+function Install([string]$Arguments, [string]$Log) {
+    $all = "/VERYSILENT /SUPPRESSMSGBOXES /CURRENTUSER /NORESTART /DIR=`"$AppDir`" $Arguments /LOG=`"$Logs\$Log`""
+    # Not -Wait: that would also wait for the app the update starts again (a child of the setup).
+    $process = Start-Process $Setup -ArgumentList $all -PassThru
+    $process.WaitForExit()
+    Assert-That ($process.ExitCode -eq 0) "setup $Arguments exits with 0 (got $($process.ExitCode))"
+}
+
+# The host process started from the install folder, if one runs.
+function Get-InstalledHost {
+    Get-CimInstance Win32_Process -Filter "Name = 'NazarCapture.exe'" |
+        Where-Object { $_.ExecutablePath -and ([IO.Path]::GetFullPath($_.ExecutablePath) -ieq [IO.Path]::GetFullPath($Exe)) }
 }
 
 if (Test-Path $AppDir) { throw "$AppDir exists already; this test needs a clean machine." }
+# A run on a developer machine may already be isolated as a whole; each step below restores that.
+$outerInstance = $env:NAZAR_CAPTURE_TEST_INSTANCE
 
 # --- install -----------------------------------------------------------------------------
 Write-Host "Installing $Setup"
@@ -53,8 +70,8 @@ Install "/TASKS=autostart" "install.log"
 Assert-That (Test-Path $Exe) "NazarCapture.exe installed per user in $AppDir"
 Assert-That (Test-Path (Join-Path $AppDir "NazarCapture.Engine.exe")) "NazarCapture.Engine.exe installed next to it"
 Assert-That (Test-Path $Shortcut) "Start menu shortcut exists"
-$displayName = (Get-ItemProperty $UninstallKey -Name DisplayName -ErrorAction SilentlyContinue).DisplayName
-Assert-That ($displayName -eq "Nazar Capture") "listed in Windows Apps as 'Nazar Capture' (got '$displayName')"
+$displayed = (Get-ItemProperty $UninstallKey -Name DisplayName -ErrorAction SilentlyContinue).DisplayName
+Assert-That ($displayed -eq $DisplayName) "listed in Windows Apps as '$DisplayName' (got '$displayed')"
 Assert-That ((Get-Autostart) -eq "`"$Exe`" --background") "autostart entry starts NazarCapture.exe in the tray (--background)"
 Assert-That (-not (Test-Path $Settings)) "autostart on (the app's default) needs no settings file"
 $installed = Get-FileList $AppDir
@@ -72,7 +89,7 @@ try {
     }
 }
 finally {
-    Remove-Item Env:\NAZAR_CAPTURE_TEST_INSTANCE
+    $env:NAZAR_CAPTURE_TEST_INSTANCE = $outerInstance
 }
 $after = Get-FileList $AppDir
 $new = Compare-Object $installed $after | Where-Object SideIndicator -eq "=>" | ForEach-Object InputObject
@@ -83,6 +100,28 @@ Install "/MERGETASKS=!autostart" "reinstall.log"
 Assert-That ($null -eq (Get-Autostart)) "reinstall without the task removes the autostart entry"
 $stored = (Get-Content $Settings -ErrorAction SilentlyContinue) -match "^autostart=0$"
 Assert-That ([bool]$stored) "the choice is stored in settings.ini (autostart=0), so the app keeps it"
+
+# --- the in-app update: silent, the app starts again -----------------------------------------
+# What engine\Updates\Updates.cs passes (UpdateInstaller.SetupArguments). The app it starts again inherits the test
+# instance, so it never meets a real Nazar Capture.
+$env:NAZAR_CAPTURE_TEST_INSTANCE = "installer-smoke-update"
+try {
+    Install "/RESTARTAPP=1" "update.log"
+    $deadline = (Get-Date).AddSeconds(30)
+    while (-not (Get-InstalledHost) -and (Get-Date) -lt $deadline) { Start-Sleep -Milliseconds 250 }
+    Assert-That ([bool](Get-InstalledHost)) "after the update the app runs again from $AppDir"
+    Assert-That ($null -eq (Get-Autostart)) "the update keeps autostart as the app's setting says (off)"
+    $stored = (Get-Content $Settings -ErrorAction SilentlyContinue) -match "^autostart=0$"
+    Assert-That ([bool]$stored) "the update leaves the app's settings alone"
+    $quit = Start-Process $Exe -ArgumentList "--quit" -Wait -PassThru
+    Assert-That ($quit.ExitCode -eq 0) "the restarted app quits through its own --quit (got $($quit.ExitCode))"
+    $deadline = (Get-Date).AddSeconds(30)
+    while ((Get-InstalledHost) -and (Get-Date) -lt $deadline) { Start-Sleep -Milliseconds 250 }
+    Assert-That (-not (Get-InstalledHost)) "the restarted app has ended"
+}
+finally {
+    $env:NAZAR_CAPTURE_TEST_INSTANCE = $outerInstance
+}
 
 # --- uninstall ---------------------------------------------------------------------------
 $uninstaller = Join-Path $AppDir "unins000.exe"
@@ -96,5 +135,6 @@ while ((Test-Path $AppDir) -and (Get-Date) -lt $deadline) { Start-Sleep -Millise
 Assert-That (-not (Test-Path $AppDir)) "install folder removed"
 Assert-That (-not (Test-Path $Shortcut)) "Start menu shortcut removed"
 Assert-That ($null -eq (Get-Autostart)) "no autostart entry left"
+Assert-That (-not (Test-Path $UninstallKey)) "no entry left in Windows Apps"
 Assert-That (Test-Path $Settings) "silent uninstall keeps the user's settings (offered, not forced)"
 Write-Host "Smoke test passed."

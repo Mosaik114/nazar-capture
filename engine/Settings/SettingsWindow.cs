@@ -37,13 +37,13 @@ internal sealed class SettingsWindow : NazarWindow
     readonly List<(SettingRow Row, Func<CaptureSettingsSnapshot, string> Value)> folders = new();
     readonly DispatcherTimer sizeSaver;
     readonly Func<Updates.Release?> pending;
-    SettingRow? updateRow;
-    SettingGroup? updateGroup;
-    Updates.Release? pendingRelease;
+    readonly Func<Updates.UpdateCheck> updateCheck;
+    Settings.UpdateRow? updates;
     CaptureSettingsSnapshot current = new();
     bool populating;
 
-    public SettingsWindow(IHostChannel host, Func<CaptureSettingsSnapshot> load, double textScale = 1, WindowPlaces? places = null, IReadOnlyList<PageSpec>? pageSpecs = null, Func<Updates.Release?>? pending = null)
+    public SettingsWindow(IHostChannel host, Func<CaptureSettingsSnapshot> load, double textScale = 1, WindowPlaces? places = null, IReadOnlyList<PageSpec>? pageSpecs = null,
+        Func<Updates.Release?>? pending = null, Func<Updates.UpdateCheck>? updateCheck = null)
         : base(UiText.Settings.Title, new ViewfinderMotif())
     {
         this.host = host;
@@ -51,6 +51,7 @@ internal sealed class SettingsWindow : NazarWindow
         this.places = places;
         specs = pageSpecs ?? NazarSettings.Pages();
         this.pending = pending ?? Updates.UpdateNotice.Pending;
+        this.updateCheck = updateCheck ?? (() => new Updates.UpdateCheck());
         MinWidth = MinimumWidth * textScale;
         MinHeight = MinimumHeight * textScale;
         Width = BaseWidth * textScale;
@@ -93,7 +94,7 @@ internal sealed class SettingsWindow : NazarWindow
     internal SettingRow ScreenshotFolderRow => rows[NazarSettings.ScreenshotFolder];
     internal ToggleSwitch Microphone => switches["microphone"];
     internal Select Appearance => selects[NazarSettings.Appearance];
-    internal SettingRow? UpdateRow => updateRow;
+    internal UpdateRow? UpdateRow => updates;
     internal SettingRow Row(string key) => rows[key];
 
     /// <summary>Opens (or brings back) the one settings window of the engine; <paramref name="recording"/> shows the recording page.</summary>
@@ -241,16 +242,9 @@ internal sealed class SettingsWindow : NazarWindow
                 return new SettingRow(l.Title, l.Hint, new SecondaryButton(l.Button, () => Shell.Open(l.Url)) { MinWidth = RowButtonWidth });
             case DisplaySpec d:
                 return SettingRow.Display(d.Title, d.Value);
-            case UpdateNoticeSpec:
-                {
-                    var actions = new StackPanel { Orientation = Orientation.Horizontal };
-                    actions.Children.Add(new SecondaryButton(UiText.Settings.View, () => { if (pendingRelease != null) Updates.UpdateNotice.Show(pendingRelease); }) { MinWidth = RowButtonWidth });
-                    actions.Children.Add(IconButton.Stone(LineIcon.Shape.Close, UiText.Settings.UpdateDismiss, DismissUpdate));
-                    ((FrameworkElement)actions.Children[1]).Margin = new Thickness(UiTokens.Space.Xs, 0, 0, 0);
-                    updateRow = new SettingRow(spec.Title, "", actions);
-                    updateGroup = group;
-                    return updateRow;
-                }
+            case UpdatesSpec:
+                updates = new Settings.UpdateRow(updateCheck, Updates.UpdateNotice.Show);
+                return updates.Row;
             default:
                 throw new ArgumentException("Unknown row: " + spec.GetType().Name, nameof(spec));
         }
@@ -283,20 +277,8 @@ internal sealed class SettingsWindow : NazarWindow
         ShowUpdate(pending());
     }
 
-    /// <summary>A newer version (as remembered by the daily check) shows as a calm row above "Nach Updates suchen".</summary>
-    internal void ShowUpdate(Updates.Release? release)
-    {
-        pendingRelease = release;
-        if (updateRow == null || updateGroup == null) return;
-        if (release != null) updateRow.SetDescription(UiText.Settings.UpdateHint(release.Version, AppInfo.Version));
-        updateGroup.SetRowVisible(updateRow, release != null);
-    }
-
-    void DismissUpdate()
-    {
-        if (pendingRelease != null) new Updates.UpdateCheck().Dismiss(pendingRelease.Version);
-        ShowUpdate(null);
-    }
+    /// <summary>A newer version (as remembered by the daily check) shows in the update row with "Jetzt aktualisieren".</summary>
+    internal void ShowUpdate(Updates.Release? release) => updates?.Show(release);
 
     void ShowHotkeyState()
     {

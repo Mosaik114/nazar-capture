@@ -285,8 +285,14 @@ static class UiText
         public const string ClicksHint = "Ein Kreis an jedem Mausklick im Video.";
         public const string Appearance = "Darstellung";
         public const string Autostart = "Mit Windows starten";
-        public const string CheckUpdates = "Nach Updates suchen";
-        public const string CheckUpdatesHint = "Einmal am Tag, ohne Konto; installiert wird nur nach deiner Bestätigung.";
+        public const string CheckUpdates = "Über Updates informieren";
+        public const string CheckUpdatesHint = "Fragt einmal am Tag bei GitHub nach einer neuen Version, ohne Konto.";
+        public const string UpdatesTitle = "Updates";
+        public static string UpdatesInstalled(string version) => "Installiert ist " + Product + " " + version + ".";
+        public const string SearchUpdates = "Jetzt nach Updates suchen";
+        public const string Searching = "Wird gesucht …";
+        public static string UpToDate(string version) => Product + " " + version + " ist auf dem neuesten Stand.";
+        public const string SearchFailed = "Die Suche hat nicht geklappt. Später noch einmal versuchen.";
         public const string Version = "Version";
         public const string NoHost = "Das Programm im Infobereich antwortet nicht. Nicht gespeichert.";
         public const string SaveFailed = "Konnte nicht gespeichert werden.";
@@ -316,7 +322,7 @@ static class UiText
         public const string Later = "Später";
         public const string WhatsNew = "Was ist neu";
         public const string Downloading = "Wird heruntergeladen und geprüft …";
-        public const string Installing = "Wird installiert, das Programm startet neu.";
+        public const string Installing = "Wird installiert; " + Product + " startet gleich neu.";
         public const string Failed = "Update nicht möglich";
         public static string Available(string version) => "Version " + version + " ist da";
         public static string Running(string version) => "Du hast " + version + ".";
@@ -327,6 +333,8 @@ static class UiText
             Updates.UpdateProblem.ChecksumMismatch => "Die Prüfsumme stimmt nicht; der Download wurde verworfen.",
             Updates.UpdateProblem.DownloadFailed => "Der Download ist fehlgeschlagen. Später noch einmal versuchen.",
             Updates.UpdateProblem.InstallerMissing => "Im Download fehlt das Programm.",
+            Updates.UpdateProblem.UntrustedSource => "Der Download kommt nicht von der Projektseite; er wird nicht geladen.",
+            Updates.UpdateProblem.Busy => "Erst die laufende Aufnahme beenden, dann aktualisieren.",
             _ => "Das Installationsprogramm ließ sich nicht starten.",
         };
     }

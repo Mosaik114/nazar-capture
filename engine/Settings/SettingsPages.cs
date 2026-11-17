@@ -30,8 +30,11 @@ internal sealed record LinkSpec(string Title, string Hint, string Button, string
 /// <summary>A row that only shows a value (Hams' "display" rows: the version).</summary>
 internal sealed record DisplaySpec(string Title, string Value) : RowSpec(Title, null);
 
-/// <summary>The calm notice of a new version, shown only while one is waiting: "Ansehen" and a cross to hide it.</summary>
-internal sealed record UpdateNoticeSpec() : RowSpec(UiText.Settings.UpdateTitle, null);
+/// <summary>
+/// The update row (<see cref="UpdateRow"/>): "Jetzt nach Updates suchen" with the result in the row; while a new version
+/// waits, "Jetzt aktualisieren", "Ansehen" and a cross to hide it.
+/// </summary>
+internal sealed record UpdatesSpec() : RowSpec(UiText.Settings.UpdatesTitle, null);
 
 /// <summary>A group of rows on one plate; the first group of a page has no heading (the tab is its heading).</summary>
 internal sealed record GroupSpec(string? Heading, params RowSpec[] Rows);
@@ -77,8 +80,8 @@ internal static class NazarSettings
             new GroupSpec(null,
                 new ChoiceSpec(UiText.Settings.Appearance, null, Appearance, UiText.Settings.Appearances, Appearances, s => (int)s.Appearance),
                 new SwitchSpec(UiText.Settings.Autostart, UiText.Settings.AutostartHint, "autostart", s => s.Autostart),
-                new UpdateNoticeSpec(),
-                new SwitchSpec(UiText.Settings.CheckUpdates, UiText.Settings.CheckUpdatesHint, "check_updates", s => s.CheckUpdates))),
+                new SwitchSpec(UiText.Settings.CheckUpdates, UiText.Settings.CheckUpdatesHint, "check_updates", s => s.CheckUpdates),
+                new UpdatesSpec())),
         new PageSpec(UiText.Settings.InfoGroup,
             new GroupSpec(null,
                 new DisplaySpec(UiText.Settings.Version, UiText.Settings.VersionValue(AppInfo.Version)),

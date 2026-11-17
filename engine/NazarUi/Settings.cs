@@ -85,6 +85,13 @@ internal sealed class SettingRow : Grid
             };
     }
 
+    /// <summary>A new title (a row whose meaning changes, as the update row).</summary>
+    public void SetTitle(string text)
+    {
+        title.Text = text;
+        AutomationName(text);
+    }
+
     /// <summary>The help text (also the text a status falls back to).</summary>
     public void SetDescription(string text)
     {
