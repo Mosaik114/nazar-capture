@@ -3,7 +3,8 @@ namespace NazarCapture.Engine.Core;
 /// <summary>
 /// Every text the user can see, in the interface language (<see cref="Localizer"/>): the members read the current
 /// <see cref="TextCatalog"/> (engine/Core/Localization/Catalog.*.cs), so logic files never hold a literal. Names on disk
-/// (default folders, file name prefixes) are not translated: a language change must not split a user's folder.
+/// (default folders, file name prefixes) are not translated: a language change must not split a user's folder. The one
+/// exception, the app's own fallback folder (<see cref="Folders"/>), reuses whichever name exists.
 /// </summary>
 static class UiText
 {
@@ -58,6 +59,15 @@ static class UiText
         public const string RawDataSuffix = " (Rohdaten)";
         public static string SaveAsTitle => Titled("files.save_as_title");
         public static string SaveAsFilter => T("files.save_as_filter");
+    }
+
+    /// <summary>
+    /// The one folder name on disk that is translated: the app's own fallback folder, which the user only ever opens from
+    /// a card. <see cref="FileKeeping.FallbackFolder"/> keeps using a folder that exists under another language's name.
+    /// </summary>
+    public static class Folders
+    {
+        public static string Fallback => T("folders.fallback");
     }
 
     public static class Common

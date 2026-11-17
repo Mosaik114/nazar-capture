@@ -12,7 +12,7 @@ use std::time::Duration;
 use windows_sys::Win32::Foundation::{
     CloseHandle, ERROR_ALREADY_EXISTS, GetLastError, HANDLE, HWND,
 };
-use windows_sys::Win32::System::Threading::CreateMutexW;
+use windows_sys::Win32::System::Threading::{CreateMutexW, OpenMutexW};
 use windows_sys::Win32::UI::WindowsAndMessaging::{
     AllowSetForegroundWindow, FindWindowExW, GetWindowThreadProcessId, SMTO_ABORTIFHUNG,
     SendMessageTimeoutW,
@@ -45,6 +45,22 @@ impl InstanceLock {
         }
         Ok(Self { handle, already_running })
     }
+}
+
+/// Whether a mutex `name` exists, i.e. some process holds a handle to it (here: a primary instance runs).
+/// Opens it only to look, without creating it.
+pub fn exists(name: &str) -> bool {
+    /// `SYNCHRONIZE`: the least access `OpenMutexW` accepts.
+    const SYNCHRONIZE: u32 = 0x0010_0000;
+    let name = to_wide(name);
+    // SAFETY: `name` is NUL-terminated; a returned handle is closed right away.
+    let handle = unsafe { OpenMutexW(SYNCHRONIZE, 0, name.as_ptr()) };
+    if handle.is_null() {
+        return false;
+    }
+    // SAFETY: the handle came from OpenMutexW and is closed exactly once.
+    unsafe { CloseHandle(handle) };
+    true
 }
 
 impl Drop for InstanceLock {
@@ -276,6 +292,17 @@ mod tests {
                 let _ = worker.join();
             }
         }
+    }
+
+    #[test]
+    fn a_mutex_exists_only_while_someone_holds_it() {
+        let name = format!(r"Local\NazarCapture.Test.Exists.{}", std::process::id());
+        assert!(!exists(&name), "looking does not create it");
+        let lock = InstanceLock::acquire(&name).unwrap();
+        assert!(!lock.already_running);
+        assert!(exists(&name));
+        drop(lock);
+        assert!(!exists(&name), "gone with the last handle");
     }
 
     #[test]

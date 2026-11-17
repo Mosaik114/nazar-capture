@@ -40,6 +40,7 @@ internal static partial class Catalogs
         ["common.keep"] = "Kaydet",
         ["common.kept"] = "Klasöre kaydedildi",
         ["common.saved_in_fallback"] = "Yedek klasöre kaydedildi",
+        ["folders.fallback"] = "Yedek klasör",
         ["common.folder_unreachable"] = "Klasörünüze ulaşılamadı.",
         ["common.only_in_clipboard"] = "Yalnızca panoda",
         ["common.size"] = "{0} × {1}",

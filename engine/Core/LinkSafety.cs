@@ -9,7 +9,13 @@ namespace NazarCapture.Engine.Core;
 /// Windows answers with error 448 ("untrusted mount point"). Nazar Capture never turns it on itself, but a process
 /// inherits it from the program that started it; Inno Setup 6.7 and later started the app that way after an install
 /// or an update (packaging\nazar.iss now switches it off). The host restarts such a copy through the Windows shell
-/// without the guard (src\unguard.rs); only where that is impossible (no shell) does a guarded copy run on.
+/// without the guard (src\unguard.rs); only where that is impossible (no shell, the shell dropped the start) does a
+/// guarded copy run on.
+/// </para>
+/// <para>
+/// This class is the fallback for that rare copy, not the way out: it reads links instead of following them, which
+/// sidesteps the guard by hand. That is acceptable only because the guard protects no privilege boundary here (the
+/// engine runs as the user, without admin rights, on the user's own files); it must never become the normal path.
 /// </para>
 /// Three things keep such a copy working: links are resolved before a program is started through them
 /// (<see cref="Resolve"/>, ffmpeg from winget or Scoop), captures fall back to an own folder when theirs cannot be

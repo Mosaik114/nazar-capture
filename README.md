@@ -82,11 +82,11 @@ and updated; settings stay. It needs .NET Framework 4.8, which is part of curren
 code-signed, so SmartScreen may warn (**More info → Run anyway**); with *Smart App Control* switched on, Windows
 refuses to run them.
 
-**Alternative without the installer:** download `nazar-capture-<version>-win-x64.zip`, unzip it and run
+**Alternative without the installer:** download `Nazar-Capture-Zip-<version>-win-x64.zip`, unzip it and run
 `NazarCapture.exe --install`; it installs into the same folder.
 
 **Verify the download:** each release lists `Nazar-Capture-Setup-<version>.exe.sha256` and
-`nazar-capture-<version>-win-x64.zip.sha256`; compare them with `Get-FileHash <file>`. The in-app update does the same
+`Nazar-Capture-Zip-<version>-win-x64.zip.sha256`; compare them with `Get-FileHash <file>`. The in-app update does the same
 check before it installs anything.
 
 **For screen recording**, install ffmpeg once: `winget install Gyan.FFmpeg.Essentials`.

@@ -40,6 +40,7 @@ internal static partial class Catalogs
         ["common.keep"] = "Enregistrer",
         ["common.kept"] = "Enregistré dans le dossier",
         ["common.saved_in_fallback"] = "Enregistré dans un dossier de secours",
+        ["folders.fallback"] = "Dossier de secours",
         ["common.folder_unreachable"] = "Votre dossier était inaccessible.",
         ["common.only_in_clipboard"] = "Seulement dans le presse-papiers",
         ["common.size"] = "{0} × {1}",

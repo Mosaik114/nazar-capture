@@ -32,12 +32,41 @@ internal static class FileKeeping
     /// <summary>
     /// Where a capture goes when its own folder cannot be written: a link Windows refuses to follow (error 448, see
     /// <see cref="LinkSafety"/>), a drive that is gone, no access. Below %LOCALAPPDATA%\NazarCapture, never tidied:
-    /// what lands here is the user's, and the card's "Ordner" shows it.
+    /// what lands here is the user's, and the card's "Ordner" shows it. Its name is in the interface language
+    /// (<see cref="FallbackFolderIn"/>).
     /// </summary>
-    public static string FallbackFolder => Path.Combine(CaptureSettings.Home, "Ersatzordner");
+    public static string FallbackFolder => FallbackFolderIn(CaptureSettings.Home);
 
-    /// <summary>Whether <paramref name="path"/> lies in <see cref="FallbackFolder"/>.</summary>
-    public static bool IsInFallback(string? path) => IsUnsaved(path, FallbackFolder);
+    /// <summary>
+    /// The fallback folder below <paramref name="home"/>: one that already exists under any language's name (the first
+    /// one, "Ersatzordner", came with 1.1.7 builds before the names were translated), so a change of the interface
+    /// language never splits the captures into two folders; else the name in the interface language.
+    /// </summary>
+    internal static string FallbackFolderIn(string home)
+    {
+        foreach (string name in FallbackFolderNames)
+        {
+            string folder = Path.Combine(home, name);
+            if (Directory.Exists(folder)) return folder;
+        }
+        return Path.Combine(home, FolderName(UiText.Folders.Fallback));
+    }
+
+    /// <summary>The fallback folder's name in every interface language, the current one first.</summary>
+    internal static IEnumerable<string> FallbackFolderNames =>
+        new[] { UiText.Folders.Fallback }
+            .Concat(Catalogs.All.Select(catalog => catalog.Find("folders.fallback") ?? ""))
+            .Select(FolderName)
+            .Where(name => name.Length > 0)
+            .Distinct(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>A translated name as a folder name: characters Windows does not allow there are left out.</summary>
+    static string FolderName(string name) =>
+        new string(name.Where(c => Array.IndexOf(Path.GetInvalidFileNameChars(), c) < 0).ToArray()).Trim().TrimEnd('.');
+
+    /// <summary>Whether <paramref name="path"/> lies in a fallback folder (under any language's name).</summary>
+    public static bool IsInFallback(string? path) =>
+        FallbackFolderNames.Any(name => IsUnsaved(path, Path.Combine(CaptureSettings.Home, name)));
 
     /// <summary>
     /// <paramref name="folder"/> if a file can be created in it (it is created if missing); else, after error 448, the

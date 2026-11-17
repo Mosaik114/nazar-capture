@@ -140,6 +140,31 @@ public sealed class UpdateTests : IDisposable
         Assert.Equal(ZipUrl, UpdateCheck.ParseRelease(foreign)!.Download);
     }
 
+    [Fact]
+    public void TheZipKeepsWorkingUnderItsNewName()
+    {
+        // From 1.1.7 the ZIP is "Nazar-Capture-Zip-<version>-win-x64.zip", so GitHub lists the setup above it; the
+        // update still finds it by its end, and its checksum file by "<zip>.sha256" with that name inside.
+        const string zipName = "Nazar-Capture-Zip-1.1.7-win-x64.zip";
+        string zipUrl = UpdateCheck.DownloadPrefix + "v1.1.7/" + zipName;
+        string setupUrl = UpdateCheck.DownloadPrefix + "v1.1.7/Nazar-Capture-Setup-1.1.7.exe";
+        string json = "{\"tag_name\":\"v1.1.7\",\"html_url\":\"" + UpdateCheck.ReleasesPage + "/tag/v1.1.7\",\"assets\":[" +
+            "{\"name\":\"Nazar-Capture-Setup-1.1.7.exe\",\"browser_download_url\":\"" + setupUrl + "\"}," +
+            "{\"name\":\"Nazar-Capture-Setup-1.1.7.exe.sha256\",\"browser_download_url\":\"" + setupUrl + ".sha256\"}," +
+            "{\"name\":\"" + zipName + "\",\"browser_download_url\":\"" + zipUrl + "\"}," +
+            "{\"name\":\"" + zipName + ".sha256\",\"browser_download_url\":\"" + zipUrl + ".sha256\"}]}";
+        var release = UpdateCheck.ParseRelease(json)!;
+        Assert.Equal(zipUrl, release.Download);
+        Assert.Equal(UpdateInstaller.Sidecar + zipUrl + ".sha256", release.Sha256);
+        Assert.Equal(setupUrl, release.Setup);   // "Nazar-Capture-Zip-" is no setup
+        Assert.Equal(UpdateInstaller.Sidecar + setupUrl + ".sha256", release.SetupSha256);
+
+        string sha = new string('c', 64);
+        Assert.Equal(sha, UpdateInstaller.ExpectedSha(release.Sha256, _ => sha + "  " + zipName + "\n", zipName));
+        Assert.Null(UpdateInstaller.ExpectedSha(release.Sha256, _ => sha + "  nazar-capture-1.1.7-win-x64.zip\n", zipName));
+        Assert.True(string.CompareOrdinal("Nazar-Capture-Setup-1.1.7.exe", zipName) < 0, "GitHub lists the setup first");
+    }
+
     [Theory]
     [InlineData(UpdateCheck.DownloadPrefix + "v1.1.6/a.exe", true)]
     [InlineData("https://github.com/Mosaik114/nazar-capture/releases/download/", false)]

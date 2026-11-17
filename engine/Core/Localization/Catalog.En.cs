@@ -40,6 +40,7 @@ internal static partial class Catalogs
         ["common.keep"] = "Save",
         ["common.kept"] = "Saved to the folder",
         ["common.saved_in_fallback"] = "Saved to a backup folder",
+        ["folders.fallback"] = "Backup folder",
         ["common.folder_unreachable"] = "The chosen folder could not be reached.",
         ["common.only_in_clipboard"] = "Only in the clipboard",
         ["common.size"] = "{0} × {1}",

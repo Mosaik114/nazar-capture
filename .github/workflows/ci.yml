@@ -97,18 +97,33 @@ jobs:
         run: |
           $version = (Select-String -Path Cargo.toml -Pattern '^version = "(.+)"').Matches[0].Groups[1].Value
           if ("v$version" -ne "${{ github.ref_name }}") { throw "Tag ${{ github.ref_name }} does not match Cargo.toml version $version" }
-      - name: Inno Setup
+      # A pinned Inno Setup, checked by its SHA-256, in a folder of its own: whatever the runner image or Chocolatey
+      # bring (another 6.x, or 7.x in "Inno Setup 7") never builds a release. packaging\nazar.iss switches
+      # RedirectionGuard off depending on the compiler, and smoke_test.ps1 measures it with exactly this version.
+      # build.ps1 -InnoVersion makes the compiler itself confirm the version (#error in nazar.iss otherwise).
+      - name: Inno Setup (pinned)
         shell: pwsh
         run: |
-          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
-          if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress }
-          if (-not (Test-Path $iscc)) { throw "Inno Setup 6 not found" }
-          "Inno Setup {0}" -f (Get-Item $iscc).VersionInfo.ProductVersion
+          $version = "6.7.4"
+          $sha256 = "a549929319f9120716677c685535ca4671e4b937b5fdc87e2585f32d8eb30e8c"
+          $tag = "is-" + $version.Replace(".", "_")
+          $setup = Join-Path $env:RUNNER_TEMP "innosetup-$version.exe"
+          Invoke-WebRequest "https://github.com/jrsoftware/issrc/releases/download/$tag/innosetup-$version.exe" -OutFile $setup
+          $hash = (Get-FileHash -Algorithm SHA256 $setup).Hash.ToLowerInvariant()
+          if ($hash -ne $sha256) { throw "innosetup-$version.exe has SHA-256 $hash, expected $sha256" }
+          $dir = Join-Path $env:RUNNER_TEMP "inno-$version"
+          $install = Start-Process $setup -ArgumentList "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/SP-", "/NOICONS", "/DIR=$dir" -Wait -PassThru
+          if ($install.ExitCode -ne 0) { throw "Installing Inno Setup $version failed with exit code $($install.ExitCode)" }
+          $iscc = Join-Path $dir "ISCC.exe"
+          if (-not (Test-Path $iscc)) { throw "ISCC.exe not found in $dir" }
+          "INNO_COMPILER=$iscc" >> $env:GITHUB_ENV
+          "INNO_VERSION=$version" >> $env:GITHUB_ENV
+          "Inno Setup ${version}: $iscc"
       # The in-app update (1.1.6 on) downloads the setup and checks its .sha256; the ZIP and its .sha256 stay
       # release assets for the in-app update of 1.1.3 to 1.1.5
       - name: Build, zip and installer
         shell: pwsh
-        run: ./build.ps1 -Package -Installer
+        run: ./build.ps1 -Package -Installer -InnoCompiler $env:INNO_COMPILER -InnoVersion $env:INNO_VERSION
       - name: Check the checksum files
         shell: pwsh
         run: |

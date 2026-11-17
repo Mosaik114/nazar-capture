@@ -27,14 +27,30 @@ Nazar Capture works the same however it was started, also through links Windows 
   without the guard, and so its engine and its next update setup, too. This goes through the documented shell
   automation interfaces (`IShellWindows::FindWindowSW`, `IShellDispatch2::ShellExecute`), the way Raymond Chen shows
   for starting an unelevated program, not by naming another parent process. The restarted copy carries
-  `--from-shell` and never restarts again; without a shell it simply runs on. Measured: a child the guarded process
-  started itself had the guard, one the shell started had none.
+  `--from-shell` and never restarts again. The old copy ends only once the new one holds the single-instance
+  mutex (up to 10 s); if the shell drops the start, it runs on itself instead of just disappearing, and a new copy
+  that comes late hands its action over to it. Measured: a child the guarded process started itself had the guard,
+  one the shell started had none.
 - **No capture is lost when its folder cannot be written.** A screenshot or recording whose folder refuses writing
   (a link Windows refuses, a drive that is gone, no access) goes to the folder's real path behind the link, or else
-  to `%LOCALAPPDATA%\NazarCapture\Ersatzordner`; the card says *Im Ersatzordner gespeichert* and *Ordner* shows it
-  there. *Speichern* on a card does the same. If nothing can be written at all, the screenshot is still copied to the
-  clipboard. The texts are in all seven languages.
+  to a backup folder below `%LOCALAPPDATA%\NazarCapture`, named in the interface language (*Ersatzordner*,
+  *Backup folder* …; one that exists under another language's name stays in use, and the tidying never touches it);
+  the card says *Im Ersatzordner gespeichert* and *Ordner* shows it there. *Speichern* on a card does the same. If
+  nothing can be written at all, the screenshot is still copied to the clipboard. The texts are in all seven
+  languages.
 - A copy running with the guard says so once in the log, so a report of error 448 can be read at once.
+
+### Changed
+- **Started with administrator rights, the setup warns.** Nazar Capture installs per user and never needs them. A
+  double-clicked setup that runs elevated anyway explains that and asks (*Nein* is the default, *Ja* installs anyway);
+  a silent one stops with exit code 1, unless `/ALLOWADMIN=1` says it is meant or it is the app's own update
+  (`/RESTARTAPP=1`).
+- **The release ZIP is now `Nazar-Capture-Zip-<version>-win-x64.zip`** (with its `.sha256`), so GitHub lists the
+  setup first. The in-app update finds the ZIP by its end `-win-x64.zip` as before.
+- **CI builds with a pinned Inno Setup** (6.7.4, downloaded from its GitHub release and checked by SHA-256); the
+  compiler confirms its version itself (`build.ps1 -InnoVersion`, `#error` in `nazar.iss`), so another 6.x or a 7.x
+  on the runner never builds a release. Once Inno Setup stops passing the guard on for `PrivilegesRequired=lowest`
+  too, `RedirectionGuard=no` can go.
 
 ## [1.1.6] - 2026-11-17
 

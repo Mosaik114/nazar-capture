@@ -1,5 +1,5 @@
 # winget manifest for Nazar Capture (singleton format, schema 1.6). Not submitted yet: on a release, set
-# PackageVersion, InstallerUrl and InstallerSha256 (from dist\nazar-capture-<version>-win-x64.zip.sha256) and
+# PackageVersion, InstallerUrl and InstallerSha256 (from dist\Nazar-Capture-Zip-<version>-win-x64.zip.sha256) and
 # validate with `winget validate`. The ZIP holds the two programs; the nested installer is the host exe as a
 # portable app, which `--install` turns into the regular installation under %LOCALAPPDATA%\Programs\NazarCapture.
 PackageIdentifier: Mosaik114.NazarCapture
@@ -20,7 +20,7 @@ NestedInstallerFiles:
     PortableCommandAlias: nazar-capture
 Installers:
   - Architecture: x64
-    InstallerUrl: https://github.com/Mosaik114/nazar-capture/releases/download/v1.1.7/nazar-capture-1.1.7-win-x64.zip
+    InstallerUrl: https://github.com/Mosaik114/nazar-capture/releases/download/v1.1.7/Nazar-Capture-Zip-1.1.7-win-x64.zip
     InstallerSha256: 0000000000000000000000000000000000000000000000000000000000000000
 ManifestType: singleton
 ManifestVersion: 1.6.0

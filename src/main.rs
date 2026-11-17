@@ -100,9 +100,16 @@ fn run(action: Action, isolation: Option<&Isolation>, may_restart: bool) -> Exit
         Action::Quit => Exit::Success,
         Action::Probe => Exit::ProbeFailed,
         _ if may_restart && restart_wanted(isolation) => {
-            // Let go of the instance first: the copy the shell starts takes it over.
+            // Let go of the instance first: the copy the shell starts takes it over. This copy ends only once
+            // the new one holds the instance; otherwise it runs on itself, so the app never just disappears.
             drop(lock);
-            if restart_through_shell() { Exit::Success } else { run(action, isolation, false) }
+            let taken_over = restart_through_shell()
+                && unguard::handed_over(
+                    || single_instance::exists(&mutex),
+                    unguard::HANDOVER_WAIT,
+                    unguard::HANDOVER_POLL,
+                );
+            if taken_over { Exit::Success } else { run(action, isolation, false) }
         }
         _ => match ui::run(action, isolation) {
             Ok(()) => Exit::Success,

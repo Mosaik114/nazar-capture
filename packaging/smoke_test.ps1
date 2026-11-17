@@ -46,12 +46,23 @@ function Get-FileList([string]$Folder) {
     Get-ChildItem $Folder -Recurse -File | ForEach-Object { $_.FullName.Substring($Folder.Length) } | Sort-Object
 }
 
-function Install([string]$Arguments, [string]$Log) {
+# CI runners are elevated (admin, UAC off). A silent setup with admin rights stops unless /ALLOWADMIN=1 says it is
+# meant (packaging\nazar.iss, InitializeSetup): checked once below, then every install here passes it.
+$Elevated = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(
+    [Security.Principal.WindowsBuiltInRole]::Administrator)
+$AllowAdmin = if ($Elevated) { "/ALLOWADMIN=1" } else { "" }
+
+function Start-Setup([string]$Arguments, [string]$Log) {
     $all = "/VERYSILENT /SUPPRESSMSGBOXES /CURRENTUSER /NORESTART /DIR=`"$AppDir`" $Arguments /LOG=`"$Logs\$Log`""
     # Not -Wait: that would also wait for the app the update starts again (a child of the setup).
     $process = Start-Process $Setup -ArgumentList $all -PassThru
     $process.WaitForExit()
-    Assert-That ($process.ExitCode -eq 0) "setup $Arguments exits with 0 (got $($process.ExitCode))"
+    $process.ExitCode
+}
+
+function Install([string]$Arguments, [string]$Log) {
+    $code = Start-Setup "$AllowAdmin $Arguments" $Log
+    Assert-That ($code -eq 0) "setup $Arguments exits with 0 (got $code)"
 }
 
 # Whether a process runs with Windows' RedirectionGuard enforced (ProcessRedirectionTrustPolicy = 16): then it cannot
@@ -81,6 +92,16 @@ function Get-InstalledHost {
 if (Test-Path $AppDir) { throw "$AppDir exists already; this test needs a clean machine." }
 # A run on a developer machine may already be isolated as a whole; each step below restores that.
 $outerInstance = $env:NAZAR_CAPTURE_TEST_INSTANCE
+
+# --- with admin rights, silently: stops ----------------------------------------------------
+if ($Elevated) {
+    $code = Start-Setup "/TASKS=autostart" "elevated.log"
+    Assert-That ($code -ne 0) "a silent setup with admin rights stops without /ALLOWADMIN=1 (got $code)"
+    Assert-That (-not (Test-Path $AppDir)) "and installs nothing"
+}
+else {
+    Write-Host "skip a silent setup with admin rights (this run is not elevated)"
+}
 
 # --- install -----------------------------------------------------------------------------
 Write-Host "Installing $Setup"

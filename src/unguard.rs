@@ -15,14 +15,16 @@
 //! The new process is a real child of explorer.exe; nothing pretends to be another parent.
 //!
 //! The restarted copy carries [`FROM_SHELL`] on its command line and never restarts again, so there is
-//! no loop. Without a shell (a service session, another desktop, Explorer not running), or when the
-//! shell refuses, the copy simply runs on with the guard; the engine copes with that
-//! (`engine/Core/LinkSafety.cs`). A test instance never restarts: the shell would start it without
-//! its isolation variables, as the real app.
+//! no loop. The old copy ends only once the new one holds the single-instance mutex ([`handed_over`]);
+//! without a shell (a service session, another desktop, Explorer not running), when the shell refuses,
+//! or when no new copy shows up in time, it simply runs on with the guard, and the engine copes with
+//! that (`engine/Core/LinkSafety.cs`, the fallback). A test instance never restarts: the shell would
+//! start it without its isolation variables, as the real app.
 
 use std::ffi::{OsStr, OsString, c_void};
 use std::path::Path;
 use std::ptr;
+use std::time::{Duration, Instant};
 
 use windows_sys::Win32::Foundation::{SysAllocString, SysFreeString};
 use windows_sys::Win32::System::Com::{
@@ -60,6 +62,28 @@ pub fn enforced() -> Option<bool> {
 /// Whether a copy that found no other copy running should restart itself through the shell.
 pub fn restart_wanted(guard: Option<bool>, isolated: bool, args: &[OsString]) -> bool {
     guard == Some(true) && !isolated && !args.iter().any(|arg| arg == FROM_SHELL)
+}
+
+/// How long a copy that asked the shell to start it again waits for the new copy to take the instance over.
+/// The shell accepting the request is no proof: Explorer may still drop it. Generous for a slow start at sign-in.
+pub const HANDOVER_WAIT: Duration = Duration::from_secs(10);
+/// How often the waiting copy looks.
+pub const HANDOVER_POLL: Duration = Duration::from_millis(100);
+
+/// Whether `taken_over` turns true within `wait`, asked every `poll`. The waiting copy ends only then; otherwise it
+/// runs on itself (with the guard), so Nazar Capture never just disappears. Should the new copy come later after
+/// all, it finds this one running and hands its action over (single instance) instead of running twice.
+pub fn handed_over(mut taken_over: impl FnMut() -> bool, wait: Duration, poll: Duration) -> bool {
+    let deadline = Instant::now() + wait;
+    loop {
+        if taken_over() {
+            return true;
+        }
+        if Instant::now() >= deadline {
+            return false;
+        }
+        std::thread::sleep(poll);
+    }
 }
 
 /// The command line of the restarted copy: the same arguments plus [`FROM_SHELL`], each quoted as
@@ -386,6 +410,30 @@ mod tests {
             restart_arguments(&args(&[r#"a "b" c\"#])),
             OsString::from(r#""a \"b\" c\\" --from-shell"#)
         );
+    }
+
+    #[test]
+    fn the_old_copy_ends_only_when_the_new_one_took_over() {
+        let mut asked = 0;
+        assert!(
+            handed_over(
+                || {
+                    asked += 1;
+                    asked == 3
+                },
+                Duration::from_secs(5),
+                Duration::from_millis(1)
+            ),
+            "the new copy shows up on the third look"
+        );
+        assert_eq!(asked, 3);
+
+        let started = Instant::now();
+        assert!(
+            !handed_over(|| false, Duration::from_millis(50), Duration::from_millis(5)),
+            "no new copy: the old one runs on"
+        );
+        assert!(started.elapsed() >= Duration::from_millis(50), "it waited the whole time");
     }
 
     #[test]

@@ -156,4 +156,24 @@ public sealed class LinkSafetyTests : IDisposable
         Assert.True(FileKeeping.IsUnsaved(kept, work.File("Ersatzordner")));   // the same folder test as IsInFallback
         Assert.False(File.Exists(capture));
     }
+
+    [Fact]
+    public void TheFallbackFolderIsNamedInTheInterfaceLanguageAndNeverSplit()
+    {
+        using (new LanguageScope("en")) Assert.Equal(work.File("Backup folder"), FileKeeping.FallbackFolderIn(work.Path));
+        using (new LanguageScope("ar")) Assert.Equal(work.File("مجلد بديل"), FileKeeping.FallbackFolderIn(work.Path));
+
+        // A folder that exists under another language's name (the German one of earlier 1.1.7 builds) stays in use.
+        Directory.CreateDirectory(work.File("Ersatzordner"));
+        using (new LanguageScope("en")) Assert.Equal(work.File("Ersatzordner"), FileKeeping.FallbackFolderIn(work.Path));
+        using (new LanguageScope("tr")) Assert.Equal(work.File("Ersatzordner"), FileKeeping.FallbackFolderIn(work.Path));
+
+        // Every name is a valid folder name, one per language, and a capture in any of them counts as rescued.
+        var names = FileKeeping.FallbackFolderNames.ToList();
+        Assert.Equal(7, names.Count);
+        Assert.All(names, name => Assert.True(name.IndexOfAny(Path.GetInvalidFileNameChars()) < 0, name));
+        Assert.True(FileKeeping.IsInFallback(Path.Combine(CaptureSettings.Home, "Ersatzordner", "a.png")));
+        Assert.True(FileKeeping.IsInFallback(Path.Combine(CaptureSettings.Home, "Backup folder", "a.png")));
+        Assert.False(FileKeeping.IsInFallback(Path.Combine(CaptureSettings.Home, "unsaved", "a.png")));
+    }
 }

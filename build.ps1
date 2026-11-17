@@ -15,7 +15,7 @@
     25 screenshots, compared with tests\Measurementsaseline-1.1.2.json. It opens the real overlay.
 
 .PARAMETER Package
-    Also zip bin\ into dist\nazar-capture-<version>-win-x64.zip (by hand: unpack, run NazarCapture.exe --install; the
+    Also zip bin\ into dist\Nazar-Capture-Zip-<version>-win-x64.zip (by hand: unpack, run NazarCapture.exe --install; the
     in-app update of 1.1.3 to 1.1.5 installs it) and write its SHA-256 next to it (.sha256), which that update checks.
 
 .PARAMETER Installer
@@ -25,6 +25,10 @@
 
 .PARAMETER InnoCompiler
     Path to ISCC.exe; by default it is looked up on PATH and in the usual Inno Setup 6 folders.
+
+.PARAMETER InnoVersion
+    The Inno Setup version the installer must be compiled with, e.g. 6.7.4 (CI). The compiler confirms it itself
+    (packaging\nazar.iss stops with #error otherwise). Empty: any version.
 
 .PARAMETER RustToolchain
     Optional rustup toolchain, e.g. stable-x86_64-pc-windows-gnu on machines without the
@@ -43,6 +47,7 @@ param(
     [switch]$Package,
     [switch]$Installer,
     [string]$InnoCompiler,
+    [string]$InnoVersion,
     [string]$RustToolchain
 )
 
@@ -126,7 +131,9 @@ if ($Package) {
     New-Item -ItemType Directory -Force $dist | Out-Null
     # The ZIP installs too: unpack it and run NazarCapture.exe --install (the in-app update of 1.1.3 to 1.1.5, and
     # of later versions for a release without a setup, does exactly that).
-    $zip = Join-Path $dist "nazar-capture-$version-win-x64.zip"
+    # "Nazar-Capture-Zip-" sorts after "Nazar-Capture-Setup-" (GitHub lists release assets by name): the setup comes
+    # first. The update finds the ZIP by its end "-win-x64.zip" (engine\Updates\Updates.cs), whatever comes before.
+    $zip = Join-Path $dist "Nazar-Capture-Zip-$version-win-x64.zip"
     Compress-Archive -Path (Join-Path $bin '*.exe') -DestinationPath $zip -Force
     # The update checks the download against this SHA-256 (and GitHub's asset digest) before it installs anything.
     $hash = (Get-FileHash -Algorithm SHA256 $zip).Hash.ToLowerInvariant()
@@ -137,8 +144,12 @@ if ($Package) {
 if ($Installer) {
     $iscc = Find-InnoCompiler
     Write-Host "==> Installer (Inno Setup: $iscc)" -ForegroundColor Cyan
-    & $iscc /Qp "/DAppVersion=$version" "/DSourceDir=$bin" "/DOutputDir=$dist" (Join-Path $root 'packaging/nazar.iss')
+    $innoArgs = @("/DAppVersion=$version", "/DSourceDir=$bin", "/DOutputDir=$dist")
+    # The compiler confirms its own version (#error in nazar.iss if it differs).
+    if ($InnoVersion) { $innoArgs += "/DRequiredInnoVersion=$InnoVersion" }
+    & $iscc /Qp @innoArgs (Join-Path $root 'packaging/nazar.iss')
     if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed with exit code $LASTEXITCODE" }
+    if ($InnoVersion) { Write-Host "Compiled with Inno Setup $InnoVersion (confirmed by the compiler)" }
     $setup = Join-Path $dist "Nazar-Capture-Setup-$version.exe"
     # The in-app update (1.1.6 on) installs the setup only if it matches this SHA-256 (a release asset of its own).
     $setupHash = (Get-FileHash -Algorithm SHA256 $setup).Hash.ToLowerInvariant()

@@ -16,6 +16,9 @@
 ; /RESTARTAPP=1 starts the app again (in the tray) after the silent install, keeps the autostart entry as the
 ; app's own setting says, and starts the old copy again should the install fail after it was closed.
 ;
+; Started with administrator rights, the setup warns (double-click) or stops (silent, unless /ALLOWADMIN=1 or
+; /RESTARTAPP=1); see InitializeSetup.
+;
 ; Test builds only (packaging\smoke_test.ps1 on a developer machine): /DAppIdGuid, /DAppDisplayName,
 ; /DSettingsDir and /DAppMutexes give the setup its own Windows "Apps" entry, shortcut and autostart names,
 ; settings folder and the mutexes of an isolated test instance (NAZAR_CAPTURE_TEST_INSTANCE), so it never
@@ -80,14 +83,24 @@ UninstallDisplayName={#AppDisplayName}
 Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern
+#ifdef RequiredInnoVersion
+  ; CI (build.ps1 -InnoVersion): only the pinned compiler builds a release.
+  #if DecodeVer(VER) != RequiredInnoVersion
+    #pragma message "Inno Setup " + DecodeVer(VER) + " compiles this, but build.ps1 -InnoVersion asks for " + RequiredInnoVersion
+    #error Wrong Inno Setup version: this compiler is not the one build.ps1 -InnoVersion names (the pinned one)
+  #endif
+#endif
 #if VER >= EncodeVer(6,7,0)
 ; Inno Setup 6.7+ turns on Windows' RedirectionGuard for the setup process, and the app the setup starts (the
 ; [Run] entries below, DeinitializeSetup) inherits it: that copy of Nazar Capture then cannot follow any junction or
 ; symbolic link a user made without admin rights (error 448, "untrusted mount point"), e.g. ffmpeg from winget or
 ; Scoop, or a Pictures folder moved with a link. Inno Setup 6.7.4/7.1.1 stopped the inheritance only for setups that
-; ask for admin rights, not for PrivilegesRequired=lowest. This setup never runs elevated and writes only below the
-; user's own %LOCALAPPDATA%, so the guard protects no privilege boundary here; it is switched off.
+; ask for admin rights, not for PrivilegesRequired=lowest. This setup is meant to run without admin rights and writes
+; only below the user's own %LOCALAPPDATA%, so the guard protects no privilege boundary here; it is switched off.
+; Started with admin rights anyway, the setup warns first, or stops when silent (InitializeSetup below).
 ; packaging\smoke_test.ps1 checks that the app started by the setup runs without it.
+; Remove this once Inno Setup stops handing the guard on for PrivilegesRequired=lowest too (check its whatsnew:
+; "RedirectionGuard" ... "child processes"); then the guard can stay on for the setup itself.
 RedirectionGuard=no
 #endif
 
@@ -104,6 +117,8 @@ english.AppBusy=A recording or area selection is running in Nazar Capture. Pleas
 german.AppBusy=In Nazar Capture läuft gerade eine Aufnahme oder Bereichsauswahl. Bitte sie zuerst beenden und es dann erneut versuchen.
 english.AppStillRunning=Nazar Capture did not close in time. Please quit it from its tray icon and try again.
 german.AppStillRunning=Nazar Capture hat sich nicht rechtzeitig beendet. Bitte über das Symbol im Infobereich beenden und es erneut versuchen.
+english.ElevatedWarning=This setup is running with administrator rights. Nazar Capture does not need them: it installs for you alone.%n%nSafest: choose No and start the setup again with a normal double-click (not "Run as administrator").%n%nChoose Yes to install anyway.
+german.ElevatedWarning=Dieses Setup läuft mit Administratorrechten. Nazar Capture braucht sie nicht: Es wird nur für dich installiert.%n%nAm sichersten: Nein wählen und das Setup noch einmal mit einem normalen Doppelklick starten (nicht „Als Administrator ausführen“).%n%nMit Ja wird trotzdem installiert.
 english.RemoveUserData=Also delete your Nazar Capture settings and logs?%n%nThey are in the NazarCapture folder under AppData\Local. Screenshots and recordings stay either way. Choose No to keep the settings for a later reinstall.
 german.RemoveUserData=Auch die Einstellungen und Logs von Nazar Capture löschen?%n%nSie liegen im Ordner NazarCapture unter AppData\Local. Screenshots und Aufnahmen bleiben in jedem Fall erhalten. Mit Nein bleiben die Einstellungen für eine spätere Neuinstallation erhalten.
 
@@ -165,6 +180,39 @@ end;
 function RestartRequested(): Boolean;
 begin
   Result := ExpandConstant('{param:RESTARTAPP|0}') = '1';
+end;
+
+{ Started with administrator rights ("Run as administrator", an elevated prompt, UAC switched off). Nazar Capture
+  installs per user and never needs them, and RedirectionGuard is off for this setup (see [Setup]): an elevated
+  process writing into a user's folders without the guard is exactly what the guard is for. So:
+  - double-clicked (a person is there): a plain warning; Yes installs anyway, so nobody is locked out;
+  - silent: stops (exit code 1, the reason in the log), unless /ALLOWADMIN=1 says it is meant (CI runners are
+    elevated) or it is the app's own update (/RESTARTAPP=1): a copy that runs elevated already starts it that way,
+    and refusing would only leave that user without updates. }
+function InitializeSetup(): Boolean;
+begin
+  Result := True;
+  if not IsAdmin() then
+    Exit;
+  if ExpandConstant('{param:ALLOWADMIN|0}') = '1' then
+  begin
+    Log('Running with administrator rights: allowed by /ALLOWADMIN=1.');
+    Exit;
+  end;
+  if WizardSilent() then
+  begin
+    if RestartRequested() then
+    begin
+      Log('Running with administrator rights: the app''s own update (/RESTARTAPP=1), installing.');
+      Exit;
+    end;
+    Log('Running with administrator rights and silently: stopped. Start it without them, or pass /ALLOWADMIN=1.');
+    Result := False;
+    Exit;
+  end;
+  Result := MsgBox(CustomMessage('ElevatedWarning'), mbConfirmation, MB_YESNO or MB_DEFBUTTON2) = IDYES;
+  if not Result then
+    Log('Running with administrator rights: the user chose not to install.');
 end;
 
 { The autostart command, as the app writes it (src\autostart.rs). }

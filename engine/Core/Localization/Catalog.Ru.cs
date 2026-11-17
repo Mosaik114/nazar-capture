@@ -40,6 +40,7 @@ internal static partial class Catalogs
         ["common.keep"] = "Сохранить",
         ["common.kept"] = "Сохранено в папку",
         ["common.saved_in_fallback"] = "Сохранено в запасную папку",
+        ["folders.fallback"] = "Запасная папка",
         ["common.folder_unreachable"] = "Ваша папка была недоступна.",
         ["common.only_in_clipboard"] = "Только в буфере обмена",
         ["common.size"] = "{0} × {1}",
