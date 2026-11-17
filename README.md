@@ -74,7 +74,7 @@ Built by **Mazgin A. Ahmad**, business informatics student at Kiel University (C
 
 ## Install
 
-**Windows 10/11 (x64):** download `Nazar-Capture-Setup-1.1.6.exe` from the
+**Windows 10/11 (x64):** download `Nazar-Capture-Setup-1.1.7.exe` from the
 [latest release](https://github.com/Mosaik114/nazar-capture/releases/latest) and double-click it. It installs per user
 into `%LOCALAPPDATA%\Programs\NazarCapture` (no admin rights), adds a Start-menu entry, autostart (optional) and an
 uninstaller in Windows *Apps*, and starts Nazar Capture silently in the tray. An installed earlier version is closed

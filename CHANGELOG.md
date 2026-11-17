@@ -6,6 +6,29 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.1.7] - 2026-11-17
+
+Nazar Capture works the same however it was started, also through links Windows does not trust.
+
+### Fixed
+- **Started by the setup without RedirectionGuard.** Inno Setup 6.7 and later turn on Windows' RedirectionGuard for
+  the setup, and the program it starts inherits it (after an install, after *Jetzt aktualisieren*). Such a copy
+  cannot follow a junction or symbolic link that was made without admin rights: Windows answers with error 448
+  ("untrusted mount point"). Inno Setup 6.7.4/7.1.1 ended the inheritance only for setups that ask for admin rights,
+  not for this per-user setup (`PrivilegesRequired=lowest`), so `packaging/nazar.iss` switches it off
+  (`RedirectionGuard=no`): the setup never runs elevated and writes only below the user's own `%LOCALAPPDATA%`, so
+  the guard protected no privilege boundary there. Measured: a program started by an Inno 6.7.3 setup ran with the
+  guard enforced, with `RedirectionGuard=no` without it; the installer smoke test now checks the restarted app.
+- **ffmpeg from winget or Scoop** is started from its real folder: the links in `WinGet\Links` and Scoop's shim
+  with its `current` junction are read, not followed. A copy that still inherited the guard (started by the 1.1.6
+  setup, until the next sign-in) records as before.
+- **No capture is lost when its folder cannot be written.** A screenshot or recording whose folder refuses writing
+  (a link Windows refuses, a drive that is gone, no access) goes to the folder's real path behind the link, or else
+  to `%LOCALAPPDATA%\NazarCapture\Ersatzordner`; the card says *Im Ersatzordner gespeichert* and *Ordner* shows it
+  there. *Speichern* on a card does the same. If nothing can be written at all, the screenshot is still copied to the
+  clipboard. The texts are in all seven languages.
+- A copy running with the guard says so once in the log, so a report of error 448 can be read at once.
+
 ## [1.1.6] - 2026-11-17
 
 Seven languages, updates with one click, and captures you do not have to keep.
