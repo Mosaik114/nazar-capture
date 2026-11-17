@@ -82,6 +82,10 @@ static class UiText
         /// <summary>"Speichern" on a card: a capture that was not kept goes into its folder after all.</summary>
         public static string Keep => T("common.keep");
         public static string Kept => T("common.kept");
+        /// <summary>The chosen folder could not be written; the capture is in <see cref="FileKeeping.FallbackFolder"/>.</summary>
+        public static string SavedInFallback => T("common.saved_in_fallback");
+        /// <summary>Under <see cref="SavedInFallback"/>: why, in a few plain words.</summary>
+        public static string FolderUnreachable => T("common.folder_unreachable");
         /// <summary>A capture that was not kept ("Screenshots speichern" off).</summary>
         public static string OnlyInClipboard => T("common.only_in_clipboard");
 

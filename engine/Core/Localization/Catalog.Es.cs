@@ -39,6 +39,8 @@ internal static partial class Catalogs
         ["common.saving"] = "Guardando …",
         ["common.keep"] = "Guardar",
         ["common.kept"] = "Guardado en la carpeta",
+        ["common.saved_in_fallback"] = "Guardado en una carpeta de reserva",
+        ["common.folder_unreachable"] = "No se pudo acceder a tu carpeta.",
         ["common.only_in_clipboard"] = "Solo en el portapapeles",
         ["common.size"] = "{0} × {1}",
         ["common.lines.one"] = "{0} línea",

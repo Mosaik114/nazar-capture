@@ -42,6 +42,8 @@ internal static partial class Catalogs
         ["common.saving"] = "جارٍ الحفظ …",
         ["common.keep"] = "حفظ",
         ["common.kept"] = "حُفظ في المجلد",
+        ["common.saved_in_fallback"] = "حُفظ في مجلد بديل",
+        ["common.folder_unreachable"] = "تعذّر الوصول إلى مجلدك.",
         ["common.only_in_clipboard"] = "في الحافظة فقط",
         ["common.size"] = "{0} × {1}",
         ["common.lines.one"] = "الأسطر: {0}",

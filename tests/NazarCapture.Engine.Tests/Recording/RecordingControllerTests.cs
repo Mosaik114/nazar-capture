@@ -415,6 +415,21 @@ public sealed class RecordingControllerTests
     }
 
     [Fact]
+    public async Task UnwritableFolderSendsTheRecordingToTheFallbackFolder()
+    {
+        backend.Settings = new CaptureSettingsSnapshot { SaveRecordings = true, RecordingFolder = "D:\\Linked" };
+        backend.UnwritableFolder = "D:\\Linked";
+        var session = await StartRunning();
+        session.Video = new RecordedVideo { Path = Path.Combine(backend.FallbackFolder, "out.mp4") };
+
+        await Within(controller.StopAsync());
+
+        Assert.Equal(backend.FallbackFolder, backend.PathFolder);
+        Assert.Equal(Path.Combine(backend.FallbackFolder, "out.mp4"), session.FinishedInto);
+        Assert.Equal("ShowRecording Im Ersatzordner gespeichert", ui.Calls.Last());
+    }
+
+    [Fact]
     public async Task BusyClipboardIsNotHiddenBehindASuccessHeading()
     {
         var session = await StartRunning();
@@ -659,8 +674,16 @@ public sealed class RecordingControllerTests
         public string NewRecordingPath(DateTime begun, string folder)
         {
             PathFolder = folder;
-            return "C:\\Videos\\out.mp4";
+            return folder == FallbackFolder ? Path.Combine(FallbackFolder, "out.mp4") : "C:\\Videos\\out.mp4";
         }
+
+        /// <summary>A folder whose writing fails: the controller must take the fallback folder.</summary>
+        public string? UnwritableFolder;
+        public string FallbackFolder = "C:\\Fallback";
+
+        public string WritableOrFallback(string folder) => folder == UnwritableFolder ? FallbackFolder : folder;
+
+        public bool IsInFallback(string path) => string.Equals(Path.GetDirectoryName(path), FallbackFolder, StringComparison.OrdinalIgnoreCase);
 
         public CaptureSettingsSnapshot LoadSettings()
         {

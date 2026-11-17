@@ -95,6 +95,10 @@ internal sealed class RecordingBackend : IRecordingBackend
         return session;
     }
 
+    public string WritableOrFallback(string folder) => FileKeeping.WritableOrFallback(folder);
+
+    public bool IsInFallback(string path) => FileKeeping.IsInFallback(path);
+
     public string NewRecordingPath(DateTime begun, string folder)
     {
         Directory.CreateDirectory(folder);

@@ -39,6 +39,8 @@ internal static partial class Catalogs
         ["common.saving"] = "Wird gespeichert …",
         ["common.keep"] = "Speichern",
         ["common.kept"] = "Im Ordner gespeichert",
+        ["common.saved_in_fallback"] = "Im Ersatzordner gespeichert",
+        ["common.folder_unreachable"] = "Der gewählte Ordner war nicht erreichbar.",
         ["common.only_in_clipboard"] = "Nur in der Zwischenablage",
         ["common.size"] = "{0} × {1}",
         ["common.lines.one"] = "{0} Zeile",

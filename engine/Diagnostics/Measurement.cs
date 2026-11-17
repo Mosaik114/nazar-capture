@@ -191,6 +191,12 @@ internal static class Measurement
 
         public string NewPath(DateTime when) => real.NewPath(when);
 
+        public string FallbackPath(string path) => real.FallbackPath(path);
+
+        public Task<byte[]> EncodeAsync(BitmapSource image) => real.EncodeAsync(image);
+
+        public bool IsInFallback(string path) => real.IsInFallback(path);
+
         public async Task<byte[]> SaveAsync(BitmapSource image, string path)
         {
             byte[] png = await real.SaveAsync(image, path);

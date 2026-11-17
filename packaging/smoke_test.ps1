@@ -11,7 +11,7 @@
     program the test starts runs as an isolated test instance (NAZAR_CAPTURE_TEST_INSTANCE). Logs go to build\smoke\.
 
 .EXAMPLE
-    .\packaging\smoke_test.ps1 -Setup dist\Nazar-Capture-Setup-1.1.6.exe
+    .\packaging\smoke_test.ps1 -Setup dist\Nazar-Capture-Setup-1.1.7.exe
 #>
 [CmdletBinding()]
 param(
@@ -53,6 +53,24 @@ function Install([string]$Arguments, [string]$Log) {
     $process.WaitForExit()
     Assert-That ($process.ExitCode -eq 0) "setup $Arguments exits with 0 (got $($process.ExitCode))"
 }
+
+# Whether a process runs with Windows' RedirectionGuard enforced (ProcessRedirectionTrustPolicy = 16): then it cannot
+# follow links a user made without admin rights (error 448). Null where Windows cannot tell (before 10 22H2).
+Add-Type -TypeDefinition @"
+using System; using System.Runtime.InteropServices;
+public static class NazarSmokeMitigation {
+    [DllImport("kernel32.dll", SetLastError = true)] static extern IntPtr OpenProcess(uint access, bool inherit, uint id);
+    [DllImport("kernel32.dll", SetLastError = true)] static extern bool GetProcessMitigationPolicy(IntPtr process, int policy, out uint flags, UIntPtr size);
+    [DllImport("kernel32.dll")] static extern bool CloseHandle(IntPtr handle);
+    public static bool? RedirectionGuard(int id) {
+        IntPtr process = OpenProcess(0x0400, false, (uint)id);   // PROCESS_QUERY_INFORMATION
+        if (process == IntPtr.Zero) return null;
+        try { uint flags; return GetProcessMitigationPolicy(process, 16, out flags, (UIntPtr)4) ? (bool?)((flags & 1) != 0) : null; }
+        catch (EntryPointNotFoundException) { return null; }
+        finally { CloseHandle(process); }
+    }
+}
+"@
 
 # The host process started from the install folder, if one runs.
 function Get-InstalledHost {
@@ -110,6 +128,9 @@ try {
     $deadline = (Get-Date).AddSeconds(30)
     while (-not (Get-InstalledHost) -and (Get-Date) -lt $deadline) { Start-Sleep -Milliseconds 250 }
     Assert-That ([bool](Get-InstalledHost)) "after the update the app runs again from $AppDir"
+    # Inno Setup 6.7+ would hand its RedirectionGuard to the app it starts (packaging\nazar.iss switches it off).
+    $guard = [NazarSmokeMitigation]::RedirectionGuard([int](Get-InstalledHost | Select-Object -First 1).ProcessId)
+    Assert-That ($guard -ne $true) "the app started by the setup runs without RedirectionGuard (got $guard)"
     Assert-That ($null -eq (Get-Autostart)) "the update keeps autostart as the app's setting says (off)"
     $stored = (Get-Content $Settings -ErrorAction SilentlyContinue) -match "^autostart=0$"
     Assert-That ([bool]$stored) "the update leaves the app's settings alone"

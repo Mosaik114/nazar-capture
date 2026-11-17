@@ -160,12 +160,26 @@ internal static class Ffmpeg
             if (!IsLocalPath(directory) || IsNetworkPath(directory)) continue;
             try
             {
-                string candidate = Path.Combine(directory, name);
-                if (File.Exists(candidate)) return candidate;
+                // not File.Exists first: in a guarded copy it says "no" for a file behind a linked folder
+                string? real = Unlinked(Path.Combine(directory, name));
+                if (real != null) return real;
             }
             catch (ArgumentException) { }   // invalid PATH entry: skip it
         }
         return null;
+    }
+
+    /// <summary>
+    /// The program itself instead of a link to it: winget puts symbolic links into WinGet\Links, Scoop puts a shim
+    /// beside a junction ("current"). A copy of Nazar Capture that inherited RedirectionGuard (see
+    /// <see cref="LinkSafety"/>) cannot start a program through such a link (error 448), so it is resolved first.
+    /// The target must be a local path too; null if it is not, or if the link leads nowhere.
+    /// </summary>
+    internal static string? Unlinked(string candidate)
+    {
+        string? real = LinkSafety.Resolve(candidate);
+        if (real == null) return null;
+        return IsLocalPath(real) && !IsNetworkPath(real) && File.Exists(real) ? real : null;
     }
 
     /// <summary>Only "C:\..." counts: not ".\", "folder", "C:folder" (drive-relative) or "\\server\...".</summary>

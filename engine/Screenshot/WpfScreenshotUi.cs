@@ -55,6 +55,7 @@ internal sealed class WpfScreenshotUi : IScreenshotUi
     public void CardSaved() => Card.Saved();
     public void CardSavedNotCopied() => Card.SavedNotCopied();
     public void CardFailed() => Card.Failed();
+    public void CardSavedInFallback(bool copied) => Card.SavedInFallback(copied);
     public void HideCard() => Card.HideNow();
 
     public void PinInPlace(ScreenCapture capture) =>
@@ -82,6 +83,13 @@ internal sealed class ScreenshotStore : IScreenshotStore
         File.WriteAllBytes(path, png);
         return png;
     });
+
+    public string FallbackPath(string path) =>
+        UniqueFile.Next(Path.Combine(FileKeeping.WritableOrFallback(Path.GetDirectoryName(path)!), Path.GetFileName(path)));
+
+    public Task<byte[]> EncodeAsync(BitmapSource image) => Task.Run(() => Screenshots.Encode(image, false));
+
+    public bool IsInFallback(string path) => FileKeeping.IsInFallback(path);
 
     public Task<bool> CopyAsync(BitmapSource image, byte[] png) => ClipboardWriter.SetImageAsync(image, png);
 }

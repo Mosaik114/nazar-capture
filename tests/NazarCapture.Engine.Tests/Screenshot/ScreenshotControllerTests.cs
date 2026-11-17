@@ -55,14 +55,45 @@ public sealed class ScreenshotControllerTests
     }
 
     [Fact]
-    public async Task UnwritableFolderShowsNotSaved()
+    public async Task NothingWritableShowsNotSavedButStillCopies()
     {
         store.SaveFailure = new UnauthorizedAccessException("denied");
 
         await controller.CapturedAsync(Capture());
 
         Assert.Equal("CardFailed", ui.Calls.Last());
-        Assert.Empty(store.Copied);
+        Assert.Equal(new[] { "C:\\Shots\\new.png", "C:\\Fallback\\new.png" }, store.Attempts);
+        Assert.Single(store.Copied);   // not saved anywhere, but the clipboard has it
+    }
+
+    [Fact]
+    public async Task UnwritableFolderSavesInTheFallbackFolder()
+    {
+        // Windows refusing a link on the way (error 448), as with an inherited RedirectionGuard
+        store.FailingPath = "C:\\Shots\\new.png";
+        store.SaveFailure = new IOException("untrusted mount point", LinkSafety.UntrustedMountPointHResult);
+        var capture = Capture();
+
+        await controller.CapturedAsync(capture);
+
+        Assert.Equal("C:\\Fallback\\new.png", capture.Path);
+        Assert.Equal(new[] { "C:\\Fallback\\new.png" }, store.Saved);
+        Assert.Equal("CardSavedInFallback True", ui.Calls.Last());
+        Assert.Single(store.Copied);
+    }
+
+    [Fact]
+    public async Task AFolderBehindARefusedLinkIsWrittenByItsRealPath()
+    {
+        store.FailingPath = "C:\\Shots\\new.png";
+        store.SaveFailure = new IOException("untrusted mount point", LinkSafety.UntrustedMountPointHResult);
+        store.Rescue = "D:\\Bilder\\new.png";   // the junction's target: still the user's own folder
+        var capture = Capture();
+
+        await controller.CapturedAsync(capture);
+
+        Assert.Equal("D:\\Bilder\\new.png", capture.Path);
+        Assert.Equal("CardSaved", ui.Calls.Last());
     }
 
     [Fact]
@@ -216,6 +247,7 @@ public sealed class ScreenshotControllerTests
         public void CardSaved() => Log("CardSaved");
         public void CardSavedNotCopied() => Log("CardSavedNotCopied");
         public void CardFailed() => Log("CardFailed");
+        public void CardSavedInFallback(bool copied) => Log("CardSavedInFallback " + copied);
         public void HideCard() => Log("HideCard");
 
         public void PinInPlace(ScreenCapture capture)
@@ -231,15 +263,28 @@ public sealed class ScreenshotControllerTests
     sealed class FakeStore : IScreenshotStore
     {
         public readonly List<string> Saved = new();
+        public readonly List<string> Attempts = new();
         public readonly List<byte[]> Copied = new();
         public bool ClipboardWorks = true;
         public Exception? SaveFailure;
+        /// <summary>Only this path fails (null: every path fails while <see cref="SaveFailure"/> is set).</summary>
+        public string? FailingPath;
 
         public string NewPath(DateTime when) => "C:\\Shots\\new.png";
 
+        /// <summary>Where <see cref="FallbackPath"/> sends a capture (null: the fallback folder).</summary>
+        public string? Rescue;
+
+        public string FallbackPath(string path) => Rescue ?? Path.Combine("C:\\Fallback", Path.GetFileName(path));
+
+        public Task<byte[]> EncodeAsync(BitmapSource image) => Task.FromResult(new byte[] { 0x89 });
+
+        public bool IsInFallback(string path) => path.StartsWith("C:\\Fallback\\", StringComparison.OrdinalIgnoreCase);
+
         public Task<byte[]> SaveAsync(BitmapSource image, string path)
         {
-            if (SaveFailure != null) return Task.FromException<byte[]>(SaveFailure);
+            Attempts.Add(path);
+            if (SaveFailure != null && (FailingPath == null || FailingPath == path)) return Task.FromException<byte[]>(SaveFailure);
             Saved.Add(path);
             return Task.FromResult(new byte[] { 0x89 });
         }

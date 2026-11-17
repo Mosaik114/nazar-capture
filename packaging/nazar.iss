@@ -80,6 +80,16 @@ UninstallDisplayName={#AppDisplayName}
 Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern
+#if VER >= EncodeVer(6,7,0)
+; Inno Setup 6.7+ turns on Windows' RedirectionGuard for the setup process, and the app the setup starts (the
+; [Run] entries below, DeinitializeSetup) inherits it: that copy of Nazar Capture then cannot follow any junction or
+; symbolic link a user made without admin rights (error 448, "untrusted mount point"), e.g. ffmpeg from winget or
+; Scoop, or a Pictures folder moved with a link. Inno Setup 6.7.4/7.1.1 stopped the inheritance only for setups that
+; ask for admin rights, not for PrivilegesRequired=lowest. This setup never runs elevated and writes only below the
+; user's own %LOCALAPPDATA%, so the guard protects no privilege boundary here; it is switched off.
+; packaging\smoke_test.ps1 checks that the app started by the setup runs without it.
+RedirectionGuard=no
+#endif
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"

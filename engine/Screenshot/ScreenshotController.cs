@@ -88,22 +88,54 @@ internal sealed class ScreenshotController : IScreenshotFlow
     async Task DeliverAsync(ScreenCapture capture, string heading)
     {
         ui.ShowCard(capture, heading);
-        byte[] png;
+        byte[]? png;
+        bool rescued = false;
         var saving = EngineActivity.Start();   // the engine must not quit before the file is written
         try
         {
-            png = await store.SaveAsync(capture.Image, capture.Path);
-        }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or ArgumentException)
-        {
-            ErrorLog.Write("Saving a screenshot", ex);
-            ui.CardFailed();
-            return;
+            png = await TrySaveAsync(capture.Image, capture.Path, "Saving a screenshot");
+            if (png == null)
+            {
+                // The folder cannot be written (a link Windows refuses, a drive that is gone, no access): the screenshot
+                // goes to the folder's real path behind the link, or else to the app's own fallback folder, instead of
+                // being lost.
+                string? fallback = null;
+                try { fallback = store.FallbackPath(capture.Path); }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or ArgumentException)
+                {
+                    ErrorLog.Write("Preparing the fallback folder", ex);
+                }
+                if (fallback != null) png = await TrySaveAsync(capture.Image, fallback, "Saving a screenshot in the fallback folder");
+                if (png != null && fallback != null)
+                {
+                    capture.Path = fallback;
+                    rescued = store.IsInFallback(fallback);
+                }
+            }
         }
         finally { saving.End(); }
+        if (png == null)
+        {
+            ui.CardFailed();
+            // not saved anywhere, but at least in the clipboard
+            try { lastCopied = await store.CopyAsync(capture.Image, await store.EncodeAsync(capture.Image)); }
+            catch (Exception ex) when (ex is IOException or NotSupportedException or InvalidOperationException) { ErrorLog.Write("Copying an unsaved screenshot", ex); }
+            return;
+        }
         lastCopied = await store.CopyAsync(capture.Image, png);
-        if (lastCopied) ui.CardSaved();
+        if (rescued) ui.CardSavedInFallback(lastCopied);
+        else if (lastCopied) ui.CardSaved();
         else ui.CardSavedNotCopied();
+    }
+
+    async Task<byte[]?> TrySaveAsync(BitmapSource image, string path, string what)
+    {
+        try { return await store.SaveAsync(image, path); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or ArgumentException)
+        {
+            ErrorLog.Write(what + (LinkSafety.IsUntrustedMountPoint(ex) ? " (Windows refuses a link on the way, error 448)" : ""), ex);
+            return null;
+        }
     }
 
     void Guard(string what, Action action)

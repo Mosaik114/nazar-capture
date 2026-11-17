@@ -200,7 +200,10 @@ internal sealed class RecordingController
         try
         {
             // "Aufnahmen speichern" off: the app's own folder until the user keeps it (FileKeeping)
-            string path = backend.NewRecordingPath(finished.Begun, settings.SaveRecordings ? settings.RecordingFolder : FileKeeping.UnsavedFolder);
+            // A folder that cannot be written (a link Windows refuses, a drive that is gone) would only fail at the very
+            // end in ffmpeg: the recording goes to the app's fallback folder instead (FileKeeping.FallbackFolder).
+            string path = backend.NewRecordingPath(finished.Begun,
+                backend.WritableOrFallback(settings.SaveRecordings ? settings.RecordingFolder : FileKeeping.UnsavedFolder));
             using var cancel = new CancellationTokenSource();
             var saving = finished.FinishAsync(path, cancel.Token);
             var timeout = saveTimeout(finished.Elapsed);
@@ -235,6 +238,7 @@ internal sealed class RecordingController
             }
             bool copied = await ui.CopyFileToClipboardAsync(video.Path);
             string heading = FileKeeping.IsUnsaved(video.Path) ? (copied ? UiText.Recording.Copied : UiText.Common.CopyFailed)
+                : backend.IsInFallback(video.Path) ? UiText.Common.SavedInFallback
                 : finished.AudioLost ? UiText.Recording.SavedWithoutAudio : copied ? UiText.Recording.Saved : UiText.Recording.SavedNotCopied;
             ui.ShowRecording(video, heading, work);
         }

@@ -158,6 +158,8 @@ internal static class CaptureBridge
         app.Dispatcher.BeginInvoke(new Action(() => Execute(command)), DispatcherPriority.ApplicationIdle);
         // the captures of the last days that Nazar Capture may delete ("Aufbewahren", not kept), off the UI thread
         app.Dispatcher.BeginInvoke(new Action(FileKeeping.StartTidying), DispatcherPriority.ApplicationIdle);
+        // a copy that inherited RedirectionGuard (started by an older setup) says so in the log, for reports of error 448
+        app.Dispatcher.BeginInvoke(new Action(LinkSafety.LogState), DispatcherPriority.ApplicationIdle);
         app.Run();
     }
 

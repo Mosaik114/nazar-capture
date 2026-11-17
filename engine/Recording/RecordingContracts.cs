@@ -60,6 +60,10 @@ internal interface IRecordingBackend
     IRecordingSession StartSession(Int32Rect area, int output, RECT desktop, AudioSettings audio, int fps);
     /// <summary>A new file name in <paramref name="folder"/> for a recording started at <paramref name="begun"/>.</summary>
     string NewRecordingPath(DateTime begun, string folder);
+    /// <summary><paramref name="folder"/> if it can be written, else <see cref="FileKeeping.FallbackFolder"/> (logged).</summary>
+    string WritableOrFallback(string folder);
+    /// <summary>Whether <paramref name="path"/> lies in <see cref="FileKeeping.FallbackFolder"/>.</summary>
+    bool IsInFallback(string path);
     /// <summary>Reads the settings once for this recording.</summary>
     CaptureSettingsSnapshot LoadSettings();
     void SaveSettings(AudioSettings settings);

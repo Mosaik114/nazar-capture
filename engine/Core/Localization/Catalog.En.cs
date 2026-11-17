@@ -39,6 +39,8 @@ internal static partial class Catalogs
         ["common.saving"] = "Saving …",
         ["common.keep"] = "Save",
         ["common.kept"] = "Saved to the folder",
+        ["common.saved_in_fallback"] = "Saved to a backup folder",
+        ["common.folder_unreachable"] = "The chosen folder could not be reached.",
         ["common.only_in_clipboard"] = "Only in the clipboard",
         ["common.size"] = "{0} × {1}",
         ["common.lines.one"] = "{0} line",

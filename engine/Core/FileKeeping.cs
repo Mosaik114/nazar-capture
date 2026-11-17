@@ -30,6 +30,59 @@ internal static class FileKeeping
     internal static string? UnsavedFolderOverride { get; set; }
 
     /// <summary>
+    /// Where a capture goes when its own folder cannot be written: a link Windows refuses to follow (error 448, see
+    /// <see cref="LinkSafety"/>), a drive that is gone, no access. Below %LOCALAPPDATA%\NazarCapture, never tidied:
+    /// what lands here is the user's, and the card's "Ordner" shows it.
+    /// </summary>
+    public static string FallbackFolder => Path.Combine(CaptureSettings.Home, "Ersatzordner");
+
+    /// <summary>Whether <paramref name="path"/> lies in <see cref="FallbackFolder"/>.</summary>
+    public static bool IsInFallback(string? path) => IsUnsaved(path, FallbackFolder);
+
+    /// <summary>
+    /// <paramref name="folder"/> if a file can be created in it (it is created if missing); else, after error 448, the
+    /// folder's real path behind the refused link; else <see cref="FallbackFolder"/>. The reason is logged. The check
+    /// writes and deletes an empty file, because a folder can exist and still refuse writing (error 448 comes only
+    /// when something is written through the link).
+    /// </summary>
+    public static string WritableOrFallback(string folder) => WritableOrFallback(folder, FallbackFolder);
+
+    internal static string WritableOrFallback(string folder, string fallbackFolder)
+    {
+        if (CanWrite(folder, out Exception? problem)) return folder;
+        // A folder reached through a link (Pictures moved to D:\ with a junction) is still the user's folder: written
+        // by its real path it works even where Windows refuses the link itself.
+        string? real = LinkSafety.IsUntrustedMountPoint(problem) ? LinkSafety.ResolveFolder(folder) : null;
+        if (real != null && !string.Equals(real, folder, StringComparison.OrdinalIgnoreCase) && CanWrite(real, out _))
+        {
+            ErrorLog.Write("The folder " + folder + " is reached through a link Windows refuses (error 448); using its real path " + real, null);
+            return real;
+        }
+        ErrorLog.Write("The folder " + folder + " cannot be written"
+            + (LinkSafety.IsUntrustedMountPoint(problem) ? " (Windows refuses a link on the way, error 448)" : "")
+            + "; using " + fallbackFolder, problem);
+        Directory.CreateDirectory(fallbackFolder);
+        return fallbackFolder;
+    }
+
+    internal static bool CanWrite(string folder, out Exception? problem)
+    {
+        problem = null;
+        try
+        {
+            Directory.CreateDirectory(folder);
+            string probe = Path.Combine(folder, ".nazar-" + Guid.NewGuid().ToString("N").Substring(0, 8) + ".tmp");
+            using (new FileStream(probe, FileMode.CreateNew, FileAccess.Write, FileShare.None, 1, FileOptions.DeleteOnClose)) { }
+            return true;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        {
+            problem = ex;
+            return false;
+        }
+    }
+
+    /// <summary>
     /// The names <see cref="Screenshots.NewPath"/> gives ("Nazar-Screenshot 2026-11-17 14-03-12.png", also " (2)" from
     /// <see cref="UniqueFile"/>; JPEG for an edited copy saved that way).
     /// </summary>
@@ -71,6 +124,23 @@ internal static class FileKeeping
         string target = UniqueFile.Next(Path.Combine(folder, Path.GetFileName(path)));
         File.Move(path, target);
         return target;
+    }
+
+    /// <summary>
+    /// <see cref="Keep"/>, and if <paramref name="folder"/> cannot be written, into <see cref="FallbackFolder"/>, so a
+    /// capture the user wants to keep is never left to the daily tidying. Throws only if both fail.
+    /// </summary>
+    public static string KeepOrFallback(string path, string folder) => KeepOrFallback(path, folder, FallbackFolder);
+
+    internal static string KeepOrFallback(string path, string folder, string fallbackFolder)
+    {
+        try { return Keep(path, folder); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or ArgumentException)
+        {
+            string other = WritableOrFallback(folder, fallbackFolder);   // the real path behind a refused link, if that is it
+            ErrorLog.Write("Keeping " + Path.GetFileName(path) + " in " + folder + " failed; using " + other, ex);
+            return Keep(path, other);
+        }
     }
 
     /// <summary>

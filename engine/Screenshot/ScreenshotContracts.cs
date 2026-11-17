@@ -32,8 +32,13 @@ internal interface IScreenshotUi
     void CardSaved();
     /// <summary>Saved, but the clipboard refused it: the card must not claim it was copied.</summary>
     void CardSavedNotCopied();
-    /// <summary>Not saved (folder not writable).</summary>
+    /// <summary>Not saved (folder not writable, the fallback folder neither).</summary>
     void CardFailed();
+    /// <summary>
+    /// The screenshot folder could not be written, so the file went to <see cref="FileKeeping.FallbackFolder"/>; the
+    /// card says so and "Ordner" shows it there.
+    /// </summary>
+    void CardSavedInFallback(bool copied);
     void HideCard();
     void PinInPlace(ScreenCapture capture);
     /// <summary>After an unexpected error: closes every screenshot window that is open.</summary>
@@ -48,6 +53,15 @@ internal interface IScreenshotStore
     string NewPath(DateTime when);
     /// <summary>Encodes as PNG and writes the file (off the UI thread); returns the PNG bytes.</summary>
     Task<byte[]> SaveAsync(BitmapSource image, string path);
+    /// <summary>
+    /// After writing <paramref name="path"/> failed: a free name for its file in the folder's real path (behind a link
+    /// Windows refuses) or else in <see cref="FileKeeping.FallbackFolder"/>.
+    /// </summary>
+    string FallbackPath(string path);
+    /// <summary>Encodes as PNG without writing a file (off the UI thread), for the clipboard when nothing could be saved.</summary>
+    Task<byte[]> EncodeAsync(BitmapSource image);
+    /// <summary>Whether <paramref name="path"/> lies in <see cref="FileKeeping.FallbackFolder"/> (not the user's own folder).</summary>
+    bool IsInFallback(string path);
     /// <summary>Puts the image on the clipboard; false if another app held it too long.</summary>
     Task<bool> CopyAsync(BitmapSource image, byte[] png);
 }

@@ -89,7 +89,7 @@ internal sealed class ScreenshotCard : CardWindow
         if (!saved || capture == null || !FileKeeping.IsUnsaved(path)) return;
         try
         {
-            capture.Path = path = FileKeeping.Keep(path, KeepFolder());
+            capture.Path = path = FileKeeping.KeepOrFallback(path, KeepFolder());
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or ArgumentException)
         {
@@ -97,8 +97,28 @@ internal sealed class ScreenshotCard : CardWindow
             card.Title.Text = UiText.Common.CouldNotSave;
             return;
         }
+        if (FileKeeping.IsInFallback(path))
+        {
+            ShowFallback();
+            return;
+        }
         card.Title.Text = UiText.Common.Kept;
         ShowKept();
+    }
+
+    /// <summary>Saved in the fallback folder because the chosen one could not be written; "Ordner" shows it there.</summary>
+    public void SavedInFallback(bool copied)
+    {
+        ShowSaved(true);
+        ShowFallback();
+    }
+
+    void ShowFallback()
+    {
+        ShowKept();
+        card.Title.Text = UiText.Common.SavedInFallback;
+        card.SubtitleIsFileName(false);
+        card.Subtitle.Text = UiText.Common.FolderUnreachable;
     }
 
     void HookUpMouse()

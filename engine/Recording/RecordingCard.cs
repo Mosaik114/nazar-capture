@@ -245,14 +245,14 @@ internal sealed class RecordingCard : CardWindow
     {
         if (video == null || !ready || !FileKeeping.IsUnsaved(video.Path)) return;
         string kept;
-        try { kept = FileKeeping.Keep(video.Path, folder); }
+        try { kept = FileKeeping.KeepOrFallback(video.Path, folder); }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or ArgumentException)
         {
             ErrorLog.Write("Keeping a recording", ex);
             card.Title.Text = UiText.Common.CouldNotSave;
             return;
         }
-        Present(video.MovedTo(kept), UiText.Common.Kept, workArea);
+        Present(video.MovedTo(kept), FileKeeping.IsInFallback(kept) ? UiText.Common.SavedInFallback : UiText.Common.Kept, workArea);
     }
 
     internal RecordedVideo? Shown => video;
