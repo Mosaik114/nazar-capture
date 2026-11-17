@@ -8,7 +8,8 @@ namespace NazarCapture.Engine.Core;
 /// A process with this mitigation cannot follow a junction or symbolic link that a user without admin rights created:
 /// Windows answers with error 448 ("untrusted mount point"). Nazar Capture never turns it on itself, but a process
 /// inherits it from the program that started it; Inno Setup 6.7 and later started the app that way after an install
-/// or an update (packaging\nazar.iss now switches it off). A guarded copy runs until the next sign-in.
+/// or an update (packaging\nazar.iss now switches it off). The host restarts such a copy through the Windows shell
+/// without the guard (src\unguard.rs); only where that is impossible (no shell) does a guarded copy run on.
 /// </para>
 /// Three things keep such a copy working: links are resolved before a program is started through them
 /// (<see cref="Resolve"/>, ffmpeg from winget or Scoop), captures fall back to an own folder when theirs cannot be

@@ -12,6 +12,7 @@
 //! | `--probe`         | exit with 0 only if a healthy instance is running       |
 //! | `--self-test`     | run the built-in checks and exit                        |
 //! | `--install [dir]` | install or update from this executable's folder         |
+//! | `--from-shell`    | marks a copy the shell restarted (see `crate::unguard`) |
 //!
 //! When several actions are given, the last one wins; `--self-test` and `--install`
 //! win over all others. The argument after `--install` is the target folder unless it

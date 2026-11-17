@@ -20,8 +20,15 @@ Nazar Capture works the same however it was started, also through links Windows 
   the guard protected no privilege boundary there. Measured: a program started by an Inno 6.7.3 setup ran with the
   guard enforced, with `RedirectionGuard=no` without it; the installer smoke test now checks the restarted app.
 - **ffmpeg from winget or Scoop** is started from its real folder: the links in `WinGet\Links` and Scoop's shim
-  with its `current` junction are read, not followed. A copy that still inherited the guard (started by the 1.1.6
-  setup, until the next sign-in) records as before.
+  with its `current` junction are read, not followed, so even a copy with the guard records as before.
+- **A copy that inherited the guard hands over to a clean one.** An older copy starts the next update setup with the
+  guard, and the setup passes it on to the new version, whatever `nazar.iss` says. So a copy that starts with the
+  guard and finds no other copy running asks the Windows shell to start it again and ends; the shell starts it
+  without the guard, and so its engine and its next update setup, too. This goes through the documented shell
+  automation interfaces (`IShellWindows::FindWindowSW`, `IShellDispatch2::ShellExecute`), the way Raymond Chen shows
+  for starting an unelevated program, not by naming another parent process. The restarted copy carries
+  `--from-shell` and never restarts again; without a shell it simply runs on. Measured: a child the guarded process
+  started itself had the guard, one the shell started had none.
 - **No capture is lost when its folder cannot be written.** A screenshot or recording whose folder refuses writing
   (a link Windows refuses, a drive that is gone, no access) goes to the folder's real path behind the link, or else
   to `%LOCALAPPDATA%\NazarCapture\Ersatzordner`; the card says *Im Ersatzordner gespeichert* and *Ordner* shows it

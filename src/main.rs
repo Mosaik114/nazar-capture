@@ -29,6 +29,7 @@ mod self_test;
 mod single_instance;
 mod store;
 mod ui;
+mod unguard;
 mod wide;
 
 /// The resource serialiser of `build.rs`, compiled here so `cargo test` covers it.
@@ -77,12 +78,14 @@ fn main() -> ExitCode {
             }
         }
         Command::Install(target) => install(target.as_deref(), Isolation::from_env().as_ref()),
-        Command::Run(action) => run(action, Isolation::from_env().as_ref()),
+        Command::Run(action) => run(action, Isolation::from_env().as_ref(), true),
     }
     .into()
 }
 
-fn run(action: Action, isolation: Option<&Isolation>) -> Exit {
+/// `may_restart`: a copy that inherited `RedirectionGuard` and finds no other copy running may hand
+/// over to a copy the shell starts (see [`unguard`]); `false` after that hand-over failed.
+fn run(action: Action, isolation: Option<&Isolation>, may_restart: bool) -> Exit {
     let mutex = isolated(single_instance::MUTEX_NAME, isolation);
     let Ok(lock) = InstanceLock::acquire(&mutex) else {
         return Exit::Failed;
@@ -96,6 +99,11 @@ fn run(action: Action, isolation: Option<&Isolation>) -> Exit {
         // Nothing to quit, nothing healthy to probe.
         Action::Quit => Exit::Success,
         Action::Probe => Exit::ProbeFailed,
+        _ if may_restart && restart_wanted(isolation) => {
+            // Let go of the instance first: the copy the shell starts takes it over.
+            drop(lock);
+            if restart_through_shell() { Exit::Success } else { run(action, isolation, false) }
+        }
         _ => match ui::run(action, isolation) {
             Ok(()) => Exit::Success,
             Err(error) => {
@@ -107,6 +115,20 @@ fn run(action: Action, isolation: Option<&Isolation>) -> Exit {
             }
         },
     }
+}
+
+fn restart_wanted(isolation: Option<&Isolation>) -> bool {
+    let args: Vec<_> = std::env::args_os().skip(1).collect();
+    unguard::restart_wanted(unguard::enforced(), isolation.is_some(), &args)
+}
+
+/// Asks the shell to start this program again with the same arguments, without the guard.
+fn restart_through_shell() -> bool {
+    let Ok(exe) = std::env::current_exe() else { return false };
+    let Some(folder) = exe.parent() else { return false };
+    let args: Vec<_> = std::env::args_os().skip(1).collect();
+    // SW_SHOWNORMAL: the program decides what it shows (nothing for `--background`).
+    unguard::shell_execute(&exe, &unguard::restart_arguments(&args), folder, 1)
 }
 
 /// `--install`: errors are shown in a message box; a refusal because of a running
