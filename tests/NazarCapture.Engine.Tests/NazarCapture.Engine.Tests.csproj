@@ -44,6 +44,8 @@
   <ItemGroup Condition="'$(NazarReadme)' == 'true'">
     <!-- The renders for the README pictures, only for tools/readme/render.ps1. -->
     <Compile Include="..\..\tools\readme\ReadmeRenders.cs" Link="ReadmeRenders.cs" />
+    <!-- The windows in every interface language, for a visual check (NAZAR_LANGUAGE_OUT). -->
+    <Compile Include="..\..\tools\readme\LanguageRenders.cs" Link="LanguageRenders.cs" />
   </ItemGroup>
 
 </Project>

@@ -112,8 +112,10 @@ internal sealed partial class ScreenshotEditor : Window
         toolbarRow = new StackPanel { Orientation = Orientation.Horizontal };
         tooltip = BuildChip(out tooltipText, shadow: true);
         toolbar = BuildToolbar();
+        Localizer.Apply(toolbar);   // the tools from right to left in Arabic; the picture stays as it is
         menuItems = new StackPanel();
         toolMenu = BuildToolMenu();
+        Localizer.Apply(toolMenu);
         notice = BuildChip(out noticeText, shadow: true);
         noticeText.FontWeight = FontWeights.SemiBold;
         System.Windows.Automation.AutomationProperties.SetLiveSetting(notice, System.Windows.Automation.AutomationLiveSetting.Polite);

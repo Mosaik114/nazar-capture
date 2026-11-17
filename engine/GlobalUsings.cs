@@ -18,6 +18,7 @@ global using System.Windows.Media.Animation;
 global using System.Windows.Media.Imaging;
 global using System.Windows.Threading;
 global using NazarCapture.Engine.Core;
+global using NazarCapture.Engine.Core.Localization;
 global using NazarCapture.Engine.NazarUi;
 global using NazarCapture.Engine.Recording;
 global using NazarCapture.Engine.Screenshot;

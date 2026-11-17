@@ -112,6 +112,11 @@ fn run(action: Action, isolation: Option<&Isolation>) -> Exit {
 /// `--install`: errors are shown in a message box; a refusal because of a running
 /// capture has its own exit code.
 fn install(target: Option<&std::path::Path>, isolation: Option<&Isolation>) -> Exit {
+    // Messages in the language the user chose (the settings of this user or test instance).
+    let store = isolation.map_or_else(store::SettingsStore::user_default, |isolation| {
+        store::SettingsStore::at(isolation.settings.clone())
+    });
+    ui::set_language(store.load().language);
     match install::run(target, isolation) {
         Ok(_) => Exit::Success,
         Err(error) => {

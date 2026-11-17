@@ -218,6 +218,102 @@ public sealed class SettingsWindowTests
     });
 
     [Fact]
+    public void TheLanguageSelectNamesEveryLanguageInItself() => WpfThread.Run(() =>
+    {
+        using var settings = new TestSettings(Version112 + "language=fr\r\n");
+        var host = new FakeHost();
+        var window = Window(host, settings);
+        var select = (Select)window.Row(NazarSettings.Language).Control!;
+        var entries = select.Items.Cast<SelectItem>().Select(item => ((string)item.Content, (string)item.Tag)).ToArray();
+        Assert.Equal(new[] { ("Automatisch", "auto"), ("Deutsch", "de"), ("English", "en"), ("Русский", "ru"), ("Español", "es"), ("Français", "fr"), ("العربية", "ar"), ("Türkçe", "tr") }, entries);
+        Assert.Equal("fr", select.SelectedValue);
+        Assert.Equal(UiText.Settings.LanguageHint, window.Row(NazarSettings.Language).Description);
+
+        int changed = 0;
+        window.LanguageChanged = () => changed++;
+        try
+        {
+            select.SelectedValue = "ar";
+            Assert.Contains("set language=ar", host.Calls);
+            Assert.Equal("ar", Localizer.Language.Code);   // at once, for every window built from now on
+            WpfThread.PumpUntil(() => changed > 0, 2000);
+            Assert.Equal(1, changed);   // the shared windows are rebuilt after the click
+
+            var arabic = Window(host, settings);
+            Assert.Equal(FlowDirection.RightToLeft, arabic.FlowDirection);
+            Assert.Equal("الإعدادات", arabic.StageHead!.Title);
+            arabic.Close();
+        }
+        finally { Localizer.Use(UiLanguages.German); }
+        window.Close();
+    });
+
+    [Fact]
+    public void ANewWindowTakesThePlaceAndPageOfTheOldOne() => WpfThread.Run(() =>
+    {
+        using var settings = new TestSettings(Version112);
+        var old = Window(new FakeHost(), settings);
+        old.SelectPage(2);
+        var fresh = Window(new FakeHost(), settings);
+        fresh.TakePlaceOf(old);
+        Assert.Equal(2, fresh.Tabs.Selected);
+        Assert.Equal(2, fresh.Pages.Selected);
+        fresh.Close();
+    });
+
+    [Fact]
+    public void SavingOffExplainsItselfAndGreysOutAufbewahren() => WpfThread.Run(() =>
+    {
+        using var settings = new TestSettings(Version112 + "save_screenshots=0\r\nscreenshot_keep_days=30\r\n");
+        var host = new FakeHost();
+        var window = Window(host, settings);
+        var keep = (Select)window.Row(NazarSettings.ScreenshotKeepDays).Control!;
+        Assert.Equal(UiText.Settings.SaveScreenshotsOffHint, window.Row(NazarSettings.SaveScreenshots).Description);
+        Assert.False(keep.IsEnabled);
+        Assert.Equal(30, keep.SelectedValue);
+        Assert.Equal(new[] { "Unbegrenzt", "7 Tage", "30 Tage", "90 Tage", "1 Jahr" }, keep.Items.Cast<SelectItem>().Select(i => (string)i.Content));
+        Assert.True(((Select)window.Row(NazarSettings.RecordingKeepDays).Control!).IsEnabled);   // recordings are still saved
+        Assert.Equal(UiText.Settings.SaveRecordingsHint, window.Row(NazarSettings.SaveRecordings).Description);
+
+        ((ToggleSwitch)window.Row(NazarSettings.SaveScreenshots).Control!).IsChecked = true;
+        Assert.Contains("set save_screenshots=1", host.Calls);
+        Assert.True(keep.IsEnabled);
+        Assert.Equal(UiText.Settings.SaveScreenshotsHint, window.Row(NazarSettings.SaveScreenshots).Description);
+        keep.SelectedValue = 7;
+        Assert.Contains("set screenshot_keep_days=7", host.Calls);
+        window.Close();
+    });
+
+    /// <summary>Every page in every language: nothing is cut (long Russian and French texts wrap or fit).</summary>
+    [Theory]
+    [MemberData(nameof(Core.LocalizationTests.Codes), MemberType = typeof(Core.LocalizationTests))]
+    public void NoTextIsCutInAnyLanguage(string code) => WpfThread.Run(() =>
+    {
+        using var language = new LanguageScope(code);
+        using var settings = new TestSettings(Version112);
+        var window = Window(new FakeHost(), settings, pending: new Updates.Release("9.9.9", "p", null, null));
+        AssertNothingCut(window, 1);
+        window.Close();
+    });
+
+    static void AssertNothingCut(SettingsWindow window, double scale)
+    {
+        foreach (var tab in window.Tabs.Buttons)
+            Assert.True(tab.ActualWidth > 0, "tab laid out");
+        for (int page = 0; page < window.Pages.Children.Count; page++)
+        {
+            window.SelectPage(page);
+            Lay(window, scale);
+            foreach (var text in Texts((DependencyObject)window.Pages.Children[page]).Concat(Texts(window.Tabs)))
+            {
+                if (text.TextWrapping == TextWrapping.Wrap || text.ActualWidth == 0 || text.FontFamily == Palette.IconFont) continue;   // icons sit in fixed boxes
+                text.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+                Assert.True(text.DesiredSize.Width - text.Margin.Left - text.Margin.Right <= text.ActualWidth + 1, Localizer.Language.Code + " page " + page + " cut: " + text.Text);
+            }
+        }
+    }
+
+    [Fact]
     public void TheSizeIsRememberedAndNeverBelowTheMinimum() => WpfThread.Run(() =>
     {
         using var settings = new TestSettings(Version112);
@@ -404,17 +500,7 @@ public sealed class SettingsWindowTests
         var window = Window(new FakeHost(), settings, scale);
         Assert.Equal(SettingsWindow.BaseWidth * scale, window.Width, 3);
         Assert.Equal(SettingsWindow.MinimumWidth * scale, window.MinWidth, 3);
-        for (int page = 0; page < window.Pages.Children.Count; page++)
-        {
-            window.SelectPage(page);
-            Lay(window, scale);
-            foreach (var text in Texts((DependencyObject)window.Pages.Children[page]))
-            {
-                if (text.TextWrapping == TextWrapping.Wrap || text.ActualWidth == 0 || text.FontFamily == Palette.IconFont) continue;   // icons sit in fixed boxes
-                text.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
-                Assert.True(text.DesiredSize.Width - text.Margin.Left - text.Margin.Right <= text.ActualWidth + 1, "cut: " + text.Text);
-            }
-        }
+        AssertNothingCut(window, scale);
         window.Close();
     });
 

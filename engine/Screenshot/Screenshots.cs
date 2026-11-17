@@ -12,6 +12,7 @@ internal static class Screenshots
 {
     static ScreenshotController? controller;
     static volatile string? folder;
+    static volatile bool save = true;
 
     /// <summary>Called once by <see cref="EngineComposition"/>, which builds the object graph.</summary>
     internal static void Use(ScreenshotController screenshotController) => controller = screenshotController;
@@ -22,8 +23,21 @@ internal static class Screenshots
     /// </summary>
     public static string Folder => folder ?? ReadFolder();
 
-    /// <summary>Reads the folder from the settings again (a new capture is about to be saved).</summary>
-    internal static string ReadFolder() => folder = CaptureSettings.Load().ScreenshotFolder;
+    /// <summary>Reads the folder (and whether screenshots are saved) from the settings again (a new capture is about to be saved).</summary>
+    internal static string ReadFolder()
+    {
+        var settings = CaptureSettings.Load();
+        save = settings.SaveScreenshots;
+        return folder = settings.ScreenshotFolder;
+    }
+
+    /// <summary>
+    /// Where the next capture goes: the screenshot folder, or with "Screenshots speichern" off the app's own folder for
+    /// captures that were not kept (<see cref="FileKeeping"/>), as of the latest <see cref="ReadFolder"/>.
+    /// </summary>
+    internal static string TargetFolder() => TargetFolder(ReadFolder(), save);
+
+    internal static string TargetFolder(string folder, bool save) => save ? folder : FileKeeping.UnsavedFolder;
 
     /// <summary>
     /// Starts a screenshot. The settings are read first, so the overlay already shows the current appearance

@@ -28,10 +28,10 @@ internal static class ToolWindows
     }
 }
 
-/// <summary>How times and sizes are shown to the user (German number format).</summary>
+/// <summary>How times and sizes are shown to the user (the decimal separator of the interface language).</summary>
 internal static class Formats
 {
-    static readonly CultureInfo German = CultureInfo.GetCultureInfo("de-DE");
+    static string Decimal => Localizer.Culture.NumberFormat.NumberDecimalSeparator;
 
     /// <summary>0:07 or 1:02:07</summary>
     public static string Clock(double seconds)
@@ -45,14 +45,14 @@ internal static class Formats
     public static string ClockWithTenths(double seconds)
     {
         int tenths = (int)Math.Round(Math.Max(0, seconds) * 10);
-        return Clock(tenths / 10) + "," + tenths % 10;
+        return Clock(tenths / 10) + Decimal + tenths % 10;
     }
 
-    /// <summary>KB below 1 MB, above that MB with a German decimal comma.</summary>
+    /// <summary>KB below 1 MB, above that MB with the decimal separator of the interface language (3,2 MB / 3.2 MB).</summary>
     public static string FileSize(long bytes)
     {
         if (bytes < 1024 * 1024) return Math.Max(1, bytes / 1024) + " KB";
         double megabytes = bytes / 1048576.0;
-        return megabytes.ToString(megabytes < 100 ? "0.0" : "0", German) + " MB";
+        return megabytes.ToString(megabytes < 100 ? "0.0" : "0", Localizer.Culture) + " MB";
     }
 }

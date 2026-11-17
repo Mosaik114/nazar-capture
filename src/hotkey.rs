@@ -107,13 +107,47 @@ pub struct Hotkey {
     pub key: u16,
 }
 
+/// The names on the key caps that differ between languages (the interface language
+/// decides, as in the engine's key caps).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct KeyCaps {
+    pub ctrl: &'static str,
+    pub shift: &'static str,
+    pub space: &'static str,
+    pub print: &'static str,
+    pub pause: &'static str,
+    pub insert: &'static str,
+    /// The decimal key of the number pad (`Num ,` on German keyboards).
+    pub num_decimal: &'static str,
+}
+
+impl KeyCaps {
+    /// German key caps: `Strg`, `Umschalt`, `Leertaste`, `Druck`, `Einfg`.
+    pub const GERMAN: Self = Self {
+        ctrl: "Strg",
+        shift: "Umschalt",
+        space: "Leertaste",
+        print: "Druck",
+        pause: "Pause",
+        insert: "Einfg",
+        num_decimal: "Num ,",
+    };
+}
+
 impl Hotkey {
     /// The hotkey as printed on German key caps, modifiers first in the order Strg,
     /// Umschalt, Alt, Win: `Umschalt+Alt+4`, `Strg+Leertaste`, `Alt+Num 5`, `Druck`.
+    #[cfg(test)]
     pub fn label(self) -> String {
+        self.label_with(&KeyCaps::GERMAN)
+    }
+
+    /// The hotkey with the given key-cap names, modifiers first in the order Ctrl,
+    /// Shift, Alt, Win.
+    pub fn label_with(self, caps: &KeyCaps) -> String {
         let modifiers = [
-            (Modifiers::CONTROL, "Strg"),
-            (Modifiers::SHIFT, "Umschalt"),
+            (Modifiers::CONTROL, caps.ctrl),
+            (Modifiers::SHIFT, caps.shift),
             (Modifiers::ALT, "Alt"),
             (Modifiers::WIN, "Win"),
         ];
@@ -122,7 +156,7 @@ impl Hotkey {
             .filter(|(modifier, _)| self.modifiers.contains(*modifier))
             .map(|(_, label)| (*label).to_owned())
             .collect();
-        parts.push(key_label(self.key));
+        parts.push(key_label(self.key, caps));
         parts.join("+")
     }
 }
@@ -132,8 +166,19 @@ const fn stands_alone(key: u16) -> bool {
     key == VK_SNAPSHOT || key == VK_PAUSE
 }
 
-/// The German key-cap label of a virtual key that [`parse_key`] produces.
-fn key_label(key: u16) -> String {
+/// The key-cap label of a virtual key that [`parse_key`] produces.
+fn key_label(key: u16, caps: &KeyCaps) -> String {
+    let own = match key {
+        VK_SPACE => Some(caps.space),
+        VK_SNAPSHOT => Some(caps.print),
+        VK_PAUSE => Some(caps.pause),
+        VK_INSERT => Some(caps.insert),
+        VK_DECIMAL => Some(caps.num_decimal),
+        _ => None,
+    };
+    if let Some(label) = own {
+        return label.to_owned();
+    }
     if let Some((_, _, label)) = NAMED_KEYS.iter().find(|(_, code, _)| *code == key) {
         return (*label).to_owned();
     }

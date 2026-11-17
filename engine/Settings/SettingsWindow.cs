@@ -38,9 +38,11 @@ internal sealed class SettingsWindow : NazarWindow
     readonly DispatcherTimer sizeSaver;
     readonly Func<Updates.Release?> pending;
     readonly Func<Updates.UpdateCheck> updateCheck;
-    Settings.UpdateRow? updates;
+    UpdateRow? updates;
+    readonly List<SwitchSpec> switchSpecs = new();
+    readonly List<ChoiceSpec> choiceSpecs = new();
     CaptureSettingsSnapshot current = new();
-    bool populating;
+    bool populating, retired;
 
     public SettingsWindow(IHostChannel host, Func<CaptureSettingsSnapshot> load, double textScale = 1, WindowPlaces? places = null, IReadOnlyList<PageSpec>? pageSpecs = null,
         Func<Updates.Release?>? pending = null, Func<Updates.UpdateCheck>? updateCheck = null)
@@ -162,8 +164,49 @@ internal sealed class SettingsWindow : NazarWindow
     protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
     {
         base.OnClosing(e);
+        if (retired) return;
         e.Cancel = true;   // kept for the next time
         RequestClose();
+    }
+
+    /// <summary>Closes for good (the language changed: a new window takes its place).</summary>
+    public void Retire()
+    {
+        foreach (var box in hotkeys.Values) box.CancelCapture();
+        retired = true;
+        Close();
+    }
+
+    /// <summary>
+    /// The language changed: the shared window is built anew in it, and shown where and as large as the old one, on the
+    /// same page (the old one closes). Pages are built from the texts once, so this is the way to a new language.
+    /// </summary>
+    internal static void Relocalize()
+    {
+        if (shared == null) return;
+        var old = shared;
+        shared = new SettingsWindow(new HostChannel(), CaptureSettings.Load, TextScaleFactor(), WindowPlaces.User());
+        shared.TakePlaceOf(old);
+    }
+
+    /// <summary>Shows this window where <paramref name="old"/> is (if it is shown), on its page, and retires it.</summary>
+    internal void TakePlaceOf(SettingsWindow old)
+    {
+        int page = old.tabs.Selected;
+        SelectPage(page);
+        if (old.IsVisible)
+        {
+            WindowStartupLocation = WindowStartupLocation.Manual;
+            Left = old.Left;
+            Top = old.Top;
+            Width = old.ActualWidth > 0 ? old.ActualWidth : old.Width;
+            Height = old.ActualHeight > 0 ? old.ActualHeight : old.Height;
+            MaxHeight = old.MaxHeight;
+            Show();
+            ToolWindowBase.TakeFocus(this, new WindowInteropHelper(this).Handle);
+            tabs.Buttons[tabs.Selected].Focus();
+        }
+        old.Retire();
     }
 
     void RememberSize()
@@ -203,6 +246,7 @@ internal sealed class SettingsWindow : NazarWindow
                     var row = new SettingRow(s.Title, s.Hint, toggle);
                     switches[s.Key] = toggle;
                     rows[s.Key] = row;
+                    switchSpecs.Add(s);
                     toggle.Checked += delegate { Change(toggle, s.Key, "1"); };
                     toggle.Unchecked += delegate { Change(toggle, s.Key, "0"); };
                     return row;
@@ -215,6 +259,7 @@ internal sealed class SettingsWindow : NazarWindow
                     var row = new SettingRow(c.Title, c.Hint, select, stacked: c.Stacked);
                     selects[c.Key] = select;
                     rows[c.Key] = row;
+                    choiceSpecs.Add(c);
                     select.SelectionChanged += delegate { Chosen(select, c.Key); };
                     return row;
                 }
@@ -231,7 +276,7 @@ internal sealed class SettingsWindow : NazarWindow
             case FolderSpec f:
                 {
                     var buttons = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
-                    var row = new SettingRow(f.Title, f.Value(current), buttons, stacked: true);
+                    var row = new SettingRow(f.Title, UiText.Path(f.Value(current)), buttons, stacked: true);
                     buttons.Children.Add(new SecondaryButton(UiText.Settings.Change, () => ChangeFolder(row, f.Key, f.Value(current))) { MinWidth = RowButtonWidth, Margin = new Thickness(0, 0, UiTokens.Space.Md, 0) });
                     buttons.Children.Add(new SecondaryButton(UiText.Settings.Open, () => OpenFolder(row, f.Value(current)), IconGlyphs.Folder) { MinWidth = RowButtonWidth });
                     rows[f.Key] = row;
@@ -241,9 +286,13 @@ internal sealed class SettingsWindow : NazarWindow
             case LinkSpec l:
                 return new SettingRow(l.Title, l.Hint, new SecondaryButton(l.Button, () => Shell.Open(l.Url)) { MinWidth = RowButtonWidth });
             case DisplaySpec d:
-                return SettingRow.Display(d.Title, d.Value);
+                {
+                    var row = SettingRow.Display(d.Title, d.Value);
+                    if (row.Control is FrameworkElement value) Localizer.KeepLeftToRight(value);   // "Nazar Capture 1.1.6" in that order, also in Arabic
+                    return row;
+                }
             case UpdatesSpec:
-                updates = new Settings.UpdateRow(updateCheck, Updates.UpdateNotice.Show);
+                updates = new UpdateRow(updateCheck, Updates.UpdateNotice.Show);
                 return updates.Row;
             default:
                 throw new ArgumentException("Unknown row: " + spec.GetType().Name, nameof(spec));
@@ -270,15 +319,28 @@ internal sealed class SettingsWindow : NazarWindow
                             case ChoiceSpec c: selects[c.Key].SelectedValue = c.Value(current); break;
                             case HotkeySpec h: hotkeys[h.Key].Show(h.Value(current)); break;
                         }
-            foreach (var (row, value) in folders) row.SetDescription(value(current));
+            foreach (var (row, value) in folders) row.SetDescription(UiText.Path(value(current)));
         }
         finally { populating = false; }
+        ShowDependents();
         ShowHotkeyState();
         ShowUpdate(pending());
     }
 
     /// <summary>A newer version (as remembered by the daily check) shows in the update row with "Jetzt aktualisieren".</summary>
     internal void ShowUpdate(Updates.Release? release) => updates?.Show(release);
+
+    /// <summary>
+    /// What follows from a switch: its help text while it is off ("Screenshots speichern" off: only to the clipboard), and
+    /// the choices that mean nothing without it ("Aufbewahren"), greyed out.
+    /// </summary>
+    void ShowDependents()
+    {
+        foreach (var s in switchSpecs.Where(s => s.OffHint != null))
+            rows[s.Key].SetDescription(switches[s.Key].IsChecked == true ? s.Hint ?? "" : s.OffHint!);
+        foreach (var c in choiceSpecs.Where(c => c.EnabledBy != null))
+            selects[c.Key].IsEnabled = switches.TryGetValue(c.EnabledBy!, out var toggle) && toggle.IsChecked == true;
+    }
 
     void ShowHotkeyState()
     {
@@ -319,7 +381,7 @@ internal sealed class SettingsWindow : NazarWindow
         if (populating) return;
         var row = (SettingRow)toggle.Parent;
         var reply = host.Set(key, value);
-        if (reply == HostReply.Ok) { row.ShowStatus("", Status.None); current = load(); return; }
+        if (reply == HostReply.Ok) { row.ShowStatus("", Status.None); current = load(); ShowDependents(); return; }
         populating = true;
         toggle.IsChecked = value != "1";   // back to what is stored
         populating = false;
@@ -341,11 +403,25 @@ internal sealed class SettingsWindow : NazarWindow
                 Palette.ApplyEverywhere();
             }
             current = load();
+            if (key == NazarSettings.Language)
+            {
+                // at once: this window and the main window are built anew in the new language (after this event), every
+                // other window the next time it is needed
+                Localizer.Use((string)select.SelectedValue);
+                Dispatcher.BeginInvoke(new Action(LanguageChanged), DispatcherPriority.Background);
+            }
             return;
         }
         row.ShowStatus(Explain(reply), Status.Error);
         Populate();
     }
+
+    /// <summary>Called after the language changed (tests replace it; the real one rebuilds the shared windows).</summary>
+    internal Action LanguageChanged { get; set; } = () =>
+    {
+        Relocalize();
+        MainWindow.Relocalize();
+    };
 
     void ChangeFolder(SettingRow row, string key, string before) =>
         ChooseFolder(row, key, FolderPicker.Pick(this, before));
@@ -355,7 +431,7 @@ internal sealed class SettingsWindow : NazarWindow
     {
         if (picked == null) return;
         var reply = host.Set(key, picked);
-        if (reply == HostReply.Ok) { current = load(); row.SetDescription(picked); return; }
+        if (reply == HostReply.Ok) { current = load(); row.SetDescription(UiText.Path(picked)); return; }
         row.ShowStatus(reply == HostReply.FolderUnusable ? UiText.Settings.FolderUnusable : Explain(reply), Status.Error);
     }
 
@@ -403,7 +479,7 @@ internal sealed class HostHotkeyChecker : IHotkeyChecker
         return host.CheckHotkey(key, local.Combo) switch
         {
             HostReply.Taken => HotkeyVerdict.Bad(UiText.Hotkeys.Taken),
-            HostReply.Duplicate => HotkeyVerdict.Bad(string.Format(CultureInfo.CurrentCulture, UiText.Hotkeys.Duplicate, otherName)),
+            HostReply.Duplicate => HotkeyVerdict.Bad(UiText.Hotkeys.Duplicate(otherName)),
             HostReply.Invalid => HotkeyVerdict.Bad(UiText.Hotkeys.Unsupported),
             _ => local,   // free, or no host to ask: setting it will tell
         };

@@ -11,9 +11,10 @@ internal sealed class ScreenshotCard : CardWindow
 {
     const int LifetimeMs = 5000;
     readonly TextBlock sizeText;
-    readonly ActionButton editButton, folderButton, deleteButton;
+    readonly ActionButton editButton, folderButton, keepButton, deleteButton;
     readonly Action edit, pin, closed;
     string path = "";
+    ScreenCapture? capture;
     bool saved, pressing;
     int generation;   // invalidates pending timers and animations of an earlier state
     Point pressedAt;
@@ -37,11 +38,14 @@ internal sealed class ScreenshotCard : CardWindow
 
         editButton = new ActionButton(IconGlyphs.Edit, UiText.ScreenshotCard.Edit, delegate { if (saved) edit(); });
         folderButton = new ActionButton(IconGlyphs.Folder, UiText.Common.Folder, delegate { if (saved) Shell.Reveal(path); });
+        // In place of "Ordner" while the capture was not kept ("Screenshots speichern" off): puts it into the folder.
+        keepButton = new ActionButton(IconGlyphs.Save, UiText.Common.Keep, KeepInFolder) { Visibility = Visibility.Collapsed };
         deleteButton = new ActionButton(IconGlyphs.Delete, UiText.Common.Delete, MoveToRecycleBin);
         buttons.Children.Add(editButton);
         buttons.Children.Add(new ActionButton(IconGlyphs.Pin, UiText.ScreenshotCard.Pin, delegate { pin(); FadeOut(); }));
         buttons.Children.Add(new ActionButton(IconGlyphs.TextRecognition, UiText.ScreenshotCard.Text, ReadText));
         buttons.Children.Add(folderButton);
+        buttons.Children.Add(keepButton);
         buttons.Children.Add(deleteButton);
 
         card.Body.Children.Add(thumbnailBox);
@@ -53,6 +57,9 @@ internal sealed class ScreenshotCard : CardWindow
         CreateHandle(NativeMethods.WS_EX_NOACTIVATE | NativeMethods.WS_EX_TOOLWINDOW);
     }
 
+    /// <summary>Where "Speichern" puts a capture that was not kept (tests give their own folder).</summary>
+    internal Func<string> KeepFolder { get; set; } = () => Screenshots.Folder;
+
     /// <summary>Tests: stops the lifetime bar at a fixed width so images do not depend on timing.</summary>
     internal void SetBar(double fraction) => StopBar(fraction);
 
@@ -62,8 +69,36 @@ internal sealed class ScreenshotCard : CardWindow
     void ShowSaved(bool done)
     {
         saved = done;
-        foreach (var button in new[] { editButton, folderButton, deleteButton })
+        foreach (var button in new[] { editButton, folderButton, keepButton, deleteButton })
             button.SetAvailable(done, UiText.Common.NotYetSaved);
+    }
+
+    /// <summary>A capture that was not kept offers "Speichern" instead of "Ordner" and says it is only in the clipboard.</summary>
+    void ShowKept()
+    {
+        bool unsaved = FileKeeping.IsUnsaved(path);
+        keepButton.Visibility = unsaved ? Visibility.Visible : Visibility.Collapsed;
+        folderButton.Visibility = unsaved ? Visibility.Collapsed : Visibility.Visible;
+        card.Subtitle.Text = unsaved ? UiText.Common.OnlyInClipboard : UiText.Path(Path.GetFileName(path));
+        card.SubtitleIsFileName(!unsaved);
+    }
+
+    /// <summary>"Speichern": the capture moves into the screenshot folder; from now on it is a file like any other.</summary>
+    internal void KeepInFolder()
+    {
+        if (!saved || capture == null || !FileKeeping.IsUnsaved(path)) return;
+        try
+        {
+            capture.Path = path = FileKeeping.Keep(path, KeepFolder());
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or ArgumentException)
+        {
+            ErrorLog.Write("Keeping a screenshot", ex);
+            card.Title.Text = UiText.Common.CouldNotSave;
+            return;
+        }
+        card.Title.Text = UiText.Common.Kept;
+        ShowKept();
     }
 
     void HookUpMouse()
@@ -99,6 +134,7 @@ internal sealed class ScreenshotCard : CardWindow
     {
         BitmapSource image = capture.Image;
         Palette.Apply(Resources);
+        this.capture = capture;
         path = capture.Path;
         ShowSaved(false);
         generation++;
@@ -106,7 +142,8 @@ internal sealed class ScreenshotCard : CardWindow
         ShowThumbnail(image);
         shownImage = image;
         sizeText.Text = UiText.Common.Size(image.PixelWidth, image.PixelHeight);
-        ShowNormal(IconGlyphs.Accept, heading, Path.GetFileName(capture.Path));
+        ShowNormal(IconGlyphs.Accept, heading, UiText.Path(Path.GetFileName(capture.Path)));
+        ShowKept();
         buttons.Visibility = Visibility.Visible;
         SlideIn(capture.WorkArea);
         if (!card.IsMouseOver) StartLifetime();
@@ -124,7 +161,7 @@ internal sealed class ScreenshotCard : CardWindow
     public void SavedNotCopied()
     {
         ShowSaved(true);
-        card.Title.Text = UiText.ScreenshotCard.SavedNotCopied;
+        card.Title.Text = FileKeeping.IsUnsaved(path) ? UiText.Common.CopyFailed : UiText.ScreenshotCard.SavedNotCopied;
     }
 
     /// <summary>An unexpected error in the screenshot flow, shown without an image; it stays until it is closed.</summary>
@@ -132,6 +169,7 @@ internal sealed class ScreenshotCard : CardWindow
     {
         Palette.Apply(Resources);
         path = "";
+        capture = null;
         ShowSaved(false);
         generation++;
         thumbnail.Source = null;
@@ -162,6 +200,7 @@ internal sealed class ScreenshotCard : CardWindow
         bool copied = await ClipboardWriter.SetTextAsync(result.Text);
         if (startedAt != generation) return;
         card.Title.Text = copied ? UiText.Common.TextCopied : UiText.Common.CopyFailed;
+        card.SubtitleIsFileName(false);
         card.Subtitle.Text = TextRecognition.Summary(result.Text);
     }
 
@@ -217,6 +256,7 @@ internal sealed class ScreenshotCard : CardWindow
             if (fadingAt != generation) return;
             Hide();
             thumbnail.Source = null;
+            capture = null;
             closed();
             MemoryRelief.Soon();
         });

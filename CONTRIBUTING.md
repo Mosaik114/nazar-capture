@@ -5,8 +5,9 @@ Thanks for taking an interest. Bug reports, ideas and pull requests are welcome.
 ## Before you start
 
 - For anything bigger than a small fix, open an issue first so we can agree on the approach.
-- The UI is German on purpose (see the README); please keep new UI texts in
-  `engine/Core/UiText.cs` (C#) or `src/ui/strings.rs` (Rust) so they stay in one place.
+- The UI speaks seven languages. A new text gets a key in every catalog of `engine/Core/Localization`
+  (C#, read through `engine/Core/UiText.cs`) or a field in every catalog of `src/ui/strings.rs` (Rust); the tests
+  fail until all languages have it with the same placeholders. German is the source language.
 
 ## Build and test
 

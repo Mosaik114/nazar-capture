@@ -35,7 +35,7 @@ use windows_sys::Win32::UI::WindowsAndMessaging::{
 use windows_sys::w;
 
 use super::icons::OwnedIcon;
-use super::strings::balloon;
+use super::strings::{self, Balloons};
 use super::tray::{self, MenuCommand, MenuHotkeys, TrayEvent, TrayState};
 use crate::autostart;
 use crate::cli::Action;
@@ -279,13 +279,13 @@ impl App {
         self.started.set(true);
 
         let problem = if let Err(error) = valid {
-            Some(config_error_message(error))
+            Some(config_error_message(error, &strings::current().balloon))
         } else if !all_registered {
-            Some(balloon::HOTKEY_TAKEN)
+            Some(strings::current().balloon.hotkey_taken)
         } else if !saved {
-            Some(balloon::STARTUP_SAVE_FAILED)
+            Some(strings::current().balloon.startup_save_failed)
         } else if autostart.is_none() {
-            Some(balloon::EXE_UNKNOWN)
+            Some(strings::current().balloon.exe_unknown)
         } else {
             None
         };
@@ -410,7 +410,7 @@ impl App {
                     }
                     SAVE_TIMER => {
                         if self.flush_settings().is_err() {
-                            self.notify(balloon::SAVE_FAILED);
+                            self.notify(strings::current().balloon.save_failed);
                         }
                     }
                     HOTKEY_RETRY_TIMER => {
@@ -591,7 +591,7 @@ impl App {
     /// but does not stop the request.
     fn flush_settings_or_notify(&self) {
         if self.flush_settings().is_err() {
-            self.notify(balloon::SAVE_FAILED);
+            self.notify(strings::current().balloon.save_failed);
         }
     }
 
@@ -688,8 +688,19 @@ impl App {
                     return Reply::AutostartFailed;
                 }
             }
+            Effect::Language(language) => {
+                strings::set_language(language);
+                if self.tray_state.get() == TrayState::Ready {
+                    tray::refresh_tooltip(self.window(), self.tray_icon.handle());
+                }
+            }
         }
-        let reply = self.adopt(change.config);
+        let language = matches!(change.effect, Effect::Language(_));
+        let mut reply = self.adopt(change.config);
+        // The engine follows at once and reads the file: written now, not after the delay.
+        if language && reply == Reply::Ok && self.flush_settings().is_err() {
+            reply = Reply::SaveFailed;
+        }
         // A fixed hotkey may complete the configuration (e.g. a duplicate is gone).
         self.register_missing();
         reply
@@ -709,7 +720,7 @@ impl App {
         }
         self.flush_settings_or_notify();
         if self.engine.deliver_with(request, from_menu).failed() {
-            self.notify(balloon::ENGINE_FAILED);
+            self.notify(strings::current().balloon.engine_failed);
         }
     }
 
@@ -724,7 +735,7 @@ impl App {
         let busy = self.modal_section(|| self.engine.is_busy());
         let queued = self.pending_request.take();
         if busy {
-            self.notify(balloon::BUSY);
+            self.notify(strings::current().balloon.busy);
             return false;
         }
         if let Some(request) = queued {
@@ -754,9 +765,10 @@ impl App {
             TrayEvent::Select => self.deliver(EngineRequest::Main),
             TrayEvent::ContextMenu { x, y } => {
                 let registered = self.registered.get();
+                let caps = strings::current().keys;
                 let hotkeys = MenuHotkeys {
-                    screenshot: registered.screenshot.map(Hotkey::label),
-                    recording: registered.recording.map(Hotkey::label),
+                    screenshot: registered.screenshot.map(|hotkey| hotkey.label_with(&caps)),
+                    recording: registered.recording.map(|hotkey| hotkey.label_with(&caps)),
                 };
                 match self.run_modal(|| tray::show_menu(self.window(), x, y, &hotkeys)) {
                     Some(MenuCommand::Screenshot) => {
@@ -778,12 +790,12 @@ impl App {
 }
 
 /// The message explaining why the stored settings cannot be used.
-const fn config_error_message(error: ConfigError) -> &'static str {
+const fn config_error_message(error: ConfigError, balloon: &Balloons) -> &'static str {
     match error {
-        ConfigError::InvalidHotkey(ParseHotkeyError::ShiftOnly) => balloon::SHIFT_ONLY_HOTKEY,
-        ConfigError::InvalidHotkey(_) => balloon::INVALID_HOTKEY,
-        ConfigError::DuplicateHotkey => balloon::DUPLICATE_HOTKEY,
-        ConfigError::InvalidFolder => balloon::INVALID_FOLDER,
+        ConfigError::InvalidHotkey(ParseHotkeyError::ShiftOnly) => balloon.shift_only_hotkey,
+        ConfigError::InvalidHotkey(_) => balloon.invalid_hotkey,
+        ConfigError::DuplicateHotkey => balloon.duplicate_hotkey,
+        ConfigError::InvalidFolder => balloon.invalid_folder,
     }
 }
 
@@ -818,12 +830,15 @@ mod tests {
 
     #[test]
     fn config_errors_have_messages() {
+        let balloon = &strings::GERMAN.balloon;
         let shift_only = ConfigError::InvalidHotkey(ParseHotkeyError::ShiftOnly);
-        assert_eq!(config_error_message(shift_only), balloon::SHIFT_ONLY_HOTKEY);
+        assert_eq!(config_error_message(shift_only, balloon), balloon.shift_only_hotkey);
         let unknown = ConfigError::InvalidHotkey(ParseHotkeyError::UnknownKey);
-        assert_eq!(config_error_message(unknown), balloon::INVALID_HOTKEY);
-        assert_eq!(config_error_message(ConfigError::DuplicateHotkey), balloon::DUPLICATE_HOTKEY);
-        assert_eq!(config_error_message(ConfigError::InvalidFolder), balloon::INVALID_FOLDER);
+        assert_eq!(config_error_message(unknown, balloon), balloon.invalid_hotkey);
+        let duplicate = ConfigError::DuplicateHotkey;
+        assert_eq!(config_error_message(duplicate, balloon), balloon.duplicate_hotkey);
+        let folder = ConfigError::InvalidFolder;
+        assert_eq!(config_error_message(folder, balloon), balloon.invalid_folder);
     }
 
     #[test]

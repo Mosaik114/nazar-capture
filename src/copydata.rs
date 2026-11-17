@@ -19,7 +19,9 @@ use std::ffi::OsString;
 use std::os::windows::ffi::OsStringExt;
 use std::path::PathBuf;
 
-use crate::config::{Appearance, Config, Countdown, FrameRate, is_valid_folder, keys};
+use crate::config::{
+    Appearance, Config, Countdown, FrameRate, KeepDays, Language, is_valid_folder, keys,
+};
 use crate::hotkey::Hotkey;
 
 /// `dwData` of a request to change one setting.
@@ -117,6 +119,11 @@ pub enum Setting {
     FrameRate(FrameRate),
     Countdown(Countdown),
     Appearance(Appearance),
+    Language(Language),
+    SaveScreenshots(bool),
+    ScreenshotKeepDays(KeepDays),
+    SaveRecordings(bool),
+    RecordingKeepDays(KeepDays),
 }
 
 /// A decoded `WM_COPYDATA` request.
@@ -199,6 +206,15 @@ fn parse_setting(key: &str, value: &[u16]) -> Result<Setting, Reply> {
         keys::FPS => Setting::FrameRate(FrameRate::from_value(number(value)?)),
         keys::COUNTDOWN => Setting::Countdown(Countdown::from_value(number(value)?)),
         keys::APPEARANCE => Setting::Appearance(Appearance::from_value(number(value)?)),
+        keys::LANGUAGE => Setting::Language(Language::from_code(&text(value)?)),
+        keys::SAVE_SCREENSHOTS => Setting::SaveScreenshots(flag()?),
+        keys::SCREENSHOT_KEEP_DAYS => {
+            Setting::ScreenshotKeepDays(KeepDays::from_value(number(value)?))
+        }
+        keys::SAVE_RECORDINGS => Setting::SaveRecordings(flag()?),
+        keys::RECORDING_KEEP_DAYS => {
+            Setting::RecordingKeepDays(KeepDays::from_value(number(value)?))
+        }
         _ => return Err(Reply::NotUnderstood),
     })
 }
@@ -212,6 +228,8 @@ pub enum Effect {
     Hotkey(HotkeyAction, Hotkey),
     /// Write (or remove) the autostart entry.
     Autostart(bool),
+    /// Show the host's own texts (tray, messages) in this language from now on.
+    Language(Language),
 }
 
 /// A validated change: the configuration after it and what else it needs.
@@ -259,6 +277,14 @@ pub fn plan_set(config: &Config, setting: Setting) -> Result<Change, Reply> {
         Setting::FrameRate(rate) => changed.frame_rate = rate,
         Setting::Countdown(countdown) => changed.countdown = countdown,
         Setting::Appearance(appearance) => changed.appearance = appearance,
+        Setting::Language(language) => {
+            changed.language = language;
+            effect = Effect::Language(language);
+        }
+        Setting::SaveScreenshots(on) => changed.save_screenshots = on,
+        Setting::ScreenshotKeepDays(days) => changed.screenshot_keep_days = days,
+        Setting::SaveRecordings(on) => changed.save_recordings = on,
+        Setting::RecordingKeepDays(days) => changed.recording_keep_days = days,
     }
     Ok(Change { config: changed, effect })
 }
@@ -340,6 +366,12 @@ mod tests {
             ("fps\t60", Setting::FrameRate(FrameRate::Fps60)),
             ("countdown\t5", Setting::Countdown(Countdown::Seconds5)),
             ("appearance\t2", Setting::Appearance(Appearance::Dark)),
+            ("language\tar", Setting::Language(Language::Arabic)),
+            ("language\tkauderwelsch", Setting::Language(Language::Auto)),
+            ("save_screenshots\t0", Setting::SaveScreenshots(false)),
+            ("screenshot_keep_days\t30", Setting::ScreenshotKeepDays(KeepDays::from_value(30))),
+            ("save_recordings\t0", Setting::SaveRecordings(false)),
+            ("recording_keep_days\t5", Setting::RecordingKeepDays(KeepDays::from_value(0))),
         ];
         for (payload, setting) in cases {
             assert_eq!(set(payload), Ok(Request::Set(setting)), "{payload:?}");
@@ -425,7 +457,7 @@ mod tests {
     fn plain_settings_change_only_their_field() {
         type Edit = fn(&mut Config);
         let config = config();
-        let cases: [(Setting, Edit); 8] = [
+        let cases: [(Setting, Edit); 12] = [
             (Setting::Microphone(true), |c| c.microphone = true),
             (Setting::SystemAudio(false), |c| c.system_audio = false),
             (Setting::ShowClicks(false), |c| c.show_clicks = false),
@@ -434,6 +466,14 @@ mod tests {
             (Setting::Countdown(Countdown::Off), |c| c.countdown = Countdown::Off),
             (Setting::Appearance(Appearance::Dark), |c| c.appearance = Appearance::Dark),
             (Setting::ScreenshotFolder(r"E:\S".into()), |c| c.screenshot_folder = r"E:\S".into()),
+            (Setting::SaveScreenshots(false), |c| c.save_screenshots = false),
+            (Setting::SaveRecordings(false), |c| c.save_recordings = false),
+            (Setting::ScreenshotKeepDays(KeepDays::from_value(7)), |c| {
+                c.screenshot_keep_days = KeepDays::from_value(7);
+            }),
+            (Setting::RecordingKeepDays(KeepDays::from_value(365)), |c| {
+                c.recording_keep_days = KeepDays::from_value(365);
+            }),
         ];
         for (setting, edit) in cases {
             let mut expected = config.clone();
@@ -444,6 +484,9 @@ mod tests {
         let autostart = plan_set(&config, Setting::Autostart(false)).unwrap();
         assert!(!autostart.config.autostart);
         assert_eq!(autostart.effect, Effect::Autostart(false));
+        let language = plan_set(&config, Setting::Language(Language::French)).unwrap();
+        assert_eq!(language.config.language, Language::French);
+        assert_eq!(language.effect, Effect::Language(Language::French));
     }
 
     #[test]

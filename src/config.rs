@@ -31,6 +31,16 @@ pub mod keys {
     pub const APPEARANCE: &str = "appearance";
     /// Look for a newer version (read by the engine).
     pub const CHECK_UPDATES: &str = "check_updates";
+    /// The language of the interface, `auto` or a code of [`super::Language`] (host and engine).
+    pub const LANGUAGE: &str = "language";
+    /// Every screenshot as a file in the folder; off: only to the clipboard (read by the engine).
+    pub const SAVE_SCREENSHOTS: &str = "save_screenshots";
+    /// Screenshots older than this many days are deleted (0: kept; read by the engine).
+    pub const SCREENSHOT_KEEP_DAYS: &str = "screenshot_keep_days";
+    /// Every recording as a file in the folder; off: only to the clipboard (read by the engine).
+    pub const SAVE_RECORDINGS: &str = "save_recordings";
+    /// Recordings older than this many days are deleted (0: kept; read by the engine).
+    pub const RECORDING_KEEP_DAYS: &str = "recording_keep_days";
     /// The layout of the file (see [`super::SETTINGS_VERSION`]); only the host reads it.
     pub const SETTINGS_VERSION: &str = "settings_version";
 }
@@ -144,6 +154,97 @@ impl Appearance {
     }
 }
 
+/// The language of the interface (tray, messages, the engine's windows). `Auto` follows
+/// the Windows display language; unknown values mean `Auto`.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Language {
+    #[default]
+    Auto,
+    German,
+    English,
+    Russian,
+    Spanish,
+    French,
+    Arabic,
+    Turkish,
+}
+
+impl Language {
+    /// Every choice, in the order of the settings select.
+    pub const ALL: [Self; 8] = [
+        Self::Auto,
+        Self::German,
+        Self::English,
+        Self::Russian,
+        Self::Spanish,
+        Self::French,
+        Self::Arabic,
+        Self::Turkish,
+    ];
+
+    /// The value as stored (`auto`, `de`, `en`, `ru`, `es`, `fr`, `ar`, `tr`).
+    pub const fn code(self) -> &'static str {
+        match self {
+            Self::Auto => "auto",
+            Self::German => "de",
+            Self::English => "en",
+            Self::Russian => "ru",
+            Self::Spanish => "es",
+            Self::French => "fr",
+            Self::Arabic => "ar",
+            Self::Turkish => "tr",
+        }
+    }
+
+    /// Interprets a stored value: case and surrounding spaces do not matter; anything
+    /// unknown is `Auto`.
+    pub fn from_code(text: &str) -> Self {
+        let text = text.trim();
+        Self::ALL
+            .into_iter()
+            .find(|language| language.code().eq_ignore_ascii_case(text))
+            .unwrap_or_default()
+    }
+
+    /// The concrete language for `Auto`: German for a German Windows display language,
+    /// one of the others when Windows shows it, English for every other language.
+    /// `primary` is the primary language id of a Windows `LANGID` (its low ten bits).
+    pub const fn resolve(self, primary: u16) -> Self {
+        if !matches!(self, Self::Auto) {
+            return self;
+        }
+        match primary {
+            0x07 => Self::German,
+            0x19 => Self::Russian,
+            0x0A => Self::Spanish,
+            0x0C => Self::French,
+            0x01 => Self::Arabic,
+            0x1F => Self::Turkish,
+            _ => Self::English,
+        }
+    }
+}
+
+/// How long the app keeps its own captures in their folder: 0 = unlimited, else days.
+/// Only the choices of the settings select; anything else means unlimited, so a typo
+/// never deletes anything.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct KeepDays(i32);
+
+impl KeepDays {
+    pub const CHOICES: [i32; 5] = [0, 7, 30, 90, 365];
+
+    /// Interprets a stored value.
+    pub fn from_value(value: i32) -> Self {
+        Self(if Self::CHOICES.contains(&value) { value } else { 0 })
+    }
+
+    /// The value as stored.
+    pub const fn value(self) -> i32 {
+        self.0
+    }
+}
+
 /// Default output folders, which depend on the user's known folders.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DefaultFolders {
@@ -215,6 +316,11 @@ pub struct Config {
     pub countdown: Countdown,
     pub appearance: Appearance,
     pub check_updates: bool,
+    pub language: Language,
+    pub save_screenshots: bool,
+    pub screenshot_keep_days: KeepDays,
+    pub save_recordings: bool,
+    pub recording_keep_days: KeepDays,
 }
 
 impl Config {
@@ -233,6 +339,11 @@ impl Config {
             countdown: Countdown::default(),
             appearance: Appearance::default(),
             check_updates: true,
+            language: Language::default(),
+            save_screenshots: true,
+            screenshot_keep_days: KeepDays::default(),
+            save_recordings: true,
+            recording_keep_days: KeepDays::default(),
         }
     }
 
@@ -263,6 +374,15 @@ impl Config {
                 source.int(keys::APPEARANCE, defaults.appearance.value()),
             ),
             check_updates: flag(keys::CHECK_UPDATES, defaults.check_updates),
+            language: Language::from_code(&text(keys::LANGUAGE, defaults.language.code())),
+            save_screenshots: flag(keys::SAVE_SCREENSHOTS, defaults.save_screenshots),
+            screenshot_keep_days: KeepDays::from_value(
+                source.int(keys::SCREENSHOT_KEEP_DAYS, defaults.screenshot_keep_days.value()),
+            ),
+            save_recordings: flag(keys::SAVE_RECORDINGS, defaults.save_recordings),
+            recording_keep_days: KeepDays::from_value(
+                source.int(keys::RECORDING_KEEP_DAYS, defaults.recording_keep_days.value()),
+            ),
         }
     }
 
@@ -284,6 +404,11 @@ impl Config {
             (keys::COUNTDOWN, self.countdown.value().to_string().into()),
             (keys::APPEARANCE, self.appearance.value().to_string().into()),
             (keys::CHECK_UPDATES, flag(self.check_updates)),
+            (keys::LANGUAGE, self.language.code().into()),
+            (keys::SAVE_SCREENSHOTS, flag(self.save_screenshots)),
+            (keys::SCREENSHOT_KEEP_DAYS, self.screenshot_keep_days.value().to_string().into()),
+            (keys::SAVE_RECORDINGS, flag(self.save_recordings)),
+            (keys::RECORDING_KEEP_DAYS, self.recording_keep_days.value().to_string().into()),
             (keys::SETTINGS_VERSION, SETTINGS_VERSION.to_string().into()),
         ];
         let mut ini = OsString::from(format!("\r\n[{SECTION}]\r\n"));
@@ -464,6 +589,38 @@ mod tests {
     }
 
     #[test]
+    fn language_codes_and_the_windows_language() {
+        for language in Language::ALL {
+            assert_eq!(Language::from_code(language.code()), language);
+        }
+        assert_eq!(Language::from_code(" EN "), Language::English);
+        for unknown in ["", "deutsch", "en-US", "zz"] {
+            assert_eq!(Language::from_code(unknown), Language::Auto, "{unknown:?}");
+        }
+        // Auto follows the Windows display language (primary language ids), else English.
+        let auto = |primary| Language::Auto.resolve(primary);
+        assert_eq!(auto(0x07), Language::German);
+        assert_eq!(auto(0x19), Language::Russian);
+        assert_eq!(auto(0x0A), Language::Spanish);
+        assert_eq!(auto(0x0C), Language::French);
+        assert_eq!(auto(0x01), Language::Arabic);
+        assert_eq!(auto(0x1F), Language::Turkish);
+        assert_eq!(auto(0x09), Language::English);
+        assert_eq!(auto(0x11), Language::English, "Japanese: English");
+        assert_eq!(Language::Turkish.resolve(0x07), Language::Turkish, "a choice stays");
+    }
+
+    #[test]
+    fn keep_days_are_the_offered_choices_only() {
+        for days in KeepDays::CHOICES {
+            assert_eq!(KeepDays::from_value(days).value(), days);
+        }
+        for odd in [-1, 1, 6, 31, 366, i32::MAX] {
+            assert_eq!(KeepDays::from_value(odd).value(), 0, "{odd}: unlimited, nothing deleted");
+        }
+    }
+
+    #[test]
     fn frame_rate_normalisation() {
         assert_eq!(FrameRate::from_value(30), FrameRate::Fps30);
         for value in [0, 29, 31, 60, 120, -30, i32::MAX] {
@@ -504,6 +661,11 @@ mod tests {
             countdown=0\r\n\
             appearance=1\r\n\
             check_updates=1\r\n\
+            language=auto\r\n\
+            save_screenshots=1\r\n\
+            screenshot_keep_days=0\r\n\
+            save_recordings=1\r\n\
+            recording_keep_days=0\r\n\
             settings_version=2\r\n";
         assert_eq!(config.to_ini(), expected);
     }

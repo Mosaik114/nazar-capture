@@ -35,6 +35,7 @@ internal sealed class MainWindow : Window
         this.recording = recording;
         this.places = places;
         Title = UiText.Titles.Main;
+        Localizer.Apply(this);
         WindowStyle = WindowStyle.None;
         ResizeMode = ResizeMode.NoResize;
         SizeToContent = SizeToContent.Height;
@@ -249,7 +250,29 @@ internal sealed class MainWindow : Window
     protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
     {
         base.OnClosing(e);
+        if (retired) return;
         e.Cancel = true;   // kept for the next time
         HideWindow();
+    }
+
+    bool retired;
+
+    /// <summary>Closes for good (the language changed: a new window takes its place).</summary>
+    public void Retire()
+    {
+        if (IsVisible) RememberPosition();
+        retired = true;
+        Close();
+    }
+
+    /// <summary>The language changed: the shared window is built anew; a shown one is shown again in the same place.</summary>
+    internal static void Relocalize()
+    {
+        if (shared == null) return;
+        var old = shared;
+        bool visible = old.IsVisible;
+        old.Retire();
+        shared = new MainWindow(CaptureSettings.Load, () => ScreenRecorder.Busy, WindowPlaces.User());
+        if (visible) shared.Open();
     }
 }

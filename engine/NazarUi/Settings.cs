@@ -254,6 +254,7 @@ internal sealed class Card : StoneChrome
     public void ShowNormal(string symbol, string title, string subtitle)
     {
         IsError = false;
+        SubtitleIsFileName(false);
         Mark.Show(symbol, false);
         Title.Text = title;
         Subtitle.Text = subtitle;
@@ -261,10 +262,27 @@ internal sealed class Card : StoneChrome
         System.Windows.Automation.AutomationProperties.SetName(this, title);
     }
 
+    /// <summary>
+    /// Whether the subtitle is a file name: then it is laid out left to right in every language (in Arabic aligned to
+    /// the right edge), so "Nazar-Screenshot 2026-11-17 14-03-12.png" keeps its order and is shortened at its end.
+    /// </summary>
+    public void SubtitleIsFileName(bool fileName)
+    {
+        if (fileName && FlowDirection == FlowDirection.RightToLeft)
+        {
+            Subtitle.FlowDirection = FlowDirection.LeftToRight;
+            Subtitle.TextAlignment = TextAlignment.Right;
+            return;
+        }
+        Subtitle.ClearValue(FlowDirectionProperty);
+        Subtitle.ClearValue(TextBlock.TextAlignmentProperty);
+    }
+
     /// <summary>Error state: warning mark, title in the error colour; the card stays until closed.</summary>
     public void ShowError(string title, string subtitle)
     {
         IsError = true;
+        SubtitleIsFileName(false);
         Mark.Show(IconGlyphs.Warning, true);
         Title.Text = title;
         Subtitle.Text = subtitle;

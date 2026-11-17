@@ -9,7 +9,8 @@ use serde_json::Value;
 use windows_sys::Win32::UI::WindowsAndMessaging::WM_APP;
 
 use crate::config::{
-    self, Appearance, Config, Countdown, DefaultFolders, FrameRate, MAX_FOLDER_LEN, SECTION,
+    self, Appearance, Config, Countdown, DefaultFolders, FrameRate, KeepDays, Language,
+    MAX_FOLDER_LEN, SECTION,
 };
 use crate::copydata::{self, Reply};
 use crate::engine::{self, EngineRequest};
@@ -134,6 +135,10 @@ fn loaded_numbers(config: &Config) -> BTreeMap<&'static str, i64> {
         ("countdown", i64::from(config.countdown.value())),
         ("appearance", i64::from(config.appearance.value())),
         ("check_updates", i64::from(config.check_updates)),
+        ("save_screenshots", i64::from(config.save_screenshots)),
+        ("screenshot_keep_days", i64::from(config.screenshot_keep_days.value())),
+        ("save_recordings", i64::from(config.save_recordings)),
+        ("recording_keep_days", i64::from(config.recording_keep_days.value())),
     ])
 }
 
@@ -172,7 +177,30 @@ fn choices_cover_the_whole_range() {
             i64::from(Appearance::from_value(value).value()),
             expected(keys["appearance"], stored)
         );
+        assert_eq!(
+            i64::from(KeepDays::from_value(value).value()),
+            expected(keys["screenshot_keep_days"], stored)
+        );
+        assert_eq!(
+            i64::from(KeepDays::from_value(value).value()),
+            expected(keys["recording_keep_days"], stored)
+        );
     }
+}
+
+#[test]
+fn the_language_is_one_of_the_contract_codes() {
+    let c = load();
+    let spec = c.entries(&["settings", "keys"])["language"];
+    let allowed: Vec<&str> =
+        spec["allowed"].as_array().unwrap().iter().map(|v| v.as_str().unwrap()).collect();
+    assert_eq!(allowed, Language::ALL.map(Language::code));
+    assert_eq!(spec["default"], Language::default().code());
+    for code in allowed {
+        assert_eq!(Language::from_code(code).code(), code);
+    }
+    let otherwise = spec["otherwise"].as_str().unwrap();
+    assert_eq!(Language::from_code("xx").code(), otherwise);
 }
 
 #[test]
@@ -374,6 +402,11 @@ fn settings_file_of_version_1_1_2_loads_without_loss() {
         countdown: Countdown::Seconds3,
         appearance: Appearance::Light,
         check_updates: true,
+        language: Language::Auto,
+        save_screenshots: true,
+        screenshot_keep_days: KeepDays::default(),
+        save_recordings: true,
+        recording_keep_days: KeepDays::default(),
     };
     assert_eq!(loaded, expected);
     assert!(loaded.validate().is_ok(), "both hotkeys still parse");

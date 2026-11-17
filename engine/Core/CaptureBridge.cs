@@ -154,7 +154,10 @@ internal static class CaptureBridge
         using var window = new HwndSource(parameters);
         window.AddHook(OnMessage);
         TestIsolation.Hook(window);
+        Localizer.Use(CaptureSettings.Load().Language);   // the interface language of every window from here on
         app.Dispatcher.BeginInvoke(new Action(() => Execute(command)), DispatcherPriority.ApplicationIdle);
+        // the captures of the last days that Nazar Capture may delete ("Aufbewahren", not kept), off the UI thread
+        app.Dispatcher.BeginInvoke(new Action(FileKeeping.StartTidying), DispatcherPriority.ApplicationIdle);
         app.Run();
     }
 

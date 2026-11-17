@@ -87,7 +87,7 @@ internal sealed class StructuralHotkeyChecker : IHotkeyChecker
     {
         if (!HotkeyText.TryParse(combo, out var chord, out var problem)) return HotkeyVerdict.Bad(HotkeyText.Explain(problem));
         foreach (var (name, other) in others())
-            if (HotkeyText.Same(other, combo)) return HotkeyVerdict.Bad(string.Format(CultureInfo.CurrentCulture, UiText.Hotkeys.Duplicate, name));
+            if (HotkeyText.Same(other, combo)) return HotkeyVerdict.Bad(UiText.Hotkeys.Duplicate(name));
         return HotkeyVerdict.Good(HotkeyText.Format(chord));
     }
 }

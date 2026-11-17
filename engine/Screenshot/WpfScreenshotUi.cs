@@ -1,18 +1,27 @@
 namespace NazarCapture.Engine.Screenshot;
 
-/// <summary>The real screenshot windows. Each window is created on first use.</summary>
+/// <summary>
+/// The real screenshot windows. Each window is created on first use, and anew after the interface language changed
+/// (<see cref="PerLanguage{T}"/>).
+/// </summary>
 internal sealed class WpfScreenshotUi : IScreenshotUi
 {
     IScreenshotFlow? flow;
-    SelectionOverlay? overlay;
-    ScreenshotCard? card;
-    ScreenshotEditor? editor;
+    readonly PerLanguage<SelectionOverlay> overlays;
+    readonly PerLanguage<ScreenshotCard> cards;
+    readonly PerLanguage<ScreenshotEditor> editors;
 
     IScreenshotFlow Flow => flow ?? throw new InvalidOperationException("The screenshot windows are not bound to a flow.");
-    ScreenshotCard Card => card ??= new ScreenshotCard(() => Flow.Edit(), () => Flow.Pin(), () => Flow.CardClosed());
-    ScreenshotEditor Editor => editor ??= new ScreenshotEditor((c, i) => Flow.Edited(c, i), c => Flow.EditCancelled(c), (c, i) => Flow.EditedAndPinned(c, i));
+    ScreenshotCard Card => cards.Value;
+    ScreenshotEditor Editor => editors.Value;
 
-    public WpfScreenshotUi() => Current = this;
+    public WpfScreenshotUi()
+    {
+        overlays = new(() => new SelectionOverlay(c => Flow.Captured(c)));
+        cards = new(() => new ScreenshotCard(() => Flow.Edit(), () => Flow.Pin(), () => Flow.CardClosed()));
+        editors = new(() => new ScreenshotEditor((c, i) => Flow.Edited(c, i), c => Flow.EditCancelled(c), (c, i) => Flow.EditedAndPinned(c, i)));
+        Current = this;
+    }
 
     /// <summary>The screenshot windows of this engine (the warm-up prepares them).</summary>
     internal static WpfScreenshotUi? Current { get; private set; }
@@ -20,8 +29,7 @@ internal sealed class WpfScreenshotUi : IScreenshotUi
     /// <summary>Creates the overlay and the card and renders them once, invisibly, ahead of the first hotkey.</summary>
     internal void Prepare()
     {
-        overlay ??= new SelectionOverlay(c => Flow.Captured(c));
-        overlay.Prepare();
+        overlays.Value.Prepare();
         _ = Card;
     }
 
@@ -31,16 +39,15 @@ internal sealed class WpfScreenshotUi : IScreenshotUi
         var dispatcher = Dispatcher.CurrentDispatcher;
         ClipboardWriter.LateSuccess += what =>
         {
-            if (what == "image") dispatcher.BeginInvoke(new Action(() => card?.CopiedAfterAll()));
+            if (what == "image") dispatcher.BeginInvoke(new Action(() => cards.Existing?.CopiedAfterAll()));
         };
     }
 
-    public bool EditorOpen => editor != null && editor.IsVisible;
+    public bool EditorOpen => editors.Existing is { IsVisible: true };
 
     public void OpenOverlay()
     {
-        overlay ??= new SelectionOverlay(c => Flow.Captured(c));
-        overlay.Open();
+        overlays.Value.Open();
     }
 
     public void OpenEditor(ScreenCapture capture) => Editor.Open(capture);
@@ -55,9 +62,9 @@ internal sealed class WpfScreenshotUi : IScreenshotUi
 
     public void CloseAll()
     {
-        overlay?.Cancel();
-        editor?.Abandon();
-        card?.HideNow();
+        overlays.Existing?.Cancel();
+        editors.Existing?.Abandon();
+        cards.Existing?.HideNow();
     }
 
     public void ShowProblem(string heading, string detail) => Card.ShowProblem(heading, detail, NativeMethods.WorkAreaAtCursor());
@@ -66,7 +73,7 @@ internal sealed class WpfScreenshotUi : IScreenshotUi
 /// <summary>Screenshot files below the configured folder and the clipboard.</summary>
 internal sealed class ScreenshotStore : IScreenshotStore
 {
-    public string NewPath(DateTime when) => Screenshots.NewPath(Screenshots.ReadFolder(), when);
+    public string NewPath(DateTime when) => Screenshots.NewPath(Screenshots.TargetFolder(), when);
 
     public Task<byte[]> SaveAsync(BitmapSource image, string path) => Task.Run(() =>
     {

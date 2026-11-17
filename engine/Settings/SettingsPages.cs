@@ -3,19 +3,24 @@ namespace NazarCapture.Engine.Settings;
 // The settings of Nazar Capture as data. The window (SettingsWindow) is the family's, as Hams' settings_window.py: a
 // stage, a tab row, one page per tab, groups on paper plates with rows. What is Nazar's own is only this list: which
 // pages, which groups and which rows, with their keys in settings.ini. A new row is one line here, not a new window.
+// The texts are read when the pages are built, so a page built after a language change speaks the new language.
 
 /// <summary>One row of a settings page: its title and help text; the kind decides the control.</summary>
 internal abstract record RowSpec(string Title, string? Hint);
 
-/// <summary>A switch for a flag in settings.ini; a click anywhere on the row flips it.</summary>
-internal sealed record SwitchSpec(string Title, string? Hint, string Key, Func<CaptureSettingsSnapshot, bool> Value) : RowSpec(Title, Hint);
+/// <summary>
+/// A switch for a flag in settings.ini; a click anywhere on the row flips it. <paramref name="OffHint"/>, if given, is the
+/// help text while it is off (what happens then).
+/// </summary>
+internal sealed record SwitchSpec(string Title, string? Hint, string Key, Func<CaptureSettingsSnapshot, bool> Value, string? OffHint = null) : RowSpec(Title, Hint);
 
 /// <summary>
 /// A choice from a short list (Hams' Select): beside its text 160 wide, or <paramref name="Stacked"/> below the text in
-/// full width when the values are long.
+/// full width when the values are long. The values are what settings.ini stores (numbers or codes).
+/// <paramref name="EnabledBy"/>: the key of a switch without which the choice means nothing (greyed out while it is off).
 /// </summary>
-internal sealed record ChoiceSpec(string Title, string? Hint, string Key, string[] Labels, int[] Values, Func<CaptureSettingsSnapshot, int> Value, bool Stacked = false)
-    : RowSpec(Title, Hint);
+internal sealed record ChoiceSpec(string Title, string? Hint, string Key, string[] Labels, object[] Values, Func<CaptureSettingsSnapshot, object> Value,
+    bool Stacked = false, string? EnabledBy = null) : RowSpec(Title, Hint);
 
 /// <summary>A hotkey as key caps with "Ändern" below the text (Hams' shortcut rows); recorded by pressing it.</summary>
 internal sealed record HotkeySpec(string Title, string Hint, string Key, string Default, string OtherKey, string OtherName, Func<CaptureSettingsSnapshot, string> Value)
@@ -47,16 +52,24 @@ internal static class NazarSettings
 {
     public const string ScreenshotHotkey = "screenshot_hotkey", RecordingHotkey = "recording_hotkey";
     public const string ScreenshotFolder = "screenshot_folder", RecordingFolder = "recording_folder";
-    public const string Appearance = "appearance";
+    public const string SaveScreenshots = "save_screenshots", SaveRecordings = "save_recordings";
+    public const string ScreenshotKeepDays = "screenshot_keep_days", RecordingKeepDays = "recording_keep_days";
+    public const string Appearance = "appearance", Language = "language";
 
     public const string ProjectUrl = "https://github.com/" + Updates.UpdateCheck.Repository;
     public const string IssuesUrl = ProjectUrl + "/issues";
     public const string LicenseUrl = ProjectUrl + "/blob/main/LICENSE";
 
-    static readonly int[] FrameRates = { 30, 60 }, Countdowns = { 0, 3, 5 }, Appearances = { (int)NazarUi.Appearance.Light, (int)NazarUi.Appearance.Dark };
+    static readonly object[] FrameRates = { 30, 60 }, Countdowns = { 0, 3, 5 }, Appearances = { (int)NazarUi.Appearance.Light, (int)NazarUi.Appearance.Dark };
+    static object[] KeepDays => CaptureSettings.KeepDayChoices.Cast<object>().ToArray();
 
     /// <summary>Index of the recording page (the tray's "recording settings" open it).</summary>
     public const int RecordingPage = 1;
+
+    /// <summary>"Automatisch" (in the interface language), then every language in its own name.</summary>
+    static string[] LanguageLabels => new[] { UiText.Settings.LanguageAuto }.Concat(UiLanguages.All.Select(language => language.NativeName)).ToArray();
+
+    static object[] LanguageValues => UiLanguages.Settings.Cast<object>().ToArray();
 
     public static IReadOnlyList<PageSpec> Pages() => new[]
     {
@@ -64,11 +77,17 @@ internal static class NazarSettings
             new GroupSpec(null,
                 new HotkeySpec(UiText.Settings.Hotkey, UiText.Settings.ScreenshotHotkeyHint, ScreenshotHotkey, CaptureSettingsSnapshot.DefaultScreenshotHotkey,
                     RecordingHotkey, UiText.Settings.Recording, s => s.ScreenshotHotkey),
+                new SwitchSpec(UiText.Settings.SaveScreenshots, UiText.Settings.SaveScreenshotsHint, SaveScreenshots, s => s.SaveScreenshots, UiText.Settings.SaveScreenshotsOffHint),
+                new ChoiceSpec(UiText.Settings.KeepFor, UiText.Settings.KeepScreenshotsHint, ScreenshotKeepDays, UiText.Settings.KeepChoices, KeepDays, s => s.ScreenshotKeepDays,
+                    EnabledBy: SaveScreenshots),
                 new FolderSpec(UiText.Settings.Folder, ScreenshotFolder, s => s.ScreenshotFolder))),
         new PageSpec(UiText.Settings.RecordingGroup,
             new GroupSpec(null,
                 new HotkeySpec(UiText.Settings.Hotkey, UiText.Settings.RecordingHotkeyHint, RecordingHotkey, CaptureSettingsSnapshot.DefaultRecordingHotkey,
                     ScreenshotHotkey, UiText.Settings.Screenshot, s => s.RecordingHotkey),
+                new SwitchSpec(UiText.Settings.SaveRecordings, UiText.Settings.SaveRecordingsHint, SaveRecordings, s => s.SaveRecordings, UiText.Settings.SaveRecordingsOffHint),
+                new ChoiceSpec(UiText.Settings.KeepFor, UiText.Settings.KeepRecordingsHint, RecordingKeepDays, UiText.Settings.KeepChoices, KeepDays, s => s.RecordingKeepDays,
+                    EnabledBy: SaveRecordings),
                 new FolderSpec(UiText.Settings.Folder, RecordingFolder, s => s.RecordingFolder),
                 new ChoiceSpec(UiText.Settings.FrameRate, null, "fps", UiText.Settings.FrameRates, FrameRates, s => s.Fps, Stacked: true),
                 new ChoiceSpec(UiText.Settings.Countdown, UiText.Settings.CountdownHint, "countdown", UiText.Settings.Countdowns, Countdowns, s => s.Countdown)),
@@ -79,6 +98,7 @@ internal static class NazarSettings
         new PageSpec(UiText.Settings.GeneralGroup,
             new GroupSpec(null,
                 new ChoiceSpec(UiText.Settings.Appearance, null, Appearance, UiText.Settings.Appearances, Appearances, s => (int)s.Appearance),
+                new ChoiceSpec(UiText.Settings.Language, UiText.Settings.LanguageHint, Language, LanguageLabels, LanguageValues, s => s.Language),
                 new SwitchSpec(UiText.Settings.Autostart, UiText.Settings.AutostartHint, "autostart", s => s.Autostart),
                 new SwitchSpec(UiText.Settings.CheckUpdates, UiText.Settings.CheckUpdatesHint, "check_updates", s => s.CheckUpdates),
                 new UpdatesSpec())),

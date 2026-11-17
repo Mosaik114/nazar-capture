@@ -33,7 +33,9 @@ use crate::wide::to_wide;
 use app::App;
 #[cfg(test)]
 pub use app::{HOTKEY_RETRY_SECONDS, SAVE_DELAY_MS};
-pub use strings::PRODUCT;
+#[cfg(test)]
+pub use strings::texts_of as texts;
+pub use strings::{InstallTexts, PRODUCT, current as current_texts, set_language};
 
 /// Which step of running the user interface failed.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -59,14 +61,18 @@ impl UiError {
         Self { kind, code: unsafe { GetLastError() } }
     }
 
-    /// The German message for the user (the UI language).
+    /// The message for the user, in the interface language.
     pub fn message(self) -> String {
+        self.message_in(strings::current())
+    }
+
+    fn message_in(self, texts: &strings::Texts) -> String {
         let step = match self.kind {
-            UiErrorKind::RegisterClass => "Die Fensterklasse konnte nicht registriert werden",
-            UiErrorKind::CreateWindow => "Das Programmfenster konnte nicht erstellt werden",
-            UiErrorKind::MessageLoop => "Die Nachrichtenverarbeitung ist fehlgeschlagen",
+            UiErrorKind::RegisterClass => texts.ui_error.register_class,
+            UiErrorKind::CreateWindow => texts.ui_error.create_window,
+            UiErrorKind::MessageLoop => texts.ui_error.message_loop,
         };
-        format!("{step} (Windows-Fehler {}).", self.code)
+        texts.ui_error.with_code.replace("{step}", step).replace("{code}", &self.code.to_string())
     }
 }
 
@@ -76,7 +82,7 @@ pub fn report(error: UiError) {
     report_message(&error.message());
 }
 
-/// Shows a German error message (start-up or `--install`) in a message box.
+/// Shows an error message (start-up or `--install`) in a message box.
 pub fn report_message(text: &str) {
     let text = to_wide(text);
     let title = to_wide(PRODUCT);
@@ -96,6 +102,7 @@ pub fn run(action: Action, isolation: Option<&Isolation>) -> Result<(), UiError>
     });
     // Earlier versions could follow the Windows theme; that becomes the palette shown now.
     let mut config = store.load_settled(crate::store::windows_uses_light_theme);
+    strings::set_language(config.language);
     if isolation.is_some() {
         config.autostart = false;
     }
@@ -373,8 +380,12 @@ mod tests {
     fn ui_errors_have_messages() {
         let error = UiError { kind: UiErrorKind::CreateWindow, code: 1400 };
         assert_eq!(
-            error.message(),
+            error.message_in(&strings::GERMAN),
             "Das Programmfenster konnte nicht erstellt werden (Windows-Fehler 1400)."
+        );
+        assert_eq!(
+            error.message_in(&strings::ENGLISH),
+            "The program window could not be created (Windows error 1400)."
         );
     }
 

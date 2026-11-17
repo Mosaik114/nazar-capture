@@ -43,9 +43,14 @@ public sealed class ContractTests
         ["countdown"] = s => s.Countdown,
         ["appearance"] = s => (int)s.Appearance,
         ["check_updates"] = s => s.CheckUpdates ? 1 : 0,
+        ["language"] = s => s.Language,
+        ["save_screenshots"] = s => s.SaveScreenshots ? 1 : 0,
+        ["screenshot_keep_days"] = s => s.ScreenshotKeepDays,
+        ["save_recordings"] = s => s.SaveRecordings ? 1 : 0,
+        ["recording_keep_days"] = s => s.RecordingKeepDays,
     };
 
-    static IEnumerable<string> NumberKeys => EngineKeys.Keys.Where(key => (string)Key(key)["kind"] != "folder");
+    static IEnumerable<string> NumberKeys => EngineKeys.Keys.Where(key => (string)Key(key)["kind"] is not ("folder" or "language"));
 
     static int Expected(string key, int? stored)
     {
@@ -70,8 +75,9 @@ public sealed class ContractTests
         var defaults = LoadIni("");
         foreach (var (key, read) in EngineKeys.Select(entry => (entry.Key, entry.Value)))
         {
-            string changed = (string)Key(key)["kind"] == "folder" ? "C:\\Contract\\" + key : Expected(key, null) == 0 ? "1" : "0";
-            if (key is "fps" or "countdown" or "appearance") changed = ((object[])Key(key)["allowed"]).Cast<int>().First(value => value != Expected(key, null)).ToString(CultureInfo.InvariantCulture);
+            string kind = (string)Key(key)["kind"];
+            string changed = kind == "folder" ? "C:\\Contract\\" + key : kind == "language" ? "ar" : Expected(key, null) == 0 ? "1" : "0";
+            if (kind == "choice") changed = ((object[])Key(key)["allowed"]).Cast<int>().First(value => value != Expected(key, null)).ToString(CultureInfo.InvariantCulture);
             var loaded = LoadIni(key + "=" + changed + "\r\n");
             Assert.NotEqual(read(defaults), read(loaded));
             Assert.Equal(changed, Convert.ToString(read(loaded), CultureInfo.InvariantCulture));
@@ -91,6 +97,17 @@ public sealed class ContractTests
         Assert.Equal(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyPictures), UiText.Files.ScreenshotFolder), loaded.ScreenshotFolder);
         Assert.Equal("Videos", (string)((Dictionary<string, object>)folders["recording_folder"])["known_folder"]);
         Assert.Equal(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyVideos), UiText.Files.RecordingFolder), loaded.RecordingFolder);
+    }
+
+    [Fact]
+    public void TheLanguageIsOneOfTheContractCodes()
+    {
+        var spec = Key("language");
+        Assert.Equal(((object[])spec["allowed"]).Cast<string>(), UiLanguages.Settings);
+        Assert.Equal((string)spec["default"], LoadIni("").Language);
+        Assert.Equal((string)spec["otherwise"], LoadIni("language=klingonisch\r\n").Language);
+        Assert.Equal("tr", LoadIni("language= TR \r\n").Language);
+        Assert.Equal(((object[])Key("screenshot_keep_days")["allowed"]).Cast<int>(), CaptureSettings.KeepDayChoices);
     }
 
     [Fact]

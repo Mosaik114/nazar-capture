@@ -14,6 +14,19 @@ internal sealed class RecordedVideo
     public long Bytes { get; init; }
     public BitmapSource? Thumbnail { get; init; }
 
+    /// <summary>The same video after its file moved to <paramref name="path"/> ("Speichern" on the card).</summary>
+    public RecordedVideo MovedTo(string path) => new()
+    {
+        Path = path,
+        Duration = Duration,
+        Width = Width,
+        Height = Height,
+        Audio = Audio,
+        Gif = Gif,
+        Bytes = Bytes,
+        Thumbnail = Thumbnail,
+    };
+
     /// <summary>Thumbnails are this wide at most.</summary>
     const int ThumbnailWidth = 960;
 

@@ -81,7 +81,7 @@ public sealed class UpdateEndToEndTests
             Assert.True(SpinWait.SpinUntil(() => Host(exe) != null, TimeSpan.FromSeconds(90)), "the app runs again from the test folder");
             // Windows "Apps" now shows the installed version (the ZIP way never updated it).
             using (var key = Registry.CurrentUser.OpenSubKey(uninstallKey))
-                Assert.Equal(NazarCapture.Engine.Settings.AppInfo.Version, key?.GetValue("DisplayVersion") as string);
+                Assert.Equal(Settings.AppInfo.Version, key?.GetValue("DisplayVersion") as string);
         }
         finally
         {

@@ -1,28 +1,31 @@
 namespace NazarCapture.Engine.Recording;
 
-/// <summary>The real recording windows. Each window is created on first use.</summary>
+/// <summary>
+/// The real recording windows. Each window is created on first use, and anew after the interface language changed
+/// (<see cref="PerLanguage{T}"/>; the click ring has no text).
+/// </summary>
 internal sealed class WpfRecordingUi : IRecordingUi
 {
-    SelectionOverlay? overlay;
-    RecordingFrame? frame;
-    RecordingToolbar? toolbar;
-    CountdownWindow? countdown;
+    readonly PerLanguage<SelectionOverlay> overlays = new(() => new SelectionOverlay(null));
+    readonly PerLanguage<RecordingFrame> frames = new(() => new RecordingFrame());
+    readonly PerLanguage<RecordingToolbar> toolbars = new(() => new RecordingToolbar());
+    readonly PerLanguage<CountdownWindow> countdowns = new(() => new CountdownWindow());
+    readonly PerLanguage<RecordingCard> cards = new(() => new RecordingCard());
+    readonly PerLanguage<TrimWindow> trimWindows = new(() => new TrimWindow());
     ClickHighlighter? clicks;
-    RecordingCard? card;
-    TrimWindow? trimWindow;
 
-    public RecordingCard Card => card ??= new RecordingCard();
-    public TrimWindow TrimWindow => trimWindow ??= new TrimWindow();
-    RecordingFrame Frame => frame ??= new RecordingFrame();
-    RecordingToolbar Toolbar => toolbar ??= new RecordingToolbar();
-    CountdownWindow Countdown => countdown ??= new CountdownWindow();
+    public RecordingCard Card => cards.Value;
+    public TrimWindow TrimWindow => trimWindows.Value;
+    RecordingFrame Frame => frames.Value;
+    RecordingToolbar Toolbar => toolbars.Value;
+    CountdownWindow Countdown => countdowns.Value;
     ClickHighlighter Clicks => clicks ??= new ClickHighlighter(() => ScreenRecorder.Live && !ScreenRecorder.Paused);
 
     public RECT WorkAreaAtCursor() => NativeMethods.WorkAreaAtCursor();
 
     public void PickArea(Action<Int32Rect, RECT, RECT> picked, Action cancelled)
     {
-        overlay ??= new SelectionOverlay(null);
+        var overlay = overlays.Value;
         overlay.Recorded = picked;
         overlay.Aborted = cancelled;
         overlay.OpenForRecording();
@@ -59,10 +62,10 @@ internal sealed class WpfRecordingUi : IRecordingUi
 
     public void CloseLiveWindows()
     {
-        Attempt("Stopping the countdown", () => countdown?.Stop());
+        Attempt("Stopping the countdown", () => countdowns.Existing?.Stop());
         Attempt("Stopping the click highlights", () => clicks?.Stop());
-        Attempt("Hiding the toolbar", () => toolbar?.Hide());
-        Attempt("Hiding the frame", () => frame?.Hide());
+        Attempt("Hiding the toolbar", () => toolbars.Existing?.Hide());
+        Attempt("Hiding the frame", () => frames.Existing?.Hide());
     }
 
     static void Attempt(string what, Action action)

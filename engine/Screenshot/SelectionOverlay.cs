@@ -79,6 +79,7 @@ internal sealed class SelectionOverlay : Window
         positionText.Margin = new Thickness(10, 0, 0, 0);
         colorChip = BuildColorChip();
         hint = new FloatingLabel(hintRow) { Padding = new Thickness(14, 8, 14, 8) };
+        Localizer.Apply(hint);   // Arabic: the hint reads from right to left; the screen below stays as it is
         ShowHint(recording: false);
         ComposeLayers();
 

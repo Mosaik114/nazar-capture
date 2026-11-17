@@ -143,7 +143,7 @@ internal static class HotkeyText
     public static bool Same(string? a, string? b) =>
         TryParse(a, out var x, out _) && TryParse(b, out var y, out _) ? x == y : string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
 
-    /// <summary>The German explanation of a problem, for the setting row.</summary>
+    /// <summary>The explanation of a problem, for the setting row.</summary>
     public static string Explain(Problem problem) => problem switch
     {
         Problem.ShiftOnly => UiText.Hotkeys.ShiftOnly,
@@ -154,44 +154,51 @@ internal static class HotkeyText
     };
 
     /// <summary>
-    /// The key-cap labels of a hotkey as they stand on a German keyboard (Hams' key_labels): <c>Strg</c>,
+    /// The key-cap labels of a hotkey in the interface language (Hams' key_labels), on a German keyboard <c>Strg</c>,
     /// <c>Umschalt</c>, <c>Alt</c>, <c>Win</c>, <c>Leertaste</c>, <c>Druck</c> ... Unknown parts stay as written.
     /// </summary>
     public static IReadOnlyList<string> Labels(string? text)
     {
-        var labels = new List<string>();
+        var labels = new List<(int Rank, string Label)>();
         foreach (string raw in (text ?? "").Split('+'))
         {
             string part = raw.Trim();
             if (part.Length == 0) continue;
             uint modifier = Modifier(part);
-            if (modifier != 0) { labels.Add(ModifierLabel(modifier)); continue; }
+            if (modifier != 0) { labels.Add((ModifierRank(modifier), ModifierLabel(modifier))); continue; }
             int key = Key(part.Replace(" ", ""));
-            labels.Add(key == 0 ? part : KeyLabel(key));
+            labels.Add((4, key == 0 ? part : KeyLabel(key)));
         }
-        // Modifiers first, in the canonical order; the key last.
-        string[] order = { "Strg", "Umschalt", "Alt", "Win" };
-        return labels.OrderBy(l => Array.IndexOf(order, l) is int i and >= 0 ? i : order.Length).ToList();
+        // Modifiers first, in the canonical order (Ctrl, Shift, Alt, Win); the key last.
+        return labels.OrderBy(l => l.Rank).Select(l => l.Label).ToList();
     }
+
+    static int ModifierRank(uint modifier) => modifier switch
+    {
+        HotkeyChord.Control => 0,
+        HotkeyChord.Shift => 1,
+        HotkeyChord.Alt => 2,
+        _ => 3,
+    };
 
     static string ModifierLabel(uint modifier) => modifier switch
     {
-        HotkeyChord.Control => "Strg",
-        HotkeyChord.Shift => "Umschalt",
+        HotkeyChord.Control => UiText.Keys.Ctrl,
+        HotkeyChord.Shift => UiText.Keys.Shift,
         HotkeyChord.Alt => "Alt",
         _ => "Win",
     };
 
     public static string KeyLabel(int key) => key switch
     {
-        VkSpace => "Leertaste",
-        VkSnapshot => "Druck",
-        VkPause => "Pause",
-        VkInsert => "Einfg",
+        VkSpace => UiText.Keys.Space,
+        VkSnapshot => UiText.Keys.Print,
+        VkPause => UiText.Keys.Pause,
+        VkInsert => UiText.Keys.Insert,
         VkMultiply => "Num *",
         VkAdd => "Num +",
         VkSubtract => "Num -",
-        VkDecimal => "Num ,",
+        VkDecimal => UiText.Keys.NumDecimal,
         VkDivide => "Num /",
         >= VkNumpad0 and <= VkNumpad0 + 9 => "Num " + (key - VkNumpad0).ToString(CultureInfo.InvariantCulture),
         _ => KeyName(key),

@@ -171,6 +171,10 @@ internal static partial class NativeMethods
     [DllImport("user32.dll", SetLastError = true, EntryPoint = "SetWindowPos")][return: MarshalAs(UnmanagedType.Bool)] static extern bool SetWindowPosNative(IntPtr hwnd, IntPtr insertAfter, int x, int y, int cx, int cy, uint flags);
     [DllImport("kernel32.dll")] static extern void SetLastError(uint code);
     [DllImport("kernel32.dll")] public static extern uint GetCurrentProcessId();
+    [DllImport("kernel32.dll")] static extern ushort GetUserDefaultUILanguage();
+
+    /// <summary>The primary language id of the Windows display language (LANGID &amp; 0x3FF), as the host reads it.</summary>
+    public static int WindowsUiLanguage() => GetUserDefaultUILanguage() & 0x3FF;
     public const int ERROR_INVALID_PARAMETER = 87;
     [DllImport("user32.dll")][return: MarshalAs(UnmanagedType.Bool)] public static extern bool GetWindowRect(IntPtr hwnd, out RECT rect);
     [DllImport("user32.dll", SetLastError = true)][return: MarshalAs(UnmanagedType.Bool)] public static extern bool SetWindowDisplayAffinity(IntPtr hwnd, uint affinity);

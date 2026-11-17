@@ -74,43 +74,31 @@ pub enum InstallError {
 }
 
 impl InstallError {
+    /// The message for the user, in the interface language.
     pub fn message(&self) -> String {
-        match self {
-            Self::TargetRequired => {
-                "Im Testmodus muss der Zielordner angegeben werden (--install <Ordner>).".to_owned()
-            }
-            Self::NoLocalAppData => {
-                "Der Ordner für lokale Anwendungsdaten wurde nicht gefunden.".to_owned()
-            }
-            Self::NoSource => "Der Ordner des Installationsprogramms ist unbekannt.".to_owned(),
-            Self::Incomplete(name) => format!(
-                "Die Installationsdateien sind unvollständig: {name} fehlt. \
-                 Bitte das ZIP-Archiv vollständig entpacken."
-            ),
-            Self::Busy => "Gerade läuft eine Aufnahme oder Bereichsauswahl. Bitte sie zuerst \
-                beenden und die Installation dann erneut starten."
-                .to_owned(),
-            Self::StillRunning => "Die laufende Version hat sich nicht rechtzeitig beendet. \
-                Bitte sie über das Symbol im Infobereich beenden und es erneut versuchen."
-                .to_owned(),
-            Self::Copy(path, error) => {
-                format!("{} konnte nicht kopiert werden ({error}).", path.display())
-            }
-            Self::UnicodePath(path) => {
-                format!("Der Pfad {} enthält ungültige Zeichen.", path.display())
-            }
-            Self::Autostart(error) => {
-                format!("Der Autostart konnte nicht eingerichtet werden ({error}).")
-            }
-            Self::Shortcut(detail) => {
-                format!("Die Verknüpfung im Startmenü konnte nicht angelegt werden ({detail}).")
-            }
-            Self::Start(error) => {
-                format!("Die installierte Version konnte nicht gestartet werden ({error}).")
-            }
-        }
+        self.message_in(&crate::ui::current_texts().install)
     }
 
+    fn message_in(&self, t: &crate::ui::InstallTexts) -> String {
+        match self {
+            Self::TargetRequired => t.target_required.to_owned(),
+            Self::NoLocalAppData => t.no_local_app_data.to_owned(),
+            Self::NoSource => t.no_source.to_owned(),
+            Self::Incomplete(name) => t.incomplete.replace("{name}", name),
+            Self::Busy => t.busy.to_owned(),
+            Self::StillRunning => t.still_running.to_owned(),
+            Self::Copy(path, error) => t
+                .copy
+                .replace("{path}", &path.display().to_string())
+                .replace("{error}", &error.to_string()),
+            Self::UnicodePath(path) => {
+                t.unicode_path.replace("{path}", &path.display().to_string())
+            }
+            Self::Autostart(error) => t.autostart.replace("{error}", &error.to_string()),
+            Self::Shortcut(detail) => t.shortcut.replace("{detail}", detail),
+            Self::Start(error) => t.start.replace("{error}", &error.to_string()),
+        }
+    }
     /// Whether this is a refusal because of a running capture (its own exit code).
     pub const fn is_busy(&self) -> bool {
         matches!(self, Self::Busy)
@@ -336,8 +324,9 @@ fn text(path: &Path) -> Result<&str, InstallError> {
 
 /// Writes the Start-menu shortcut to `exe` and removes those of earlier versions.
 fn write_shortcut(exe: &Path) -> Result<(), InstallError> {
-    let programs =
-        start_menu_programs().ok_or_else(|| InstallError::Shortcut("kein Startmenü".into()))?;
+    let programs = start_menu_programs().ok_or_else(|| {
+        InstallError::Shortcut(crate::ui::current_texts().install.no_start_menu.into())
+    })?;
     let link = programs.join(SHORTCUT_NAME);
     let folder = exe.parent().unwrap_or(exe);
     let script = shortcut_script(text(&link)?, text(exe)?, text(folder)?, ui::PRODUCT);
@@ -484,12 +473,18 @@ mod tests {
     }
 
     #[test]
-    fn errors_have_german_messages() {
-        assert!(InstallError::Busy.message().contains("Aufnahme"));
+    fn errors_have_messages_in_every_language() {
+        let german = &crate::ui::texts(crate::config::Language::German).install;
+        assert!(InstallError::Busy.message_in(german).contains("Aufnahme"));
         assert!(InstallError::Busy.is_busy());
         assert!(!InstallError::StillRunning.is_busy());
-        assert!(InstallError::Incomplete("X.exe").message().contains("X.exe fehlt"));
-        assert!(InstallError::TargetRequired.message().contains("--install <Ordner>"));
+        assert!(InstallError::Incomplete("X.exe").message_in(german).contains("X.exe fehlt"));
+        assert!(InstallError::TargetRequired.message_in(german).contains("--install <Ordner>"));
+        let english = &crate::ui::texts(crate::config::Language::English).install;
+        assert!(InstallError::Incomplete("X.exe").message_in(english).contains("X.exe is missing"));
+        let error = InstallError::Copy(PathBuf::from(r"C:\a"), io::ErrorKind::NotFound.into());
+        let arabic = &crate::ui::texts(crate::config::Language::Arabic).install;
+        assert!(error.message_in(arabic).contains(r"C:\a"), "{}", error.message_in(arabic));
     }
 
     /// Installs a fake release into a temp folder under test isolation: no instance

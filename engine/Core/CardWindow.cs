@@ -27,6 +27,8 @@ internal abstract class CardWindow : ToolWindowBase
     protected CardWindow(string title) : base(title)
     {
         SizeToContent = SizeToContent.WidthAndHeight;
+        Localizer.Apply(this);   // Arabic: texts and actions from right to left
+        Localizer.KeepLeftToRight(thumbnailBox);   // the picture is never mirrored
         thumbnailBox.SetResourceReference(StoneChrome.FillProperty, UiTokens.Keys.ControlSurface);
         close = new IconButton(IconGlyphs.ChromeClose, UiText.Common.Close, () => Dismiss(), size: 24) { Visibility = Visibility.Collapsed, VerticalAlignment = VerticalAlignment.Top };
         DockPanel.SetDock(close, Dock.Right);

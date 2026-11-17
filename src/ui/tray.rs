@@ -46,7 +46,7 @@ fn notify(window: HWND, icon: HICON, message: NOTIFY_ICON_MESSAGE) -> bool {
     data.uCallbackMessage = ipc::TRAY_CALLBACK;
     data.hIcon = icon;
     data.Anonymous.uVersion = NOTIFYICON_VERSION_4;
-    copy_to_buffer(&mut data.szTip, strings::TRAY_TOOLTIP);
+    copy_to_buffer(&mut data.szTip, strings::current().tray_tooltip);
     // SAFETY: `data` is fully initialised and outlives the call.
     unsafe { Shell_NotifyIconW(message, &raw const data) != 0 }
 }
@@ -86,6 +86,11 @@ pub fn advance(window: HWND, icon: HICON, state: TrayState) -> TrayState {
         TrayState::Added => state.after(notify(window, icon, NIM_SETVERSION)),
         other => other,
     }
+}
+
+/// Shows the tooltip in the language in use now (after the language changed).
+pub fn refresh_tooltip(window: HWND, icon: HICON) -> bool {
+    notify(window, icon, NIM_MODIFY)
 }
 
 pub fn remove(window: HWND) {
@@ -150,20 +155,26 @@ pub enum MenuCommand {
 }
 
 impl MenuCommand {
-    /// Every command with its menu id (0 is "dismissed") and text, in menu order.
-    const ALL: [(Self, i32, &'static str); 4] = [
-        (Self::Screenshot, 1, strings::MENU_SCREENSHOT),
-        (Self::Recording, 2, strings::MENU_RECORDING),
-        (Self::Settings, 3, strings::MENU_SETTINGS),
-        (Self::Quit, 4, strings::MENU_QUIT),
-    ];
+    /// Every command with its menu id (0 is "dismissed"), in menu order.
+    const ALL: [(Self, i32); 4] =
+        [(Self::Screenshot, 1), (Self::Recording, 2), (Self::Settings, 3), (Self::Quit, 4)];
 
     fn from_id(command: i32) -> Option<Self> {
-        Self::ALL.iter().find(|(_, id, _)| *id == command).map(|(cmd, _, _)| *cmd)
+        Self::ALL.iter().find(|(_, id)| *id == command).map(|(cmd, _)| *cmd)
+    }
+
+    /// The entry's text in `texts`.
+    const fn name(self, texts: &strings::Texts) -> &'static str {
+        match self {
+            Self::Screenshot => texts.menu_screenshot,
+            Self::Recording => texts.menu_recording,
+            Self::Settings => texts.menu_settings,
+            Self::Quit => texts.menu_quit,
+        }
     }
 }
 
-/// The registered hotkeys as German key-cap labels (`Umschalt+Alt+4`), shown next to
+/// The registered hotkeys as key-cap labels (`Umschalt+Alt+4` in German), shown next to
 /// their menu entries; `None` shows the entry without one.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct MenuHotkeys {
@@ -207,7 +218,9 @@ impl Drop for PopupMenu {
 /// menu loop until the user chooses or dismisses.
 pub fn show_menu(window: HWND, x: i32, y: i32, hotkeys: &MenuHotkeys) -> Option<MenuCommand> {
     let menu = PopupMenu::new()?;
-    for (command, id, name) in MenuCommand::ALL {
+    let texts = strings::current();
+    for (command, id) in MenuCommand::ALL {
+        let name = command.name(texts);
         if command == MenuCommand::Quit {
             // SAFETY: a separator takes no text.
             unsafe { AppendMenuW(menu.0, MF_SEPARATOR, 0, ptr::null()) };
@@ -288,7 +301,7 @@ mod tests {
 
     #[test]
     fn menu_ids_round_trip() {
-        for (command, id, _) in MenuCommand::ALL {
+        for (command, id) in MenuCommand::ALL {
             assert_eq!(MenuCommand::from_id(id), Some(command));
         }
         assert_eq!(MenuCommand::from_id(0), None, "dismissed menu");
@@ -298,15 +311,13 @@ mod tests {
     fn menu_entries_show_their_hotkeys() {
         let hotkeys =
             MenuHotkeys { screenshot: Some("Umschalt+Alt+4".to_owned()), recording: None };
-        let text = |command| {
-            let (_, _, name) =
-                MenuCommand::ALL.into_iter().find(|(c, _, _)| *c == command).unwrap();
-            hotkeys.text(command, name)
-        };
+        let german = &strings::GERMAN;
+        let text = |command: MenuCommand| hotkeys.text(command, command.name(german));
         assert_eq!(text(MenuCommand::Screenshot), "Screenshot erstellen\tUmschalt+Alt+4");
-        assert_eq!(text(MenuCommand::Recording), strings::MENU_RECORDING, "not registered");
-        assert_eq!(text(MenuCommand::Settings), strings::MENU_SETTINGS);
-        assert_eq!(text(MenuCommand::Quit), strings::MENU_QUIT);
+        assert_eq!(text(MenuCommand::Recording), german.menu_recording, "not registered");
+        assert_eq!(text(MenuCommand::Settings), german.menu_settings);
+        assert_eq!(text(MenuCommand::Quit), german.menu_quit);
+        assert_eq!(MenuCommand::Quit.name(&strings::TURKISH), "Çıkış");
         let recording =
             MenuHotkeys { recording: Some("Druck".to_owned()), ..MenuHotkeys::default() };
         assert!(recording.text(MenuCommand::Recording, "Aufnahme").ends_with("\tDruck"));
@@ -314,30 +325,34 @@ mod tests {
 
     #[test]
     fn balloon_texts_fit_without_truncation() {
-        use strings::balloon::*;
         // SAFETY: NOTIFYICONDATAW is plain data; only the buffer sizes are read.
         let data: NOTIFYICONDATAW = unsafe { mem::zeroed() };
         assert!(strings::PRODUCT.encode_utf16().count() < data.szInfoTitle.len());
-        let texts = [
-            INVALID_HOTKEY,
-            SHIFT_ONLY_HOTKEY,
-            DUPLICATE_HOTKEY,
-            INVALID_FOLDER,
-            HOTKEY_TAKEN,
-            EXE_UNKNOWN,
-            SAVE_FAILED,
-            STARTUP_SAVE_FAILED,
-            ENGINE_FAILED,
-            BUSY,
-        ];
-        for text in texts {
-            assert!(text.encode_utf16().count() < data.szInfo.len(), "{text}");
+        for (language, texts) in strings::all() {
+            let b = &texts.balloon;
+            let all = [
+                b.invalid_hotkey,
+                b.shift_only_hotkey,
+                b.duplicate_hotkey,
+                b.invalid_folder,
+                b.hotkey_taken,
+                b.exe_unknown,
+                b.save_failed,
+                b.startup_save_failed,
+                b.engine_failed,
+                b.busy,
+            ];
+            for text in all {
+                assert!(text.encode_utf16().count() < data.szInfo.len(), "{language:?}: {text}");
+            }
         }
     }
 
     #[test]
     fn tooltip_fits_without_truncation() {
-        assert!(strings::TRAY_TOOLTIP.encode_utf16().count() < 128);
-        assert!(strings::TRAY_TOOLTIP.starts_with(strings::PRODUCT));
+        for (language, texts) in strings::all() {
+            assert!(texts.tray_tooltip.encode_utf16().count() < 128, "{language:?}");
+            assert!(texts.tray_tooltip.starts_with(strings::PRODUCT), "{language:?}");
+        }
     }
 }

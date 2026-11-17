@@ -182,6 +182,7 @@ internal class NazarWindow : Window
     public NazarWindow(string title, BannerMotif? stage = null)
     {
         Title = UiText.Product + " – " + title;
+        Localizer.Apply(this);   // Arabic: the whole window from right to left
         WindowStyle = WindowStyle.None;
         ResizeMode = ResizeMode.CanResize;
         UseLayoutRounding = true;
@@ -308,6 +309,7 @@ internal sealed class AppMark : Image
         Source = logo.Value;
         VerticalAlignment = VerticalAlignment.Center;
         IsHitTestVisible = false;
+        FlowDirection = FlowDirection.LeftToRight;   // a logo is never mirrored
         RenderOptions.SetBitmapScalingMode(this, BitmapScalingMode.HighQuality);
         System.Windows.Automation.AutomationProperties.SetName(this, UiText.Product);
     }

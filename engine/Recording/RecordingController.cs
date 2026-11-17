@@ -199,7 +199,8 @@ internal sealed class RecordingController
         string reason;
         try
         {
-            string path = backend.NewRecordingPath(finished.Begun, settings.RecordingFolder);
+            // "Aufnahmen speichern" off: the app's own folder until the user keeps it (FileKeeping)
+            string path = backend.NewRecordingPath(finished.Begun, settings.SaveRecordings ? settings.RecordingFolder : FileKeeping.UnsavedFolder);
             using var cancel = new CancellationTokenSource();
             var saving = finished.FinishAsync(path, cancel.Token);
             var timeout = saveTimeout(finished.Elapsed);
@@ -233,7 +234,8 @@ internal sealed class RecordingController
                 return;
             }
             bool copied = await ui.CopyFileToClipboardAsync(video.Path);
-            string heading = finished.AudioLost ? UiText.Recording.SavedWithoutAudio : copied ? UiText.Recording.Saved : UiText.Recording.SavedNotCopied;
+            string heading = FileKeeping.IsUnsaved(video.Path) ? (copied ? UiText.Recording.Copied : UiText.Common.CopyFailed)
+                : finished.AudioLost ? UiText.Recording.SavedWithoutAudio : copied ? UiText.Recording.Saved : UiText.Recording.SavedNotCopied;
             ui.ShowRecording(video, heading, work);
         }
         catch (Exception ex)   // the card failed: the video is saved anyway

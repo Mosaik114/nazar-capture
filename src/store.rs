@@ -669,6 +669,11 @@ pub mod tests {
             countdown: Countdown::Seconds5,
             appearance: Appearance::Dark,
             check_updates: false,
+            language: crate::config::Language::Arabic,
+            save_screenshots: false,
+            screenshot_keep_days: crate::config::KeepDays::from_value(30),
+            save_recordings: false,
+            recording_keep_days: crate::config::KeepDays::from_value(365),
         };
         SettingsStore::at(path.clone()).save(&config).unwrap();
         let loaded = Config::load(&IniFile::new(&path), &sample_folders());

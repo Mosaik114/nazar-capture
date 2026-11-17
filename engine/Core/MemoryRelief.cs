@@ -68,6 +68,6 @@ internal static class DiskSpace
     /// <summary>Whether a recording may start with <paramref name="free"/> bytes left.</summary>
     public static bool Enough(long? free) => free is null || free.Value >= MinimumBytes;
 
-    /// <summary>"3,2 GB" in German notation.</summary>
-    public static string Gigabytes(long bytes) => (bytes / 1073741824.0).ToString("0.0", CultureInfo.GetCultureInfo("de-DE")) + " GB";
+    /// <summary>"3,2 GB" (German), "3.2 GB" (English): the notation of the interface language.</summary>
+    public static string Gigabytes(long bytes) => (bytes / 1073741824.0).ToString("0.0", Localizer.Culture) + " GB";
 }

@@ -7,7 +7,7 @@ namespace NazarCapture.Engine.Recording;
 /// Home/End jump, Enter saves, Esc closes (or cancels a running export). Tab reaches every button.
 /// </summary>
 [System.Diagnostics.CodeAnalysis.SuppressMessage("Design", "CA1001", Justification = "The export cancellation is disposed when the export ends or the window is dismissed; the window lives as long as the engine.")]
-internal sealed partial class TrimWindow : NazarWindow
+internal sealed partial class TrimWindow : NazarWindow, IRetirable
 {
     const double ContentWidth = 880, HandleWidth = 14, TrackHeight = 64, StripTop = 4, StripHeight = 56;
     const double MinSelection = 0.3;   // seconds
@@ -39,7 +39,7 @@ internal sealed partial class TrimWindow : NazarWindow
     RecordedVideo? video;
     RECT workArea;
     double duration = 1, selectionStart, selectionEnd = 1, playhead, grabOffset;
-    bool playing, withSound, exporting, exported;
+    bool playing, withSound, exporting, exported, retired;
     CancellationTokenSource? exportCancellation, stripCancellation;
     DragTarget dragging;
     int generation;
@@ -57,6 +57,7 @@ internal sealed partial class TrimWindow : NazarWindow
         media = new MediaElement { LoadedBehavior = MediaState.Manual, UnloadedBehavior = MediaState.Manual, ScrubbingEnabled = true, Stretch = Stretch.Uniform };
         bigPlayButton = BuildBigPlayButton();
         videoBox = BuildVideo();
+        Localizer.KeepLeftToRight(videoBox);   // the video is never mirrored
 
         playButton = new IconButton(IconGlyphs.PlaySolid, UiText.Trim.Play, () => TogglePlay(), size: 36, role: MuiRole.Secondary);
         playGlyph = (TextBlock)playButton.Content;
@@ -67,6 +68,7 @@ internal sealed partial class TrimWindow : NazarWindow
         selectionText.VerticalAlignment = VerticalAlignment.Center;
 
         track = new Canvas { Width = ContentWidth, Height = TrackHeight, Margin = new Thickness(0, 16, 0, 0), Background = Brushes.Transparent, Cursor = Cursors.Hand };
+        Localizer.KeepLeftToRight(track);   // time runs from left to right in every language
         strip = new Image { Width = StripWidth, Height = StripHeight, Stretch = Stretch.UniformToFill, ClipToBounds = true };   // do not squash, crop the overflow
         dimBefore = new Shapes.Rectangle { Height = StripHeight, Fill = StripShade };
         dimAfter = new Shapes.Rectangle { Height = StripHeight, Fill = StripShade };
@@ -88,12 +90,19 @@ internal sealed partial class TrimWindow : NazarWindow
 
         Body = BuildBody();
         PreviewKeyDown += (_, e) => OnKey(e);
-        Closing += (_, e) => { e.Cancel = true; Dismiss(); };   // the window is kept for the next recording
+        Closing += (_, e) => { if (retired) return; e.Cancel = true; Dismiss(); };   // the window is kept for the next recording
         hwnd = new WindowInteropHelper(this).EnsureHandle();
         playbackTimer.Tick += delegate { FollowPlayback(); };
     }
 
     protected override void RequestClose() => Dismiss();
+
+    /// <summary>Closes for good (the interface language changed; only ever while it is hidden).</summary>
+    public void Retire()
+    {
+        retired = true;
+        Close();
+    }
 
     StackPanel BuildBody()
     {

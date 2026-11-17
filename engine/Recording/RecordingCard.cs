@@ -166,7 +166,10 @@ internal sealed class RecordingCard : CardWindow
         thumbnail.Visibility = lengthChip.Visibility = playChip.Visibility = Visibility.Visible;
         placeholderGlyph.Visibility = recorded.Thumbnail == null ? Visibility.Visible : Visibility.Collapsed;
         lengthText.Text = UiText.Recording.Length(recorded.Gif, Formats.Clock(Math.Round(recorded.Duration)));
-        ShowNormal(IconGlyphs.Accept, heading, UiText.Recording.FileInfo(Path.GetFileName(recorded.Path), Formats.FileSize(recorded.Bytes)));
+        bool unsaved = FileKeeping.IsUnsaved(recorded.Path);
+        ShowNormal(IconGlyphs.Accept, heading,
+            UiText.Recording.FileInfo(unsaved ? UiText.Common.OnlyInClipboard : Path.GetFileName(recorded.Path), Formats.FileSize(recorded.Bytes)));
+        card.SubtitleIsFileName(!unsaved);
         card.Mark.Visibility = Visibility.Visible;
 
         buttons.Children.Clear();
@@ -175,7 +178,9 @@ internal sealed class RecordingCard : CardWindow
             buttons.Children.Add(Action(IconGlyphs.Trim, UiText.Recording.Trim, delegate { ScreenRecorder.Trim(video!, workArea); }));
             buttons.Children.Add(Action(IconGlyphs.Gif, UiText.Recording.Gif, delegate { ScreenRecorder.MakeGif(video!, workArea); }));
         }
-        buttons.Children.Add(Action(IconGlyphs.Folder, UiText.Common.Folder, delegate { Shell.Reveal(video!.Path); }));
+        // Not kept ("Aufnahmen speichern" off): "Speichern" puts it into the recording folder instead of "Ordner".
+        if (unsaved) buttons.Children.Add(Action(IconGlyphs.Save, UiText.Common.Keep, KeepInFolder));
+        else buttons.Children.Add(Action(IconGlyphs.Folder, UiText.Common.Folder, delegate { Shell.Reveal(video!.Path); }));
         buttons.Children.Add(Action(IconGlyphs.Delete, UiText.Common.Delete, MoveToRecycleBin));
         buttons.Visibility = Visibility.Visible;
         Place();
@@ -232,6 +237,25 @@ internal sealed class RecordingCard : CardWindow
         barMove.X = 0;
         RunDown(LifetimeMs, delegate { if (started == generation && !card.IsMouseOver && bar.Scale.ScaleX <= 0.001) FadeOut(); });
     }
+
+    /// <summary>"Speichern": the recording moves into the recording folder and the card shows it there.</summary>
+    internal void KeepInFolder() => KeepInFolder(CaptureSettings.Load().RecordingFolder);
+
+    internal void KeepInFolder(string folder)
+    {
+        if (video == null || !ready || !FileKeeping.IsUnsaved(video.Path)) return;
+        string kept;
+        try { kept = FileKeeping.Keep(video.Path, folder); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException or ArgumentException)
+        {
+            ErrorLog.Write("Keeping a recording", ex);
+            card.Title.Text = UiText.Common.CouldNotSave;
+            return;
+        }
+        Present(video.MovedTo(kept), UiText.Common.Kept, workArea);
+    }
+
+    internal RecordedVideo? Shown => video;
 
     // Moves the file to the recycle bin so it can be restored; a failure says so on the card.
     void MoveToRecycleBin()

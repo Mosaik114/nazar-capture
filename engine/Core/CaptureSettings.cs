@@ -23,6 +23,16 @@ internal sealed class CaptureSettingsSnapshot
     public bool Autostart { get; init; } = true;
     /// <summary>Look for a new version once a day.</summary>
     public bool CheckUpdates { get; init; } = true;
+    /// <summary>The interface language: "auto" (follows Windows) or a code of <see cref="UiLanguages"/>.</summary>
+    public string Language { get; init; } = UiLanguages.Auto;
+    /// <summary>Every screenshot as a file in <see cref="ScreenshotFolder"/>; off: only to the clipboard (see <see cref="FileKeeping"/>).</summary>
+    public bool SaveScreenshots { get; init; } = true;
+    /// <summary>Screenshots of Nazar Capture older than this many days are deleted from the folder; 0 keeps them.</summary>
+    public int ScreenshotKeepDays { get; init; }
+    /// <summary>Every recording as a file in <see cref="RecordingFolder"/>; off: only to the clipboard.</summary>
+    public bool SaveRecordings { get; init; } = true;
+    /// <summary>Recordings of Nazar Capture older than this many days are deleted from the folder; 0 keeps them.</summary>
+    public int RecordingKeepDays { get; init; }
 
     public AudioSettings Audio => new(Microphone, SystemAudio, Clicks);
 }
@@ -97,7 +107,18 @@ internal static class CaptureSettings
         Appearance = NormalizeAppearance(Number(file, "appearance", (int)Appearance.Light)),
         Autostart = Number(file, "autostart", 1) != 0,
         CheckUpdates = Number(file, "check_updates", 1) != 0,
+        Language = UiLanguages.Normalize(Read(file, "language", UiLanguages.Auto)),
+        SaveScreenshots = Number(file, "save_screenshots", 1) != 0,
+        ScreenshotKeepDays = NormalizeKeepDays(Number(file, "screenshot_keep_days", 0)),
+        SaveRecordings = Number(file, "save_recordings", 1) != 0,
+        RecordingKeepDays = NormalizeKeepDays(Number(file, "recording_keep_days", 0)),
     };
+
+    /// <summary>The choices of "Aufbewahren": 0 = unlimited, else days.</summary>
+    internal static readonly int[] KeepDayChoices = { 0, 7, 30, 90, 365 };
+
+    /// <summary>Only the offered choices; anything else means unlimited (nothing is ever deleted by a typo).</summary>
+    internal static int NormalizeKeepDays(int days) => Array.IndexOf(KeepDayChoices, days) >= 0 ? days : 0;
 
     /// <summary>The settings window changed the appearance: windows opened from now on follow it.</summary>
     internal static void UseAppearance(Appearance value) => Volatile.Write(ref appearance, (int)value);
