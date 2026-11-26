@@ -22,6 +22,11 @@ Page Up, Home, the arrows and the other navigation keys can be a shortcut now.
   with their keys and canonical text, and rejected ones with the reason. The Rust and the C# tests both check it,
   so the two parsers can no longer drift apart unnoticed.
 
+### Changed
+- **Timeouts end their timer.** Waiting for the clipboard, the encoder detection, a recording's segments and its
+  saving no longer leaves a timer running after the wait (CA2027 of the newer .NET SDK).
+- **CI pins ffmpeg 9.0.2**, the version the trim window's pixel reference was made with.
+
 ## [1.1.7] - 2026-11-17
 
 Nazar Capture works the same however it was started, also through links Windows does not trust.
