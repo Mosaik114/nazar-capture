@@ -155,7 +155,7 @@ internal static class Measurement
 
     static async Task<T> WithTimeout<T>(Task<T> task, string failure)
     {
-        if (await Task.WhenAny(task, Task.Delay(StepTimeout)) != task) throw new TimeoutException(failure);
+        if (!await task.CompletesWithin(StepTimeout)) throw new TimeoutException(failure);
         return await task;
     }
 

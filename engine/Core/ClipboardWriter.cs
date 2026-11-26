@@ -57,7 +57,7 @@ internal static class ClipboardWriter
         { IsBackground = true, Name = "Nazar Capture clipboard" };
         thread.SetApartmentState(ApartmentState.STA);
         thread.Start();
-        if (await Task.WhenAny(result.Task, Task.Delay(Timeout)).ConfigureAwait(false) == result.Task) return await result.Task.ConfigureAwait(false);
+        if (await result.Task.CompletesWithin(Timeout).ConfigureAwait(false)) return await result.Task.ConfigureAwait(false);
         ErrorLog.Write("Copying the " + what + " to the clipboard took too long", null);
         // The thread keeps trying; if it gets there after all, say so (the card already said "not copied").
         _ = result.Task.ContinueWith(late =>

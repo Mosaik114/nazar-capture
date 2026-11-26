@@ -66,7 +66,7 @@ internal sealed class ClickHighlighter
     // A hook that fails or takes too long is given up; the recording goes on without click highlights.
     async Task WatchInstallAsync(HookRun started, Task<bool> installed)
     {
-        if (await Task.WhenAny(installed, Task.Delay(HookStartTimeout)) == installed && installed.Result) return;
+        if (await installed.CompletesWithin(HookStartTimeout) && installed.Result) return;
         ErrorLog.Write("The mouse hook for click highlights is not available; recording without them", null);
         if (run == started) Stop();
         else started.Cancelled = true;

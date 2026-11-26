@@ -207,7 +207,7 @@ internal sealed class RecordingController
             using var cancel = new CancellationTokenSource();
             var saving = finished.FinishAsync(path, cancel.Token);
             var timeout = saveTimeout(finished.Elapsed);
-            if (await Task.WhenAny(saving, Task.Delay(timeout)) == saving)
+            if (await saving.CompletesWithin(timeout))
             {
                 video = await saving;
                 reason = finished.Reason;
@@ -218,7 +218,7 @@ internal sealed class RecordingController
                 ErrorLog.Write("Saving a recording took too long", null);
                 reason = UiText.Common.FfmpegTimedOut;
                 // usually done at once, so the card can offer the raw data; otherwise the card goes without
-                if (await Task.WhenAny(saving, Task.Delay(timeout < RawDataGrace ? timeout : RawDataGrace)) != saving)
+                if (!await saving.CompletesWithin(timeout < RawDataGrace ? timeout : RawDataGrace))
                     saving.LogFailures("Saving a recording (after the timeout)");
                 else video = await saving;   // done just after the timeout after all
             }

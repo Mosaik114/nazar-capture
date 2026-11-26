@@ -193,7 +193,7 @@ internal sealed class RecordingSession : IRecordingSession
             previous = segments.Count > 0 ? segments[segments.Count - 1].Stopped : null;
         }
         // ffmpeg of the previous segment must have released the GPU output; nothing here needs the UI thread
-        if (previous != null) await Task.WhenAny(previous, Task.Delay(services.PreviousSegmentTimeout)).ConfigureAwait(false);
+        if (previous != null) await previous.CompletesWithin(services.PreviousSegmentTimeout).ConfigureAwait(false);
         encoder ??= await services.Encoder().ConfigureAwait(false);
         if (wantRunning) StartSegment(encoder.Value, pausesBefore);
     }
@@ -333,7 +333,7 @@ internal sealed class RecordingSession : IRecordingSession
         Task[] stopped;
         lock (gate) stopped = segments.Select(s => s.Stopped).ToArray();
         var all = Task.WhenAll(stopped);
-        if (await Task.WhenAny(all, Task.Delay(timeout)).ConfigureAwait(false) != all) ErrorLog.Write("A recording segment did not stop in time", null);
+        if (!await all.CompletesWithin(timeout).ConfigureAwait(false)) ErrorLog.Write("A recording segment did not stop in time", null);
     }
 
     void WaitForSegments(TimeSpan timeout)
@@ -422,7 +422,7 @@ internal sealed class RecordingSession : IRecordingSession
     /// </summary>
     async Task KeepRawDataAsync(string path)
     {
-        await Task.WhenAny(audio.Finished, Task.Delay(AudioReleaseTimeout)).ConfigureAwait(false);   // the audio thread lets go of its tracks
+        await audio.Finished.CompletesWithin(AudioReleaseTimeout).ConfigureAwait(false);   // the audio thread lets go of its tracks
         string name = Path.Combine(Path.GetDirectoryName(path)!, Path.GetFileNameWithoutExtension(path) + UiText.Files.RawDataSuffix), target = name;
         for (int i = 2; Directory.Exists(target) || File.Exists(target); i++) target = name + " (" + i + ")";
         try

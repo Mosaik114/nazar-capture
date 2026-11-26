@@ -85,7 +85,7 @@ internal static class Ffmpeg
     public static async Task<VideoEncoder> EncoderOrSoftwareAsync(TimeSpan timeout)
     {
         var detection = DetectEncoderAsync();
-        return await Task.WhenAny(detection, Task.Delay(timeout)).ConfigureAwait(false) == detection && detection.Status == TaskStatus.RanToCompletion
+        return await detection.CompletesWithin(timeout).ConfigureAwait(false) && detection.Status == TaskStatus.RanToCompletion
             ? detection.Result
             : VideoEncoder.Software;
     }
