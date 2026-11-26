@@ -14,6 +14,7 @@ use crate::config::{
 };
 use crate::copydata::{self, Reply};
 use crate::engine::{self, EngineRequest};
+use crate::hotkey::{Hotkey, ParseHotkeyError};
 use crate::ipc::{self, AudioSettings, ProbeResponse};
 use crate::isolation::{self, Isolation};
 use crate::store::tests::{TempDir, write_utf16};
@@ -435,5 +436,37 @@ fn test_isolation_names() {
         );
         assert_eq!(isolation.name(c.str(&["host", "window_class"])), example["host_window_class"]);
         assert_eq!(isolation.name(c.str(&["engine", "mutex"])), example["engine_mutex"]);
+    }
+}
+
+/// The contract's name for why a hotkey text was rejected.
+fn hotkey_problem(error: ParseHotkeyError) -> &'static str {
+    match error {
+        ParseHotkeyError::EmptyToken => "empty",
+        ParseHotkeyError::TokenTooLong | ParseHotkeyError::UnknownKey => "unknown_key",
+        ParseHotkeyError::DuplicateModifier => "duplicate_modifier",
+        ParseHotkeyError::MultipleKeys => "multiple_keys",
+        ParseHotkeyError::MissingKey => "missing_key",
+        ParseHotkeyError::MissingModifier => "missing_modifier",
+        ParseHotkeyError::ShiftOnly => "shift_only",
+    }
+}
+
+#[test]
+fn hotkey_texts_read_like_the_engine_reads_them() {
+    let c = load();
+    let cases = c.get(&["hotkeys", "cases"]).as_array().expect("hotkeys.cases is a list");
+    assert!(cases.len() > 10);
+    for case in cases {
+        let text = case[0].as_str().unwrap();
+        let parsed = text.parse::<Hotkey>();
+        if let Some(problem) = case[1].as_str() {
+            assert_eq!(parsed.map_err(hotkey_problem), Err(problem), "{text:?}");
+        } else {
+            let modifiers = u32::try_from(case[1].as_u64().unwrap()).unwrap();
+            let key = u16::try_from(case[2].as_u64().unwrap()).unwrap();
+            let parsed = parsed.unwrap_or_else(|error| panic!("{text:?}: {error}"));
+            assert_eq!((parsed.modifiers.bits(), parsed.key), (modifiers, key), "{text:?}");
+        }
     }
 }

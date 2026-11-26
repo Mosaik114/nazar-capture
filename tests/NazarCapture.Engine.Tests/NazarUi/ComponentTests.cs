@@ -162,6 +162,10 @@ public sealed class ComponentTests : IDisposable
     [InlineData("Strg+Leertaste", "Strg|Leertaste")]
     [InlineData("Ctrl+Num5", "Strg|Num 5")]
     [InlineData("Win+Shift+S", "Umschalt|Win|S")]
+    [InlineData("Strg+Bild↑", "Strg|Bild ↑")]
+    [InlineData("Alt+PageDown", "Alt|Bild ↓")]
+    [InlineData("Ctrl+Alt+Delete", "Strg|Alt|Entf")]
+    [InlineData("Rollen", "Rollen")]
     public void KeyCapsReadLikeAGermanKeyboard(string combo, string labels) =>
         Assert.Equal(labels, string.Join("|", HotkeyText.Labels(combo)));
 
@@ -173,6 +177,12 @@ public sealed class ComponentTests : IDisposable
     [InlineData("Ctrl+Einfg", true, "None")]
     [InlineData("Alt+Num0", true, "None")]
     [InlineData("Alt+F24", true, "None")]
+    [InlineData("Ctrl+PageUp", true, "None")]
+    [InlineData("Rollen", true, "None")]
+    [InlineData("F13", true, "None")]
+    [InlineData("PageUp", false, "MissingModifier")]
+    [InlineData("Shift+Bild↑", false, "ShiftOnly")]
+    [InlineData("Alt+Enter", false, "UnknownKey")]
     [InlineData("Shift+A", false, "ShiftOnly")]
     [InlineData("A", false, "MissingModifier")]
     [InlineData("Ctrl+Alt", false, "MissingKey")]
@@ -209,6 +219,35 @@ public sealed class ComponentTests : IDisposable
         Assert.Equal(HotkeyRecorder.Outcome.Done, recorder.Press(System.Windows.Input.Key.NumPad7, ModifierKeys.Control));
         Assert.Equal("Ctrl+Num7", recorder.Result);
         Assert.Equal(HotkeyRecorder.Outcome.Unsupported, recorder.Press(System.Windows.Input.Key.OemComma, ModifierKeys.Control));
+        Assert.Equal(HotkeyRecorder.Outcome.Unsupported, recorder.Press(System.Windows.Input.Key.Enter, ModifierKeys.Control));
+    }
+
+    [Fact]
+    public void RecorderTakesNavigationKeys()
+    {
+        var recorder = new HotkeyRecorder();
+        var keys = new (Key Key, string Name)[]
+        {
+            (System.Windows.Input.Key.PageUp, "PageUp"), (System.Windows.Input.Key.PageDown, "PageDown"),
+            (System.Windows.Input.Key.Home, "Home"), (System.Windows.Input.Key.End, "End"),
+            (System.Windows.Input.Key.Delete, "Delete"), (System.Windows.Input.Key.Left, "Left"),
+            (System.Windows.Input.Key.Up, "Up"), (System.Windows.Input.Key.Right, "Right"),
+            (System.Windows.Input.Key.Down, "Down"),
+        };
+        foreach (var (key, name) in keys)
+        {
+            Assert.Equal(HotkeyRecorder.Outcome.Done, recorder.Press(key, ModifierKeys.Control));
+            Assert.Equal("Ctrl+" + name, recorder.Result);
+            Assert.True(HotkeyText.TryParse(recorder.Result, out _, out _));
+        }
+        // Alone, Page Up is recorded but refused by the check, which says a modifier is missing.
+        Assert.Equal(HotkeyRecorder.Outcome.Done, recorder.Press(System.Windows.Input.Key.PageUp, ModifierKeys.None));
+        Assert.False(HotkeyText.TryParse(recorder.Result, out _, out var problem));
+        Assert.Equal(HotkeyText.Problem.MissingModifier, problem);
+        Assert.Equal(HotkeyRecorder.Outcome.Done, recorder.Press(System.Windows.Input.Key.Scroll, ModifierKeys.None));
+        Assert.Equal("ScrollLock", recorder.Result);
+        Assert.Equal(HotkeyRecorder.Outcome.Done, recorder.Press(System.Windows.Input.Key.F13, ModifierKeys.None));
+        Assert.True(HotkeyText.TryParse(recorder.Result, out _, out _));
     }
 
     [Fact]

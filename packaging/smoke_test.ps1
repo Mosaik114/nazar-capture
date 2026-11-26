@@ -11,7 +11,7 @@
     program the test starts runs as an isolated test instance (NAZAR_CAPTURE_TEST_INSTANCE). Logs go to build\smoke\.
 
 .EXAMPLE
-    .\packaging\smoke_test.ps1 -Setup dist\Nazar-Capture-Setup-1.1.7.exe
+    .\packaging\smoke_test.ps1 -Setup dist\Nazar-Capture-Setup-1.1.8.exe
 #>
 [CmdletBinding()]
 param(

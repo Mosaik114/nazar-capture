@@ -11,7 +11,7 @@
     <StartupObject>NazarCapture.Engine.Core.Program</StartupObject>
     <ApplicationIcon>..\assets\capture.ico</ApplicationIcon>
     <ApplicationManifest>..\assets\app.manifest</ApplicationManifest>
-    <Version>1.1.7</Version>
+    <Version>1.1.8</Version>
     <Product>Nazar Capture</Product>
     <Company>Nazar Capture</Company>
     <Description>Screenshot and screen recording engine of Nazar Capture</Description>

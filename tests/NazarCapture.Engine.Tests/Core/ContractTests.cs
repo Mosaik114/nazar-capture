@@ -259,4 +259,31 @@ public sealed class ContractTests
         }
         Assert.Equal(new byte[] { (byte)'a', 0, 9, 0, (byte)'1', 0 }, Settings.HostChannel.Payload("a\t1"));
     }
+
+    [Fact]
+    public void HotkeyTextsReadLikeTheHostReadsThem()
+    {
+        var cases = (object[])Get("hotkeys", "cases");
+        Assert.True(cases.Length > 10);
+        foreach (object[] c in cases.Cast<object[]>())
+        {
+            string text = (string)c[0];
+            bool ok = HotkeyText.TryParse(text, out var chord, out var problem);
+            if (c[1] is string expected)
+            {
+                Assert.False(ok, text);
+                Assert.Equal(expected, Snake(problem.ToString()));
+                continue;
+            }
+            Assert.True(ok, text + ": " + problem);
+            Assert.Equal(((int)c[1], (int)c[2]), ((int)chord.Modifiers, chord.Key));
+            Assert.Equal((string)c[3], HotkeyText.Format(chord));
+            Assert.True(HotkeyText.TryParse(HotkeyText.Format(chord), out var again, out _), text);
+            Assert.Equal(chord, again);   // the canonical text reads back as the same hotkey
+        }
+    }
+
+    /// <summary>"MissingModifier" as the contract spells it: "missing_modifier".</summary>
+    static string Snake(string name) =>
+        string.Concat(name.Select((ch, i) => char.IsUpper(ch) && i > 0 ? "_" + char.ToLowerInvariant(ch) : char.ToLowerInvariant(ch).ToString()));
 }

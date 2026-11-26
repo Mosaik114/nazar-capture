@@ -3,26 +3,36 @@
 //!
 //! The format is a `+`-separated list of tokens. Spaces are ignored everywhere and
 //! tokens are matched case-insensitively. A hotkey needs exactly one key and Ctrl, Alt
-//! or Win (Shift alone is not enough: Shift+A would swallow every capital A). Print and
-//! Pause type nothing, so they may stand alone or with Shift alone.
+//! or Win (Shift alone is not enough: Shift+A would swallow every capital A). Keys that
+//! type nothing and steer nothing may stand alone or with Shift alone: Print, Pause,
+//! Scroll Lock and `F13`–`F24` (the keys macro pads and programmable mice send).
 //!
 //! * modifiers: `Shift`/`Umschalt`, `Alt`, `Ctrl`/`Control`/`Strg`, `Win`/`Windows`
 //!   (German keyboard labels are accepted next to the English ones)
 //! * keys: a single letter `A`–`Z` or digit `0`–`9`, `Space`/`Leertaste`, `F1`–`F24`,
 //!   `Print`/`Druck`/`PrintScreen`/`PrtSc`/`Snapshot`, `Pause`/`Untbr`,
-//!   `Insert`/`Einfg`/`Ins`, `Num0`–`Num9`, `NumMultiply`, `NumAdd`, `NumSubtract`,
-//!   `NumDecimal`, `NumDivide`
+//!   `ScrollLock`/`Rollen`/`Scroll`/`ScrLk`, `Insert`/`Einfg`/`Ins`,
+//!   `Delete`/`Entf`/`Del`, `Home`/`Pos1`, `End`/`Ende`, `PageUp`/`BildAuf`/`Bild↑`/`PgUp`,
+//!   `PageDown`/`BildAb`/`Bild↓`/`PgDn`, the arrows `Left`/`Up`/`Right`/`Down` (also
+//!   `Links`/`Oben`/`Rechts`/`Unten` and `←`/`↑`/`→`/`↓`), `Num0`–`Num9`, `NumMultiply`,
+//!   `NumAdd`, `NumSubtract`, `NumDecimal`, `NumDivide`
+//!
+//! Enter, Tab, Backspace and Esc are left out on purpose (a global hotkey on them would
+//! break typing everywhere), and so are the punctuation keys: their virtual keys move
+//! between keyboard layouts, so a stored text could mean another key tomorrow.
 //!
 //! The engine's settings window parses the same texts (`engine/Core/HotkeyText.cs`);
-//! both sides must accept and reject exactly the same strings.
+//! both sides must accept and reject exactly the same strings. The shared cases in
+//! `contract/contract.json` (`hotkeys.cases`) check that from both test suites.
 
 use std::fmt;
 use std::ops::{BitOr, BitOrAssign};
 use std::str::FromStr;
 
 use windows_sys::Win32::UI::Input::KeyboardAndMouse::{
-    MOD_ALT, MOD_CONTROL, MOD_SHIFT, MOD_WIN, VK_ADD, VK_DECIMAL, VK_DIVIDE, VK_F1, VK_INSERT,
-    VK_MULTIPLY, VK_NUMPAD0, VK_PAUSE, VK_SNAPSHOT, VK_SPACE, VK_SUBTRACT,
+    MOD_ALT, MOD_CONTROL, MOD_SHIFT, MOD_WIN, VK_ADD, VK_DECIMAL, VK_DELETE, VK_DIVIDE, VK_DOWN,
+    VK_END, VK_F1, VK_F13, VK_HOME, VK_INSERT, VK_LEFT, VK_MULTIPLY, VK_NEXT, VK_NUMPAD0, VK_PAUSE,
+    VK_PRIOR, VK_RIGHT, VK_SCROLL, VK_SNAPSHOT, VK_SPACE, VK_SUBTRACT, VK_UP,
 };
 
 /// Tokens longer than this are rejected outright.
@@ -36,7 +46,17 @@ const NAMED_KEYS: &[(&[&str], u16, &str)] = &[
     (&["SPACE", "LEERTASTE"], VK_SPACE, "Leertaste"),
     (&["PRINT", "DRUCK", "PRINTSCREEN", "PRTSC", "SNAPSHOT"], VK_SNAPSHOT, "Druck"),
     (&["PAUSE", "UNTBR"], VK_PAUSE, "Pause"),
+    (&["SCROLLLOCK", "ROLLEN", "SCROLL", "SCRLK"], VK_SCROLL, "Rollen"),
     (&["INSERT", "EINFG", "INS"], VK_INSERT, "Einfg"),
+    (&["DELETE", "ENTF", "DEL"], VK_DELETE, "Entf"),
+    (&["HOME", "POS1"], VK_HOME, "Pos1"),
+    (&["END", "ENDE"], VK_END, "Ende"),
+    (&["PAGEUP", "BILDAUF", "BILD↑", "PGUP", "PRIOR"], VK_PRIOR, "Bild ↑"),
+    (&["PAGEDOWN", "BILDAB", "BILD↓", "PGDN", "PGDOWN", "NEXT"], VK_NEXT, "Bild ↓"),
+    (&["LEFT", "LINKS", "←"], VK_LEFT, "←"),
+    (&["UP", "OBEN", "↑"], VK_UP, "↑"),
+    (&["RIGHT", "RECHTS", "→"], VK_RIGHT, "→"),
+    (&["DOWN", "UNTEN", "↓"], VK_DOWN, "↓"),
     (&["NUMMULTIPLY"], VK_MULTIPLY, "Num *"),
     (&["NUMADD"], VK_ADD, "Num +"),
     (&["NUMSUBTRACT"], VK_SUBTRACT, "Num -"),
@@ -117,12 +137,18 @@ pub struct KeyCaps {
     pub print: &'static str,
     pub pause: &'static str,
     pub insert: &'static str,
+    pub delete: &'static str,
+    pub home: &'static str,
+    pub end: &'static str,
+    pub page_up: &'static str,
+    pub page_down: &'static str,
+    pub scroll_lock: &'static str,
     /// The decimal key of the number pad (`Num ,` on German keyboards).
     pub num_decimal: &'static str,
 }
 
 impl KeyCaps {
-    /// German key caps: `Strg`, `Umschalt`, `Leertaste`, `Druck`, `Einfg`.
+    /// German key caps: `Strg`, `Umschalt`, `Leertaste`, `Druck`, `Einfg`, `Bild ↑`.
     pub const GERMAN: Self = Self {
         ctrl: "Strg",
         shift: "Umschalt",
@@ -130,6 +156,12 @@ impl KeyCaps {
         print: "Druck",
         pause: "Pause",
         insert: "Einfg",
+        delete: "Entf",
+        home: "Pos1",
+        end: "Ende",
+        page_up: "Bild ↑",
+        page_down: "Bild ↓",
+        scroll_lock: "Rollen",
         num_decimal: "Num ,",
     };
 }
@@ -161,9 +193,12 @@ impl Hotkey {
     }
 }
 
-/// Whether `key` may be a hotkey without Ctrl, Alt or Win: Print and Pause type nothing.
+/// Whether `key` may be a hotkey without Ctrl, Alt or Win: Print, Pause, Scroll Lock and
+/// `F13`–`F24` type nothing and steer nothing in other programs. Navigation keys such as
+/// Page Up do, so they need a modifier like letters do.
 const fn stands_alone(key: u16) -> bool {
-    key == VK_SNAPSHOT || key == VK_PAUSE
+    matches!(key, VK_SNAPSHOT | VK_PAUSE | VK_SCROLL)
+        || (key >= VK_F13 && key < VK_F1 + MAX_FUNCTION_KEY)
 }
 
 /// The key-cap label of a virtual key that [`parse_key`] produces.
@@ -173,6 +208,12 @@ fn key_label(key: u16, caps: &KeyCaps) -> String {
         VK_SNAPSHOT => Some(caps.print),
         VK_PAUSE => Some(caps.pause),
         VK_INSERT => Some(caps.insert),
+        VK_DELETE => Some(caps.delete),
+        VK_HOME => Some(caps.home),
+        VK_END => Some(caps.end),
+        VK_PRIOR => Some(caps.page_up),
+        VK_NEXT => Some(caps.page_down),
+        VK_SCROLL => Some(caps.scroll_lock),
         VK_DECIMAL => Some(caps.num_decimal),
         _ => None,
     };
@@ -206,10 +247,11 @@ pub enum ParseHotkeyError {
     UnknownKey,
     /// Only modifiers were given.
     MissingKey,
-    /// A key other than Print or Pause was given without any modifier.
+    /// A key that may not stand alone (anything but Print, Pause, Scroll Lock and
+    /// `F13`–`F24`) was given without any modifier.
     MissingModifier,
-    /// Shift is the only modifier; Ctrl, Alt or Win is required (except for Print and
-    /// Pause).
+    /// Shift is the only modifier; Ctrl, Alt or Win is required (except for the keys
+    /// that may stand alone).
     ShiftOnly,
 }
 
@@ -273,11 +315,11 @@ impl FromStr for Hotkey {
 fn parse_key(token: &str) -> Option<u16> {
     let mut chars = token.chars();
     if let (Some(c), None) = (chars.next(), chars.next()) {
-        // Letters and digits share their virtual-key codes with uppercase ASCII.
-        return u8::try_from(c)
-            .ok()
-            .filter(u8::is_ascii_alphanumeric)
-            .map(|b| u16::from(b.to_ascii_uppercase()));
+        // Letters and digits share their virtual-key codes with uppercase ASCII. Any other
+        // single character may still be a named key (the arrows `←`, `↑`, `→`, `↓`).
+        if let Some(b) = u8::try_from(c).ok().filter(u8::is_ascii_alphanumeric) {
+            return Some(u16::from(b.to_ascii_uppercase()));
+        }
     }
     let named = NAMED_KEYS
         .iter()
@@ -485,6 +527,64 @@ mod tests {
     }
 
     #[test]
+    fn navigation_keys_need_a_modifier() {
+        let named = [
+            (["Alt+PageUp", "Alt+BildAuf", "Alt+Bild ↑", "alt+pgup", "Alt+Prior"], VK_PRIOR),
+            (["Alt+PageDown", "Alt+BildAb", "Alt+Bild ↓", "Alt+PgDn", "Alt+Next"], VK_NEXT),
+            (["Alt+Home", "Alt+Pos1", "Alt+pos 1", "ALT+HOME", "Alt+home"], VK_HOME),
+            (["Alt+End", "Alt+Ende", "alt+ende", "ALT+END", "Alt+end"], VK_END),
+            (["Alt+Delete", "Alt+Entf", "Alt+Del", "alt+entf", "ALT+DELETE"], VK_DELETE),
+            (["Alt+Left", "Alt+Links", "Alt+←", "alt+left", "ALT+LINKS"], VK_LEFT),
+            (["Alt+Up", "Alt+Oben", "Alt+↑", "alt+up", "ALT+OBEN"], VK_UP),
+            (["Alt+Right", "Alt+Rechts", "Alt+→", "alt+right", "ALT+RECHTS"], VK_RIGHT),
+            (["Alt+Down", "Alt+Unten", "Alt+↓", "alt+down", "ALT+UNTEN"], VK_DOWN),
+        ];
+        for (texts, code) in named {
+            for text in texts {
+                assert_eq!(text.parse(), Ok(key(MOD_ALT, code)), "{text:?}");
+            }
+        }
+        for text in ["PageUp", "Bild↑", "Pos1", "Entf", "Left"] {
+            assert_eq!(text.parse::<Hotkey>(), Err(ParseHotkeyError::MissingModifier), "{text:?}");
+        }
+        assert_eq!("Shift+PageUp".parse::<Hotkey>(), Err(ParseHotkeyError::ShiftOnly));
+        assert_eq!("Strg+Umschalt+Bild↓".parse(), Ok(key(MOD_CONTROL | MOD_SHIFT, VK_NEXT)));
+    }
+
+    #[test]
+    fn keys_that_type_nothing_may_stand_alone() {
+        for text in ["ScrollLock", "Rollen", "scroll", "ScrLk"] {
+            assert_eq!(text.parse(), Ok(key(0, VK_SCROLL)), "{text:?}");
+        }
+        assert_eq!("Shift+Rollen".parse(), Ok(key(MOD_SHIFT, VK_SCROLL)));
+        for n in 13..=24u16 {
+            assert_eq!(format!("F{n}").parse(), Ok(key(0, VK_F1 + n - 1)), "F{n}");
+            assert_eq!(format!("Shift+F{n}").parse(), Ok(key(MOD_SHIFT, VK_F1 + n - 1)), "F{n}");
+        }
+        assert_eq!("F12".parse::<Hotkey>(), Err(ParseHotkeyError::MissingModifier));
+        assert_eq!("Shift+F12".parse::<Hotkey>(), Err(ParseHotkeyError::ShiftOnly));
+    }
+
+    #[test]
+    fn keys_that_would_break_typing_stay_out() {
+        for text in ["Alt+Enter", "Alt+Tab", "Alt+Esc", "Alt+Backspace", "Alt+Bild", "Alt+Pfeil"] {
+            assert_eq!(text.parse::<Hotkey>(), Err(ParseHotkeyError::UnknownKey), "{text:?}");
+        }
+    }
+
+    #[test]
+    fn every_named_key_has_a_label_and_reads_back() {
+        for &(spellings, code, _) in NAMED_KEYS {
+            let hotkey = Hotkey { modifiers: Modifiers::ALT, key: code };
+            let label = hotkey.label();
+            assert!(!label.contains('#'), "{label}");
+            for spelling in spellings {
+                assert_eq!(format!("Alt+{spelling}").parse(), Ok(hotkey), "{spelling}");
+            }
+        }
+    }
+
+    #[test]
     fn labels_use_german_key_caps() {
         let label = |text: &str| text.parse::<Hotkey>().unwrap().label();
         assert_eq!(label("Shift+Alt+4"), "Umschalt+Alt+4");
@@ -501,6 +601,14 @@ mod tests {
         assert_eq!(label("Alt+NumDivide"), "Alt+Num /");
         assert_eq!(label("Strg+Shift+F12"), "Strg+Umschalt+F12");
         assert_eq!(label("Alt+F07"), "Alt+F7");
+        assert_eq!(label("Strg+PageUp"), "Strg+Bild ↑");
+        assert_eq!(label("Alt+bildab"), "Alt+Bild ↓");
+        assert_eq!(label("Alt+Home"), "Alt+Pos1");
+        assert_eq!(label("Alt+End"), "Alt+Ende");
+        assert_eq!(label("Alt+Del"), "Alt+Entf");
+        assert_eq!(label("scrolllock"), "Rollen");
+        assert_eq!(label("Strg+Alt+Left"), "Strg+Alt+←");
+        assert_eq!(label("F13"), "F13");
     }
 
     #[test]

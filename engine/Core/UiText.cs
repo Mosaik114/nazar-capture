@@ -285,6 +285,12 @@ static class UiText
         public static string Print => T("keys.print");
         public static string Insert => T("keys.insert");
         public static string Pause => T("keys.pause");
+        public static string Delete => T("keys.delete");
+        public static string Home => T("keys.home");
+        public static string End => T("keys.end");
+        public static string PageUp => T("keys.page_up");
+        public static string PageDown => T("keys.page_down");
+        public static string ScrollLock => T("keys.scroll_lock");
         public static string NumDecimal => T("keys.num_decimal");
     }
 

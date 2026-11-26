@@ -137,6 +137,12 @@ public sealed class LocalizationTests
         using (new LanguageScope("en")) Assert.Equal(new[] { "Ctrl", "Shift", "Alt", "Space" }, HotkeyText.Labels("Alt+Leertaste+Umschalt+Strg"));
         using (new LanguageScope("fr")) Assert.Equal(new[] { "Maj", "Impr. écran" }, HotkeyText.Labels("Shift+Print"));
         using (new LanguageScope("es")) Assert.Equal("Ctrl+Mayús+4", HotkeyText.Spoken("Shift+Ctrl+4"));
+        Assert.Equal("Strg+Bild ↑", HotkeyText.Spoken("Ctrl+PageUp"));
+        Assert.Equal("Alt+Pos1", HotkeyText.Spoken("Alt+Home"));
+        Assert.Equal("Rollen", HotkeyText.Spoken("ScrollLock"));
+        using (new LanguageScope("en")) Assert.Equal("Ctrl+PgUp", HotkeyText.Spoken("Strg+Bild↑"));
+        using (new LanguageScope("fr")) Assert.Equal("Ctrl+Suppr", HotkeyText.Spoken("Ctrl+Entf"));
+        Assert.Equal("Strg+Alt+←", HotkeyText.Spoken("Ctrl+Alt+Left"));
     }
 
     [Fact]

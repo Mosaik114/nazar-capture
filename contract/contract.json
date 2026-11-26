@@ -46,6 +46,55 @@
     }
   },
 
+  "hotkeys": {
+    "$comment": [
+      "Hotkey texts both parsers (src/hotkey.rs, engine/Core/HotkeyText.cs) must read alike. An accepted text has",
+      "MOD_* bits, the virtual-key code and the engine's canonical text; a rejected one the reason."
+    ],
+    "cases": [
+      ["Shift+Alt+4", 5, 52, "Shift+Alt+4"],
+      ["Alt + Umschalt + 5", 5, 53, "Shift+Alt+5"],
+      ["Strg+Shift+F12", 6, 123, "Ctrl+Shift+F12"],
+      ["Druck", 0, 44, "Print"],
+      ["Umschalt+Pause", 4, 19, "Shift+Pause"],
+      ["Rollen", 0, 145, "ScrollLock"],
+      ["Shift+ScrLk", 4, 145, "Shift+ScrollLock"],
+      ["F13", 0, 124, "F13"],
+      ["Shift+F24", 4, 135, "Shift+F24"],
+      ["Strg+Bild ↑", 2, 33, "Ctrl+PageUp"],
+      ["alt+pgup", 1, 33, "Alt+PageUp"],
+      ["Alt+BildAb", 1, 34, "Alt+PageDown"],
+      ["Win+Pos1", 8, 36, "Win+Home"],
+      ["Strg+Alt+Ende", 3, 35, "Ctrl+Alt+End"],
+      ["Strg+Alt+Entf", 3, 46, "Ctrl+Alt+Delete"],
+      ["Alt+Einfg", 1, 45, "Alt+Insert"],
+      ["Strg+Alt+←", 3, 37, "Ctrl+Alt+Left"],
+      ["Alt+Oben", 1, 38, "Alt+Up"],
+      ["Alt+Right", 1, 39, "Alt+Right"],
+      ["Alt+↓", 1, 40, "Alt+Down"],
+      ["Strg+Num5", 2, 101, "Ctrl+Num5"],
+      ["Alt+NumDecimal", 1, 110, "Alt+NumDecimal"],
+      ["Win+Shift+S", 12, 83, "Shift+Win+S"],
+      ["PageUp", "missing_modifier"],
+      ["Bild↑", "missing_modifier"],
+      ["F12", "missing_modifier"],
+      ["Num5", "missing_modifier"],
+      ["Shift+PageUp", "shift_only"],
+      ["Shift+Einfg", "shift_only"],
+      ["Alt+Enter", "unknown_key"],
+      ["Alt+Tab", "unknown_key"],
+      ["Alt+Backspace", "unknown_key"],
+      ["Alt+F25", "unknown_key"],
+      ["Alt+Ä", "unknown_key"],
+      ["Alt+4+5", "multiple_keys"],
+      ["Alt+PageUp+PageDown", "multiple_keys"],
+      ["Shift+Shift+4", "duplicate_modifier"],
+      ["Shift+Alt", "missing_key"],
+      ["Alt++4", "empty"],
+      ["", "empty"]
+    ]
+  },
+
   "host": {
     "executable": "NazarCapture.exe",
     "mutex": "Local\\NazarCapture.Host",

@@ -33,7 +33,7 @@ public sealed class NameTests
     {
         var assembly = typeof(UiText).Assembly;
         Assert.Equal("Nazar Capture", assembly.GetCustomAttribute<AssemblyProductAttribute>()!.Product);
-        Assert.Equal("1.1.7", Settings.AppInfo.Version);
+        Assert.Equal("1.1.8", Settings.AppInfo.Version);
     }
 
     [Fact]

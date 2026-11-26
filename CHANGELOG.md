@@ -6,6 +6,22 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.1.8] - 2026-11-27
+
+Page Up, Home, the arrows and the other navigation keys can be a shortcut now.
+
+### Added
+- **More keys for the shortcuts.** Page Up and Page Down (*Bild ↑*, *Bild ↓*), Home (*Pos1*), End (*Ende*),
+  Delete (*Entf*), the arrow keys and Scroll Lock (*Rollen*) can now be recorded, in both the settings window and
+  the host. Before, the settings window answered "Diese Taste geht nicht als Kurzbefehl" for them, because both
+  parsers only knew a fixed list without them. Navigation keys need Ctrl, Alt or Win, as letters do; Scroll Lock
+  and F13–F24 (what macro pads and programmable mice send) may stand alone like Print and Pause, because they type
+  and steer nothing. Enter, Tab, Backspace and Esc stay out on purpose, and so do the punctuation keys, whose
+  virtual keys change with the keyboard layout.
+- **One list of hotkey cases for both parsers.** `contract/contract.json` (`hotkeys.cases`) holds accepted texts
+  with their keys and canonical text, and rejected ones with the reason. The Rust and the C# tests both check it,
+  so the two parsers can no longer drift apart unnoticed.
+
 ## [1.1.7] - 2026-11-17
 
 Nazar Capture works the same however it was started, also through links Windows does not trust.
@@ -283,7 +299,9 @@ First public release as a standalone project.
   repository on 2026-11-12 (tag [`original-import`](https://github.com/Mosaik114/nazar-capture/tree/original-import)),
   so the whole 1.0.0 restructuring can be read as a before/after diff.
 
-[Unreleased]: https://github.com/Mosaik114/nazar-capture/compare/v1.1.6...HEAD
+[Unreleased]: https://github.com/Mosaik114/nazar-capture/compare/v1.1.8...HEAD
+[1.1.8]: https://github.com/Mosaik114/nazar-capture/releases/tag/v1.1.8
+[1.1.7]: https://github.com/Mosaik114/nazar-capture/releases/tag/v1.1.7
 [1.1.6]: https://github.com/Mosaik114/nazar-capture/releases/tag/v1.1.6
 [1.1.5]: https://github.com/Mosaik114/nazar-capture/releases/tag/v1.1.5
 [1.1.4]: https://github.com/Mosaik114/nazar-capture/releases/tag/v1.1.4

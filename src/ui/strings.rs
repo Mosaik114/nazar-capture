@@ -98,6 +98,12 @@ const ASCII_KEYS: KeyCaps = KeyCaps {
     print: "PrtSc",
     pause: "Pause",
     insert: "Ins",
+    delete: "Del",
+    home: "Home",
+    end: "End",
+    page_up: "PgUp",
+    page_down: "PgDn",
+    scroll_lock: "ScrLk",
     num_decimal: "Num .",
 };
 
@@ -268,6 +274,12 @@ pub static SPANISH: Texts = Texts {
         print: "ImprPant",
         pause: "Pausa",
         insert: "Insert",
+        delete: "Supr",
+        home: "Inicio",
+        end: "Fin",
+        page_up: "RePág",
+        page_down: "AvPág",
+        scroll_lock: "Bloq Despl",
         ..ASCII_KEYS
     },
 };
@@ -315,6 +327,12 @@ pub static FRENCH: Texts = Texts {
         space: "Espace",
         print: "Impr. écran",
         insert: "Inser",
+        delete: "Suppr",
+        home: "Origine",
+        end: "Fin",
+        page_up: "Pg préc",
+        page_down: "Pg suiv",
+        scroll_lock: "Arrêt défil",
         ..ASCII_KEYS
     },
 };

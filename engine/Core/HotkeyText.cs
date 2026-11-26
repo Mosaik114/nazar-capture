@@ -9,8 +9,12 @@ internal readonly record struct HotkeyChord(uint Modifiers, int Key)
 /// <summary>
 /// The text form of a hotkey (<c>Shift+Alt+4</c>, <c>Strg+Leertaste</c>, <c>Druck</c>), the same rules as the host's
 /// <c>src/hotkey.rs</c>: tokens separated by <c>+</c>, case and spaces ignored, German and English names. A hotkey
-/// needs Ctrl, Alt or Win; Shift alone is not enough (Shift+A would swallow every capital A). Print and Pause are the
-/// exception: they type nothing, so they may stand alone, as the screenshot key Windows users know.
+/// needs Ctrl, Alt or Win; Shift alone is not enough (Shift+A would swallow every capital A). Keys that type nothing
+/// and steer nothing are the exception and may stand alone: Print (the screenshot key Windows users know), Pause,
+/// Scroll Lock and F13–F24 (what macro pads and programmable mice send). Navigation keys such as Page Up need a
+/// modifier like letters do. Enter, Tab, Backspace and Esc stay out, and so do punctuation keys, whose virtual keys
+/// move between keyboard layouts. The shared cases in <c>contract/contract.json</c> (<c>hotkeys.cases</c>) keep both
+/// parsers alike.
 /// </summary>
 internal static class HotkeyText
 {
@@ -29,6 +33,8 @@ internal static class HotkeyText
 
     const int VkSpace = 0x20, VkF1 = 0x70, VkSnapshot = 0x2C, VkPause = 0x13, VkInsert = 0x2D, VkNumpad0 = 0x60;
     const int VkMultiply = 0x6A, VkAdd = 0x6B, VkSubtract = 0x6D, VkDecimal = 0x6E, VkDivide = 0x6F;
+    const int VkPrior = 0x21, VkNext = 0x22, VkEnd = 0x23, VkHome = 0x24, VkLeft = 0x25, VkUp = 0x26, VkRight = 0x27, VkDown = 0x28;
+    const int VkDelete = 0x2E, VkScroll = 0x91, VkF13 = 0x7C;
 
     /// <summary>Key names of the canonical text and the virtual keys they stand for (beyond letters, digits and F keys).</summary>
     static readonly (string Name, int Key)[] Named =
@@ -36,7 +42,17 @@ internal static class HotkeyText
         ("Space", VkSpace),
         ("Print", VkSnapshot),
         ("Pause", VkPause),
+        ("ScrollLock", VkScroll),
         ("Insert", VkInsert),
+        ("Delete", VkDelete),
+        ("Home", VkHome),
+        ("End", VkEnd),
+        ("PageUp", VkPrior),
+        ("PageDown", VkNext),
+        ("Left", VkLeft),
+        ("Up", VkUp),
+        ("Right", VkRight),
+        ("Down", VkDown),
         ("NumMultiply", VkMultiply),
         ("NumAdd", VkAdd),
         ("NumSubtract", VkSubtract),
@@ -55,9 +71,34 @@ internal static class HotkeyText
         ["Einfg"] = "Insert",
         ["Ins"] = "Insert",
         ["Untbr"] = "Pause",
+        ["Rollen"] = "ScrollLock",
+        ["Scroll"] = "ScrollLock",
+        ["ScrLk"] = "ScrollLock",
+        ["Entf"] = "Delete",
+        ["Del"] = "Delete",
+        ["Pos1"] = "Home",
+        ["Ende"] = "End",
+        ["BildAuf"] = "PageUp",
+        ["Bild↑"] = "PageUp",
+        ["PgUp"] = "PageUp",
+        ["Prior"] = "PageUp",
+        ["BildAb"] = "PageDown",
+        ["Bild↓"] = "PageDown",
+        ["PgDn"] = "PageDown",
+        ["PgDown"] = "PageDown",
+        ["Next"] = "PageDown",
+        ["Links"] = "Left",
+        ["←"] = "Left",
+        ["Oben"] = "Up",
+        ["↑"] = "Up",
+        ["Rechts"] = "Right",
+        ["→"] = "Right",
+        ["Unten"] = "Down",
+        ["↓"] = "Down",
     };
 
-    public static bool StandsAlone(int key) => key is VkSnapshot or VkPause;
+    /// <summary>Whether <paramref name="key"/> may be a hotkey without Ctrl, Alt or Win (it types and steers nothing).</summary>
+    public static bool StandsAlone(int key) => key is VkSnapshot or VkPause or VkScroll or (>= VkF13 and <= VkF1 + 23);
 
     /// <summary>Parses <paramref name="text"/>; on failure <paramref name="problem"/> says why.</summary>
     public static bool TryParse(string? text, out HotkeyChord chord, out Problem problem)
@@ -195,6 +236,16 @@ internal static class HotkeyText
         VkSnapshot => UiText.Keys.Print,
         VkPause => UiText.Keys.Pause,
         VkInsert => UiText.Keys.Insert,
+        VkDelete => UiText.Keys.Delete,
+        VkHome => UiText.Keys.Home,
+        VkEnd => UiText.Keys.End,
+        VkPrior => UiText.Keys.PageUp,
+        VkNext => UiText.Keys.PageDown,
+        VkScroll => UiText.Keys.ScrollLock,
+        VkLeft => "←",
+        VkUp => "↑",
+        VkRight => "→",
+        VkDown => "↓",
         VkMultiply => "Num *",
         VkAdd => "Num +",
         VkSubtract => "Num -",
